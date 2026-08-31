@@ -58,28 +58,53 @@ smartlook-ai/
 └── docs/                 # Documentación PUDS + UML (ver docs/README.md)
 ```
 
-## Cómo levantar el backend localmente
+## Cómo levantar el proyecto
 
+### Opción recomendada: Docker
+
+Requiere tener [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y corriendo.
+
+1. Pedile a tu compañero de equipo el archivo `backend/.env` (tiene credenciales de la base de datos, no está en el repo — ver `backend/.env.example` para el formato). Colocalo en `backend/.env`.
+2. Desde la raíz del proyecto:
+   ```bash
+   docker compose up -d
+   ```
+3. Listo:
+   - Backend + Swagger: `http://localhost:8000/docs`
+   - Frontend web: `http://localhost:4200`
+
+Para parar todo: `docker compose down`. Para ver logs: `docker compose logs -f`. Si cambiás dependencias (`requirements.txt` o `package.json`), reconstruí con `docker compose up -d --build`.
+
+El código fuente está montado como volumen, así que los cambios que hagas en `backend/app/` o `frontend-web/src/` se recargan solos (hot-reload), sin necesidad de reconstruir la imagen.
+
+### Opción manual (sin Docker)
+
+**Backend:**
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate  # En Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
+cp .env.example .env       # completar con las credenciales reales
 uvicorn app.main:app --reload
 ```
-
 Swagger interactivo en `http://localhost:8000/docs`.
 
-## Frontend web (Angular)
-
+**Frontend:**
 ```bash
 cd frontend-web
-npm install -g @angular/cli
-ng new . --directory=. --routing --style=scss
+npm install
+npm start
 ```
+Queda en `http://localhost:4200`.
 
-Estructura sugerida por módulos: `catalogo/`, `disponibilidad/`, `reservas/`, `carrito/`, `checkout/`, `vestidor-ar/`, `perfil/`, `admin/` — reflejando los mismos dominios del backend.
+### Nota sobre la conexión a la base de datos (Supabase)
+
+El `DATABASE_URL` de `backend/.env` **debe usar el connection string del "Session pooler"**, no el de "Conexión directa". El host de conexión directa (`db.<proyecto>.supabase.co`) es IPv6-only, y muchas redes/ISP en Bolivia no tienen IPv6, lo que causa el error `could not translate host name ... to address`.
+
+Para conseguir el string correcto: Supabase Dashboard → tu proyecto → botón **"Connect"** → pestaña **"Session pooler"**. El host va a verse como `aws-0-<región>.pooler.supabase.com` y el usuario como `postgres.<project-ref>`.
+
+Si la contraseña tiene caracteres especiales (`%`, `@`, etc.), hay que codificarlos como percent-encoding en la URL (por ejemplo `%` → `%25`).
 
 ## App móvil (Flutter)
 
