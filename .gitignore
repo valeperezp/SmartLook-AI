@@ -1,0 +1,29 @@
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+*.db
+
+# Angular / Node
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+
+# Flutter / Dart
+mobile-app/.dart_tool/
+mobile-app/.flutter-plugins
+mobile-app/.flutter-plugins-dependencies
+mobile-app/build/
+mobile-app/.packages
+*.iml
+
+# General
+.DS_Store
+.idea/
+.vscode/
+*.log
