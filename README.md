@@ -2,10 +2,6 @@
 
 Plataforma inteligente de comercio electrónico para una cadena de tiendas de ropa, con vestidores virtuales mediante realidad aumentada y funcionalidades de inteligencia artificial.
 
-**Curso:** Sistemas II — Examen 1 (S2-2026)
-**Docente:** MSc. Ing. Angélica Garzón Cuéllar
-**Equipo:** 2 integrantes
-**Duración:** 4 semanas (25/08/2026 – 22/09/2026)
 
 ## Stack tecnológico
 
