@@ -13,6 +13,7 @@ from app.modules.reservas.router import router as reservas_router
 from app.modules.auth.router import router as auth_router
 from app.modules.usuarios.router import router as usuarios_router
 from app.modules.sucursales.router import router as sucursales_router
+from app.modules.proveedores.router import router as proveedores_router
 from app.modules.inventario.router import router as inventario_router
 from app.modules.ventas.router import router as ventas_router
 from app.modules.pagos.router import router as pagos_router
@@ -23,6 +24,7 @@ from contextlib import asynccontextmanager
 from app.shared.db.session import engine, Base
 import app.modules.usuarios.models
 import app.modules.sucursales.models
+import app.modules.proveedores.models
 import app.modules.catalogo.models
 import app.modules.reservas.models
 
@@ -53,6 +55,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(usuarios_router)
 app.include_router(sucursales_router)
+app.include_router(proveedores_router)
 app.include_router(catalogo_router)
 app.include_router(inventario_router)
 app.include_router(reservas_router)

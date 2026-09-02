@@ -73,6 +73,8 @@ Para parar todo: `docker compose down`. Para ver logs: `docker compose logs -f`.
 
 El código fuente está montado como volumen, así que los cambios que hagas en `backend/app/` o `frontend-web/src/` se recargan solos (hot-reload), sin necesidad de reconstruir la imagen.
 
+**Nota (Windows + Docker Desktop):** el hot-reload del backend (uvicorn) es confiable. El del frontend a veces no detecta cambios en archivos "core" del bundle (`app.config.ts`, `app.ts`, `main.ts`, `app.routes.ts`) — es un problema conocido de Vite con bind mounts en Windows. Si guardás uno de esos archivos y no ves el cambio reflejado, corré `docker compose restart frontend`. Los componentes de página sueltos (features/*) sí recargan solos sin problema.
+
 ### Opción manual (sin Docker)
 
 **Backend:**

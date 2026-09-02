@@ -1,4 +1,13 @@
-"""Esquemas Pydantic del módulo auth."""
+"""Esquemas Pydantic del módulo Auth."""
 from pydantic import BaseModel
 
-# TODO: definir schemas de entrada/salida para este módulo
+
+class RegistroRequest(BaseModel):
+    nombre: str
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

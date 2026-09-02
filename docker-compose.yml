@@ -13,6 +13,9 @@ services:
     build: ./frontend-web
     ports:
       - "4200:4200"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=500
     volumes:
       - ./frontend-web/src:/app/src
       - ./frontend-web/public:/app/public

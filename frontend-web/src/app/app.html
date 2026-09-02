@@ -1,277 +1,37 @@
-<div class="app-container">
-  <!-- Toast Notification -->
-  @if (toastMessage()) {
-    <div class="toast-notification">
-      <span>✨ {{ toastMessage() }}</span>
-    </div>
-  }
-
-  <!-- Header / Navbar -->
+<div class="app-shell">
+  @if (!hideNavbar()) {
   <header class="navbar">
-    <div class="nav-brand">
-      <div class="brand-logo">
-        <span class="logo-icon">✨</span>
-      </div>
-      <div class="brand-text">
-        <h2>SmartLook<span class="gradient-text">.AI</span></h2>
-        <span class="brand-badge">Sistemas II</span>
-      </div>
-    </div>
-
-    <nav class="nav-links">
-      <a href="#catalogo" class="nav-link active">Catálogo</a>
-      <a href="#vestidor" class="nav-link">Vestidor AR</a>
-      <a href="#reservas" class="nav-link">Reservas</a>
-      <a href="#modulos" class="nav-link">Módulos</a>
-    </nav>
-
-    <div class="nav-actions">
-      <div class="backend-badge" [ngClass]="backendStatus()">
-        <span class="status-dot"></span>
-        @if (backendStatus() === 'connected') {
-          <span>Backend Supabase Conectado</span>
-        } @else if (backendStatus() === 'checking') {
-          <span>Conectando API...</span>
-        } @else {
-          <span>API Desconectada</span>
-        }
-      </div>
-      <button class="btn-primary" (click)="openCreateModal()">
-        <span>+ Nueva Prenda</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-content">
-      <div class="hero-chip">
-        <span class="pulse-icon"></span>
-        <span>E-Commerce de Moda Inteligente</span>
-      </div>
-      <h1 class="hero-title">
-        Experiencia de moda del futuro con <span class="gradient-text">Realidad Aumentada e IA</span>
-      </h1>
-      <p class="hero-subtitle">
-        Gestiona catálogo en tiempo real con Supabase PostgreSQL, prueba virtual de prendas mediante visión artificial y reservas inteligentes en sucursales.
-      </p>
-
-      <div class="hero-stats">
-        <div class="stat-card">
-          <span class="stat-value">{{ productos().length }}</span>
-          <span class="stat-label">Prendas en Catálogo</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value">100%</span>
-          <span class="stat-label">FastAPI + Supabase</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value">AR / IA</span>
-          <span class="stat-label">Vestidor Virtual</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Catalog Section -->
-  <section id="catalogo" class="catalog-section">
-    <div class="section-header">
-      <div>
-        <h2 class="section-title">Catálogo de Prendas</h2>
-        <p class="section-subtitle">Explora los modelos disponibles en la base de datos centralizada</p>
-      </div>
-
-      <div class="search-bar">
-        <span class="search-icon">🔍</span>
-        <input
-          type="text"
-          placeholder="Buscar por nombre, color, descripción..."
-          [ngModel]="searchQuery()"
-          (ngModelChange)="searchQuery.set($event)"
-        />
-      </div>
-    </div>
-
-    <!-- Category Filter Chips -->
-    <div class="filter-chips">
-      @for (cat of categorias; track cat) {
+    <div class="nav-left">
+      @if (showSidebarToggle()) {
         <button
-          class="chip-btn"
-          [class.active]="selectedCategory() === cat"
-          (click)="setCategory(cat)"
+          class="sidebar-menu-btn"
+          (click)="adminUi.toggleSidebar()"
+          [title]="adminUi.sidebarOpen() ? 'Ocultar módulos' : 'Mostrar módulos'"
         >
-          {{ cat | titlecase }}
+          <app-icon name="menu" [size]="20" />
         </button>
       }
-    </div>
-
-    <!-- Products Grid -->
-    @if (isLoading()) {
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando prendas desde FastAPI & Supabase...</p>
-      </div>
-    } @else if (filteredProductos().length === 0) {
-      <div class="empty-state">
-        <span class="empty-icon">👗</span>
-        <h3>No se encontraron prendas</h3>
-        <p>Intenta con otra búsqueda o agrega tu primera prenda al catálogo.</p>
-        <button class="btn-secondary" (click)="openCreateModal()">Agregar Prenda</button>
-      </div>
-    } @else {
-      <div class="products-grid">
-        @for (prod of filteredProductos(); track prod.id) {
-          <div class="product-card">
-            <div class="product-badge">{{ prod.categoria || 'Moda' }}</div>
-            
-            <div class="product-icon-container">
-              <div class="product-avatar">
-                @if (prod.categoria === 'Camisetas') { 👕 }
-                @else if (prod.categoria === 'Pantalones') { 👖 }
-                @else if (prod.categoria === 'Vestidos') { 👗 }
-                @else if (prod.categoria === 'Chaquetas') { 🧥 }
-                @else if (prod.categoria === 'Calzado') { 👟 }
-                @else { 👔 }
-              </div>
-            </div>
-
-            <div class="product-body">
-              <div class="product-meta">
-                <span class="meta-tag color-tag">🎨 {{ prod.color || 'Estándar' }}</span>
-                <span class="meta-tag size-tag">📏 {{ prod.talla || 'Única' }}</span>
-              </div>
-
-              <h3 class="product-name">{{ prod.nombre }}</h3>
-              <p class="product-desc">{{ prod.descripcion || 'Sin descripción adicional' }}</p>
-
-              <div class="product-footer">
-                <div class="price-container">
-                  <span class="price-label">Precio</span>
-                  <span class="price-amount">${{ prod.precio | number:'1.2-2' }}</span>
-                </div>
-
-                <div class="card-actions">
-                  <button class="btn-ar" title="Probar con Vestidor Virtual IA">
-                    <span>👓 AR</span>
-                  </button>
-                  <button class="btn-reserve" title="Reservar en tienda">
-                    <span>Reservar</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        }
-      </div>
-    }
-  </section>
-
-  <!-- Modular Architecture Highlights -->
-  <section id="modulos" class="modules-section">
-    <div class="section-header">
-      <h2 class="section-title">Ecosistema Modular SmartLook-AI</h2>
-      <p class="section-subtitle">Arquitectura modular por dominios de negocio conectada a Supabase</p>
-    </div>
-
-    <div class="modules-grid">
-      <div class="module-card">
-        <div class="module-icon">👗</div>
-        <h3>Módulo Catálogo</h3>
-        <p>Control integral de prendas, tallas, colores, temporadas y proveedores en tiempo real.</p>
-        <span class="module-status active">Implementado</span>
-      </div>
-
-      <div class="module-card">
-        <div class="module-icon">📅</div>
-        <h3>Módulo Reservas</h3>
-        <p>Apartado de prendas para prueba presencial en sucursales físicas sin filas.</p>
-        <span class="module-status active">Implementado</span>
-      </div>
-
-      <div class="module-card">
-        <div class="module-icon">🤖</div>
-        <h3>Módulo IA & AR</h3>
-        <p>Recomendador inteligente de outfits y vestidor virtual mediante visión artificial.</p>
-        <span class="module-status ready">En desarrollo</span>
-      </div>
-
-      <div class="module-card">
-        <div class="module-icon">💳</div>
-        <h3>Módulo Pagos & Ventas</h3>
-        <p>Pasarela de pagos segura y facturación integrada para pedidos online.</p>
-        <span class="module-status ready">En desarrollo</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- Modal for Creating New Product -->
-  @if (isModalOpen()) {
-    <div class="modal-overlay" (click)="closeCreateModal()">
-      <div class="modal-container" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h3>+ Nueva Prenda en Catálogo</h3>
-          <button class="modal-close" (click)="closeCreateModal()">✕</button>
+      <a routerLink="/" class="nav-brand">
+        <div class="brand-logo">
+          <app-icon name="sparkles" [size]="20" />
         </div>
-
-        <form (ngSubmit)="guardarProducto()" class="modal-form">
-          <div class="form-group">
-            <label>Nombre de la prenda *</label>
-            <input type="text" [(ngModel)]="newProduct.nombre" name="nombre" placeholder="Ej. Chaqueta Denim Vintage" required />
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Categoría</label>
-              <select [(ngModel)]="newProduct.categoria" name="categoria">
-                <option value="Camisetas">Camisetas</option>
-                <option value="Pantalones">Pantalones</option>
-                <option value="Vestidos">Vestidos</option>
-                <option value="Chaquetas">Chaquetas</option>
-                <option value="Calzado">Calzado</option>
-                <option value="Accesorios">Accesorios</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Precio ($) *</label>
-              <input type="number" [(ngModel)]="newProduct.precio" name="precio" step="0.01" min="0" required />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label>Talla</label>
-              <input type="text" [(ngModel)]="newProduct.talla" name="talla" placeholder="Ej. S, M, L, XL" />
-            </div>
-
-            <div class="form-group">
-              <label>Color</label>
-              <input type="text" [(ngModel)]="newProduct.color" name="color" placeholder="Ej. Azul Marino" />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Temporada</label>
-            <input type="text" [(ngModel)]="newProduct.temporada" name="temporada" placeholder="Ej. Primavera - Verano 2026" />
-          </div>
-
-          <div class="form-group">
-            <label>Descripción</label>
-            <textarea [(ngModel)]="newProduct.descripcion" name="descripcion" rows="3" placeholder="Detalles de la tela, corte y estilo"></textarea>
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-secondary" (click)="closeCreateModal()">Cancelar</button>
-            <button type="submit" class="btn-primary" [disabled]="isSaving()">
-              @if (isSaving()) {
-                <span>Guardando en Supabase...</span>
-              } @else {
-                <span>Guardar Prenda</span>
-              }
-            </button>
-          </div>
-        </form>
-      </div>
+        <div class="brand-text">
+          <h2>SmartLook<span class="gradient-text">.AI</span></h2>
+        </div>
+      </a>
     </div>
+
+    <div class="nav-actions">
+      @if (auth.isLoggedIn()) {
+        <span class="user-chip"><app-icon name="user" [size]="15" /> {{ auth.currentUser()?.nombre }}</span>
+        <button class="btn-secondary" (click)="logout()">Cerrar sesión</button>
+      } @else {
+        <a routerLink="/login" class="btn-secondary">Iniciar sesión</a>
+        <a routerLink="/registro" class="btn-primary">Registrarme</a>
+      }
+    </div>
+  </header>
   }
+
+  <router-outlet></router-outlet>
 </div>
