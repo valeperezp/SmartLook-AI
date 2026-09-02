@@ -1,0 +1,239 @@
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+}
+
+/* ---------- Panel visual (izquierda) ---------- */
+.auth-showcase {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 3rem;
+  background:
+    radial-gradient(at 20% 20%, rgba(99, 102, 241, 0.35) 0px, transparent 55%),
+    radial-gradient(at 80% 75%, rgba(236, 72, 153, 0.3) 0px, transparent 55%),
+    var(--bg-dark);
+}
+
+.showcase-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.55;
+  animation: float 10s ease-in-out infinite;
+}
+
+.blob-1 {
+  width: 320px;
+  height: 320px;
+  background: var(--primary);
+  top: -80px;
+  left: -60px;
+}
+
+.blob-2 {
+  width: 280px;
+  height: 280px;
+  background: var(--accent);
+  bottom: -60px;
+  right: -40px;
+  animation-delay: -4s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(20px, -25px) scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .showcase-blob {
+    animation: none;
+  }
+}
+
+.showcase-content {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+}
+
+.showcase-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 3rem;
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: var(--accent-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: var(--accent-glow);
+  }
+
+  b {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.showcase-content h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 1.25rem;
+  text-wrap: balance;
+}
+
+.showcase-content > p {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+  max-width: 40ch;
+}
+
+.showcase-features {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .feature-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ---------- Panel del formulario (derecha) ---------- */
+.auth-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+  }
+
+  .auth-subtitle {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.75rem;
+  }
+}
+
+.auth-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+
+  .btn-primary {
+    margin-top: 0.4rem;
+    padding: 0.8rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}
+
+.auth-footer {
+  margin-top: 1.75rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+
+  a {
+    color: var(--primary-light);
+    font-weight: 600;
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .auth-showcase {
+    padding: 2.5rem 2rem;
+  }
+
+  .showcase-brand {
+    margin-bottom: 1.5rem;
+  }
+
+  .showcase-content h2 {
+    font-size: 1.8rem;
+  }
+
+  .showcase-content > p {
+    margin-bottom: 1.5rem;
+  }
+
+  .showcase-features {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+
+    li {
+      font-size: 0.8rem;
+    }
+
+    .feature-icon {
+      width: 30px;
+      height: 30px;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+@media (max-width: 560px) {
+  .showcase-features li span:not(.feature-icon) {
+    display: none;
+  }
+}

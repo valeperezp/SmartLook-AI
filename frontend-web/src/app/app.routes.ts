@@ -1,3 +1,92 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from './core/guards/admin.guard';
+import { guestGuard } from './core/guards/guest.guard';
+import { homeGuard } from './core/guards/home.guard';
 
-export const routes: Routes = [];
+export const routes: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./features/home/home').then((m) => m.Home),
+    canActivate: [homeGuard],
+  },
+  {
+    path: 'login',
+    loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
+    canActivate: [guestGuard],
+  },
+  {
+    path: 'registro',
+    loadComponent: () => import('./features/auth/registro/registro').then((m) => m.Registro),
+    canActivate: [guestGuard],
+  },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./features/admin/admin-layout/admin-layout').then((m) => m.AdminLayout),
+    canActivate: [adminGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/admin/admin-dashboard/admin-dashboard').then(
+            (m) => m.AdminDashboard
+          ),
+      },
+      {
+        path: 'usuarios',
+        loadComponent: () =>
+          import('./features/admin/usuarios/usuarios-admin').then((m) => m.UsuariosAdmin),
+      },
+      {
+        path: 'sucursales',
+        loadComponent: () =>
+          import('./features/admin/sucursales/sucursales-admin').then((m) => m.SucursalesAdmin),
+      },
+      {
+        path: 'proveedores',
+        loadComponent: () =>
+          import('./features/admin/proveedores/proveedores-admin').then(
+            (m) => m.ProveedoresAdmin
+          ),
+      },
+      {
+        path: 'catalogo/productos',
+        loadComponent: () =>
+          import('./features/admin/catalogo/productos/productos-admin').then(
+            (m) => m.ProductosAdmin
+          ),
+      },
+      {
+        path: 'catalogo/categorias',
+        loadComponent: () =>
+          import('./features/admin/catalogo/categorias/categorias-admin').then(
+            (m) => m.CategoriasAdmin
+          ),
+      },
+      {
+        path: 'catalogo/tallas',
+        loadComponent: () =>
+          import('./features/admin/catalogo/tallas/tallas-admin').then((m) => m.TallasAdmin),
+      },
+      {
+        path: 'catalogo/colores',
+        loadComponent: () =>
+          import('./features/admin/catalogo/colores/colores-admin').then((m) => m.ColoresAdmin),
+      },
+      {
+        path: 'catalogo/temporadas',
+        loadComponent: () =>
+          import('./features/admin/catalogo/temporadas/temporadas-admin').then(
+            (m) => m.TemporadasAdmin
+          ),
+      },
+      {
+        path: 'catalogo/colecciones',
+        loadComponent: () =>
+          import('./features/admin/catalogo/colecciones/colecciones-admin').then(
+            (m) => m.ColeccionesAdmin
+          ),
+      },
+    ],
+  },
+];

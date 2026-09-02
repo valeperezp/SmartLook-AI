@@ -1,0 +1,116 @@
+<div class="page-container">
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="hero-chip">
+        <span class="pulse-icon"></span>
+        <span>E-Commerce de Moda Inteligente</span>
+      </div>
+      <h1 class="hero-title">
+        Experiencia de moda del futuro con <span class="gradient-text">Realidad Aumentada e IA</span>
+      </h1>
+      <p class="hero-subtitle">
+        Explorá el catálogo en tiempo real conectado a PostgreSQL/Supabase, con prueba virtual de prendas
+        y reservas inteligentes en sucursales.
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <span class="stat-value">{{ productos().length }}</span>
+          <span class="stat-label">Prendas en Catálogo</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" [ngClass]="backendStatus()">
+            @if (backendStatus() === 'connected') { En línea }
+            @else if (backendStatus() === 'checking') { Conectando }
+            @else { Sin conexión }
+          </span>
+          <span class="stat-label">Backend FastAPI</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value">AR / IA</span>
+          <span class="stat-label">Vestidor Virtual</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Catalog Section -->
+  <section class="catalog-section">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Catálogo de Prendas</h2>
+        <p class="section-subtitle">Explora los modelos disponibles en la base de datos centralizada</p>
+      </div>
+
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          placeholder="Buscar por nombre o descripción..."
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+        />
+      </div>
+    </div>
+
+    <!-- Category Filter Chips -->
+    <div class="filter-chips">
+      <button class="chip-btn" [class.active]="selectedCategoryId() === 'todos'" (click)="setCategory('todos')">
+        Todos
+      </button>
+      @for (cat of categorias(); track cat.id) {
+        <button class="chip-btn" [class.active]="selectedCategoryId() === cat.id" (click)="setCategory(cat.id)">
+          {{ cat.nombre }}
+        </button>
+      }
+    </div>
+
+    <!-- Products Grid -->
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando prendas...</p>
+      </div>
+    } @else if (filteredProductos().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">👗</span>
+        <h3>No se encontraron prendas</h3>
+        <p>Todavía no hay productos cargados en el catálogo, o no coinciden con tu búsqueda.</p>
+      </div>
+    } @else {
+      <div class="products-grid">
+        @for (prod of filteredProductos(); track prod.id) {
+          <div class="product-card">
+            <div class="product-badge">{{ prod.categoria.nombre }}</div>
+
+            <div class="product-icon-container">
+              <div class="product-avatar">👕</div>
+            </div>
+
+            <div class="product-body">
+              @if (prod.temporada) {
+                <div class="product-meta">
+                  <span class="meta-tag">🗓️ {{ prod.temporada.nombre }}</span>
+                  @if (prod.coleccion) {
+                    <span class="meta-tag">🏷️ {{ prod.coleccion.nombre }}</span>
+                  }
+                </div>
+              }
+
+              <h3 class="product-name">{{ prod.nombre }}</h3>
+              <p class="product-desc">{{ prod.descripcion || 'Sin descripción adicional' }}</p>
+
+              <div class="product-footer">
+                <div class="price-container">
+                  <span class="price-label">Precio</span>
+                  <span class="price-amount">${{ prod.precio | number:'1.2-2' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>

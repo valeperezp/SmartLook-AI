@@ -1,0 +1,139 @@
+.dash-header {
+  margin-bottom: 1.75rem;
+
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+  }
+
+  p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    margin-top: 0.3rem;
+  }
+}
+
+.dash-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--bg-card);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.5rem;
+  min-width: 220px;
+
+  .stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary-light);
+
+    &.status-ok {
+      background: rgba(16, 185, 129, 0.14);
+      color: var(--success);
+    }
+
+    &.status-error {
+      background: rgba(239, 68, 68, 0.14);
+      color: var(--danger);
+    }
+  }
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  strong {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+}
+
+.dash-group {
+  margin-bottom: 2.5rem;
+
+  h2 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary-light);
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+}
+
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.module-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.25rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--border-glow);
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .module-icon {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    background: rgba(99, 102, 241, 0.12);
+    color: var(--primary-light);
+  }
+
+  .module-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+
+    strong {
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    span {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}

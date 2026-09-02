@@ -13,14 +13,3 @@ class Usuario(Base):
     rol = Column(String(50), default="cliente")
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
-
-
-class Proveedor(Base):
-    __tablename__ = "proveedores"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(150), nullable=False)
-    contacto = Column(String(100), nullable=True)
-    telefono = Column(String(50), nullable=True)
-    email = Column(String(150), nullable=True)
-
