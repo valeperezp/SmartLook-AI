@@ -1,12 +1,7 @@
 :root {
+  /* ---------- Tokens compartidos (iguales en claro y oscuro) ---------- */
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  
-  --bg-dark: #090d16;
-  --bg-card: rgba(18, 24, 38, 0.75);
-  --bg-card-hover: rgba(28, 36, 56, 0.85);
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(99, 102, 241, 0.35);
 
   --primary: #6366f1;
   --primary-light: #818cf8;
@@ -14,10 +9,6 @@
   --accent: #ec4899;
   --accent-gradient: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
   --accent-glow: 0 0 25px rgba(99, 102, 241, 0.4);
-
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
 
   --success: #10b981;
   --warning: #f59e0b;
@@ -28,15 +19,77 @@
   --radius-lg: 20px;
   --radius-xl: 28px;
 
+  --backdrop-blur: blur(16px);
+
+  /* ---------- Paleta clara (base) ---------- */
+  --bg-dark: #f1f2f8;
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-card-hover: rgba(255, 255, 255, 0.92);
+  --bg-vignette: rgba(255, 255, 255, 0.6);
+  --surface-solid: #ffffff;
+  --border-color: rgba(15, 23, 42, 0.09);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --border-glow: rgba(99, 102, 241, 0.25);
+  --overlay-1: rgba(15, 23, 42, 0.04);
+  --overlay-2: rgba(15, 23, 42, 0.06);
+  --overlay-3: rgba(15, 23, 42, 0.1);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --shadow-subtle: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+/* Sigue al sistema operativo cuando el usuario elige "Sistema" (o no eligió nada aún) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg-dark: #090d16;
+    --bg-card: rgba(18, 24, 38, 0.75);
+    --bg-card-hover: rgba(28, 36, 56, 0.85);
+    --bg-vignette: rgba(15, 23, 42, 0.8);
+    --surface-solid: #111726;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.2);
+    --border-glow: rgba(99, 102, 241, 0.35);
+    --overlay-1: rgba(255, 255, 255, 0.05);
+    --overlay-2: rgba(255, 255, 255, 0.08);
+    --overlay-3: rgba(255, 255, 255, 0.14);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --shadow-subtle: 0 10px 30px rgba(0, 0, 0, 0.3);
+    --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* Elección explícita "Oscuro" desde Configuración: gana siempre, sin importar el sistema */
+:root[data-theme='dark'] {
+  --bg-dark: #090d16;
+  --bg-card: rgba(18, 24, 38, 0.75);
+  --bg-card-hover: rgba(28, 36, 56, 0.85);
+  --bg-vignette: rgba(15, 23, 42, 0.8);
+  --surface-solid: #111726;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-glow: rgba(99, 102, 241, 0.35);
+  --overlay-1: rgba(255, 255, 255, 0.05);
+  --overlay-2: rgba(255, 255, 255, 0.08);
+  --overlay-3: rgba(255, 255, 255, 0.14);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
   --shadow-subtle: 0 10px 30px rgba(0, 0, 0, 0.3);
   --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.45);
-  --backdrop-blur: blur(16px);
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  font-size: 16px;
 }
 
 body {
@@ -46,11 +99,12 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(15, 23, 42, 0.8) 0px, transparent 100%);
+    radial-gradient(at 50% 50%, var(--bg-vignette) 0px, transparent 100%);
   background-attachment: fixed;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -109,7 +163,7 @@ a {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--overlay-2);
   color: var(--text-primary);
   font-weight: 600;
   font-size: 0.9rem;
@@ -121,7 +175,7 @@ a {
   justify-content: center;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.14);
+    background: var(--overlay-3);
   }
 }
 
@@ -162,7 +216,7 @@ a {
   }
 
   input, select, textarea {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--overlay-1);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding: 0.65rem 0.85rem;
@@ -176,8 +230,8 @@ a {
   }
 
   select option {
-    background: #111726;
-    color: #fff;
+    background: var(--surface-solid);
+    color: var(--text-primary);
   }
 }
 
@@ -248,7 +302,7 @@ a {
   }
 
   &.badge-muted {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--overlay-1);
     color: var(--text-muted);
     border: 1px solid var(--border-color);
   }
@@ -306,4 +360,3 @@ a {
     font-size: 0.95rem;
   }
 }
-

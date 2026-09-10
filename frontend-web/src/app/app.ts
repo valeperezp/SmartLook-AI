@@ -5,6 +5,7 @@ import { NavigationEnd, Router, RouterOutlet, RouterLink } from '@angular/router
 import { filter, map } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { AdminUiService } from './core/services/admin-ui.service';
+import { PreferenciasService } from './core/services/preferencias.service';
 import { IconComponent } from './core/components/icon/icon';
 
 @Component({
@@ -17,6 +18,7 @@ import { IconComponent } from './core/components/icon/icon';
 export class App {
   auth = inject(AuthService);
   adminUi = inject(AdminUiService);
+  preferencias = inject(PreferenciasService);
   private router = inject(Router);
 
   private currentUrl = toSignal(

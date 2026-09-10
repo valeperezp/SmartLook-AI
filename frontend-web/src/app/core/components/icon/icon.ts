@@ -20,7 +20,11 @@ export type IconName =
   | 'sparkles'
   | 'focus'
   | 'menu'
-  | 'chevron-left';
+  | 'chevron-left'
+  | 'sun'
+  | 'moon'
+  | 'monitor'
+  | 'type';
 
 @Component({
   selector: 'app-icon',
@@ -140,6 +144,23 @@ export type IconName =
         }
         @case ('chevron-left') {
           <path d="M15 5 8 12l7 7" />
+        }
+        @case ('sun') {
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"
+          />
+        }
+        @case ('moon') {
+          <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" />
+        }
+        @case ('monitor') {
+          <rect x="3" y="4" width="18" height="12" rx="1.5" />
+          <path d="M8 20h8M12 16v4" />
+        }
+        @case ('type') {
+          <path d="M6 20 10.5 5h3L18 20" />
+          <path d="M7.7 14.5h8.6" />
         }
       }
     </svg>
