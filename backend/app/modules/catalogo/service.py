@@ -236,3 +236,117 @@ def eliminar_producto(db: Session, producto_id: int) -> models.Producto | None:
     db.commit()
     db.refresh(producto)
     return producto
+
+
+def _calcular_estado_disponibilidad(total: int, stock_minimo: int = 5) -> str:
+    """Calcula el estado agregado según cantidad total."""
+    if total == 0:
+        return "agotado"
+    if total <= stock_minimo:
+        return "bajo"
+    return "disponible"
+
+
+def obtener_disponibilidad_producto(db: Session, producto_id: int) -> dict | None:
+    """
+    Devuelve la disponibilidad de un producto agrupada por sucursal,
+    con desglose por talla y color.
+    """
+    from app.modules.inventario.models import Inventario
+    from app.modules.sucursales.models import Sucursal
+
+    producto = obtener_producto(db, producto_id)
+    if not producto:
+        return None
+
+    # Obtener todas las sucursales activas
+    sucursales = db.query(Sucursal).filter(Sucursal.activa.is_(True)).order_by(Sucursal.id).all()
+
+    disponibilidad = []
+    total_global = 0
+    sucursales_con_stock = 0
+
+    for suc in sucursales:
+        # Obtener items de inventario de este producto en esta sucursal
+        items = (
+            db.query(Inventario)
+            .filter(
+                Inventario.producto_id == producto_id,
+                Inventario.sucursal_id == suc.id,
+                Inventario.activo.is_(True),
+            )
+            .all()
+        )
+
+        total_sucursal = sum(item.cantidad_disponible for item in items)
+        total_global += total_sucursal
+        if total_sucursal > 0:
+            sucursales_con_stock += 1
+
+        disponibilidad.append({
+            "sucursal_id": suc.id,
+            "nombre_sucursal": suc.nombre,
+            "ciudad": getattr(suc, "ciudad", None),
+            "total_disponible": total_sucursal,
+            "estado": _calcular_estado_disponibilidad(total_sucursal),
+            "items": [
+                {
+                    "talla_id": item.talla_id,
+                    "nombre_talla": item.nombre_talla,
+                    "color_id": item.color_id,
+                    "nombre_color": item.nombre_color,
+                    "cantidad_disponible": item.cantidad_disponible,
+                }
+                for item in items
+            ],
+        })
+
+    return {
+        "producto_id": producto.id,
+        "nombre_producto": producto.nombre,
+        "precio": float(producto.precio),
+        "imagen_url": None,
+        "total_global": total_global,
+        "sucursales_con_stock": sucursales_con_stock,
+        "disponibilidad": disponibilidad,
+    }
+
+
+def listar_productos_con_disponibilidad(
+    db: Session,
+    categoria_id: int | None = None,
+    sucursal_id: int | None = None,
+) -> list[dict]:
+    """
+    Lista productos con su resumen de disponibilidad agregado.
+    Si sucursal_id se especifica, solo devuelve productos con stock en esa sucursal.
+    """
+    from app.modules.inventario.models import Inventario
+
+    productos = listar_productos(db, categoria_id=categoria_id)
+    resultados = []
+
+    for prod in productos:
+        query = (
+            db.query(Inventario)
+            .filter(
+                Inventario.producto_id == prod.id,
+                Inventario.activo.is_(True),
+            )
+        )
+        if sucursal_id is not None:
+            query = query.filter(Inventario.sucursal_id == sucursal_id)
+
+        items = query.all()
+        total_disponible = sum(item.cantidad_disponible for item in items)
+        sucursales_ids = set(item.sucursal_id for item in items if item.cantidad_disponible > 0)
+
+        resultados.append({
+            "producto": prod,
+            "total_disponible": total_disponible,
+            "sucursales_con_stock": len(sucursales_ids),
+            "estado_global": _calcular_estado_disponibilidad(total_disponible),
+        })
+
+    return resultados
+
