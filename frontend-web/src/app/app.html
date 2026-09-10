@@ -30,6 +30,9 @@
         <app-icon [name]="preferencias.tema() === 'dark' ? 'moon' : 'sun'" [size]="18" />
       </button>
       @if (auth.isLoggedIn()) {
+        <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+          <app-icon name="package" [size]="16" /> Mis Reservas
+        </a>
         <span class="user-chip"><app-icon name="user" [size]="15" /> {{ auth.currentUser()?.nombre }}</span>
         <button class="btn-secondary" (click)="logout()">Cerrar sesión</button>
       } @else {
