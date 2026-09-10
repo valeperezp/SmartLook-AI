@@ -1,0 +1,223 @@
+<div class="page-header">
+  <h1>Inventario Global</h1>
+  <p>Consultar existencias consolidadas por sucursal, producto y alertas de stock.</p>
+</div>
+
+<!-- Tarjetas de Resumen / KPIs -->
+@if (resumen()) {
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <span class="kpi-icon icon-disponibles">
+        <app-icon name="package" [size]="20" />
+      </span>
+      <div class="kpi-info">
+        <span class="kpi-label">Disponibles</span>
+        <strong class="kpi-value">{{ resumen()?.total_disponibles }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-icon icon-reservados">
+        <app-icon name="calendar" [size]="20" />
+      </span>
+      <div class="kpi-info">
+        <span class="kpi-label">Reservados</span>
+        <strong class="kpi-value">{{ resumen()?.total_reservados }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-icon icon-vendidos">
+        <app-icon name="tag" [size]="20" />
+      </span>
+      <div class="kpi-info">
+        <span class="kpi-label">Vendidos</span>
+        <strong class="kpi-value">{{ resumen()?.total_vendidos }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-icon icon-bajo">
+        <app-icon name="alert-circle" [size]="20" />
+      </span>
+      <div class="kpi-info">
+        <span class="kpi-label">Stock bajo</span>
+        <strong class="kpi-value">{{ resumen()?.productos_stock_bajo }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-icon icon-agotados">
+        <app-icon name="alert-circle" [size]="20" />
+      </span>
+      <div class="kpi-info">
+        <span class="kpi-label">Agotados</span>
+        <strong class="kpi-value">{{ resumen()?.productos_agotados }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <span class="kpi-icon icon-sucursales">
+        <app-icon name="store" [size]="20" />
+      </span>
+      <div class="kpi-info">
+        <span class="kpi-label">Sucursales</span>
+        <strong class="kpi-value">{{ resumen()?.total_sucursales }}</strong>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Barra de Alertas desplegable -->
+@if (alertas().length > 0) {
+  <div class="alertas-section">
+    <div class="alertas-header" (click)="toggleAlertas()">
+      <div class="alertas-title">
+        <app-icon name="alert-circle" [size]="20" />
+        <span>Alertas de existencias prioritarias</span>
+        <span class="badge badge-warning">{{ alertas().length }}</span>
+      </div>
+      <button type="button" class="btn-text">
+        {{ mostrarAlertas() ? 'Ocultar alertas' : 'Ver detalle' }}
+      </button>
+    </div>
+
+    @if (mostrarAlertas()) {
+      <div class="alertas-list">
+        @for (a of alertas(); track a.inventario_id) {
+          <div class="alerta-item" [class.alerta-agotado]="a.cantidad_disponible === 0">
+            <span class="alerta-dot"></span>
+            <div class="alerta-desc">
+              <strong>{{ a.nombre_producto }}</strong> en <em>{{ a.nombre_sucursal }}</em>
+              <span class="alerta-msg">{{ a.mensaje }}</span>
+            </div>
+            <span class="alerta-stock">
+              Disponible: <strong>{{ a.cantidad_disponible }}</strong> / Mínimo: {{ a.stock_minimo }}
+            </span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}
+
+<!-- Filtros de Consulta -->
+<div class="card filtros-card">
+  <div class="filtros-grid">
+    <div class="form-group">
+      <label>Sucursal</label>
+      <select [(ngModel)]="filtros.sucursal_id" (ngModelChange)="aplicarFiltros()">
+        <option [ngValue]="undefined">Todas las sucursales</option>
+        @for (s of sucursales(); track s.id) {
+          <option [ngValue]="s.id">{{ s.nombre }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Categoría</label>
+      <select [(ngModel)]="filtros.categoria_id" (ngModelChange)="aplicarFiltros()">
+        <option [ngValue]="undefined">Todas las categorías</option>
+        @for (c of categorias(); track c.id) {
+          <option [ngValue]="c.id">{{ c.nombre }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-group-checkboxes">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="filtros.solo_disponibles"
+          (ngModelChange)="onSoloDisponiblesChange()"
+        />
+        <span>Solo con stock</span>
+      </label>
+
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="filtros.solo_agotados"
+          (ngModelChange)="onSoloAgotadosChange()"
+        />
+        <span>Solo agotados</span>
+      </label>
+    </div>
+
+    <div class="filtros-actions">
+      <button type="button" class="btn-secondary" (click)="limpiarFiltros()">
+        Limpiar filtros
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de Existencias -->
+<div class="card">
+  @if (cargando()) {
+    <div class="loading-state">
+      <p>Cargando existencias...</p>
+    </div>
+  } @else if (inventario().length === 0) {
+    <div class="empty-state">
+      <app-icon name="package" [size]="40" />
+      <h3>No se encontraron registros</h3>
+      <p>Intenta ajustar los filtros de búsqueda.</p>
+    </div>
+  } @else {
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Sucursal</th>
+            <th>Talla</th>
+            <th>Color</th>
+            <th class="text-right">Disponible</th>
+            <th class="text-right">Reservado</th>
+            <th class="text-right">Vendido</th>
+            <th class="text-right">Mínimo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of inventario(); track item.id) {
+            <tr>
+              <td>
+                <strong class="product-name">{{ item.nombre_producto }}</strong>
+              </td>
+              <td>{{ item.nombre_sucursal }}</td>
+              <td>
+                <span class="meta-tag">{{ item.nombre_talla || '—' }}</span>
+              </td>
+              <td>
+                <span class="meta-tag">{{ item.nombre_color || '—' }}</span>
+              </td>
+              <td class="text-right font-mono">
+                <span [class.text-danger]="item.cantidad_disponible === 0" [class.text-warning]="item.cantidad_disponible > 0 && item.cantidad_disponible <= item.stock_minimo">
+                  {{ item.cantidad_disponible }}
+                </span>
+              </td>
+              <td class="text-right font-mono text-muted">{{ item.cantidad_reservada }}</td>
+              <td class="text-right font-mono text-muted">{{ item.cantidad_vendida }}</td>
+              <td class="text-right font-mono text-muted">{{ item.stock_minimo }}</td>
+              <td>
+                @switch (item.estado) {
+                  @case ('disponible') {
+                    <span class="badge badge-success">Disponible</span>
+                  }
+                  @case ('bajo') {
+                    <span class="badge badge-warning">Stock bajo</span>
+                  }
+                  @case ('agotado') {
+                    <span class="badge badge-danger">Agotado</span>
+                  }
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

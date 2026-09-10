@@ -1,0 +1,328 @@
+:host {
+  display: block;
+}
+
+/* KPI Cards Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--shadow-subtle);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+.kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.icon-disponibles {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success);
+  }
+  &.icon-reservados {
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+  }
+  &.icon-vendidos {
+    background: rgba(179, 113, 79, 0.12);
+    color: var(--primary);
+  }
+  &.icon-bajo {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--warning);
+  }
+  &.icon-agotados {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger);
+  }
+  &.icon-sucursales {
+    background: rgba(212, 165, 92, 0.12);
+    color: var(--accent);
+  }
+}
+
+.kpi-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+/* Alertas Section */
+.alertas-section {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.alertas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(245, 158, 11, 0.08);
+
+  &:hover {
+    background: rgba(245, 158, 11, 0.12);
+  }
+}
+
+.alertas-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.95rem;
+
+  app-icon {
+    color: var(--warning);
+  }
+}
+
+.btn-text {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.alertas-list {
+  padding: 0.75rem 1.25rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.alerta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  background: var(--surface-solid);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--warning);
+  font-size: 0.88rem;
+  gap: 1rem;
+
+  &.alerta-agotado {
+    border-left-color: var(--danger);
+  }
+}
+
+.alerta-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  flex-shrink: 0;
+
+  .alerta-agotado & {
+    background: var(--danger);
+  }
+}
+
+.alerta-desc {
+  flex-grow: 1;
+  color: var(--text-primary);
+
+  em {
+    color: var(--text-secondary);
+    font-style: normal;
+  }
+
+  .alerta-msg {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+}
+
+.alerta-stock {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+
+  strong {
+    color: var(--text-primary);
+  }
+}
+
+/* Filtros */
+.filtros-card {
+  margin-bottom: 1.5rem;
+}
+
+.filtros-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.25rem;
+
+  .form-group {
+    min-width: 200px;
+    flex: 1 1 200px;
+  }
+}
+
+.form-group-checkboxes {
+  display: flex;
+  gap: 1.25rem;
+  padding-bottom: 0.4rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-primary);
+
+  input[type='checkbox'] {
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+}
+
+.filtros-actions {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 0.15rem;
+}
+
+.btn-secondary {
+  background: var(--overlay-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--overlay-3);
+  }
+}
+
+/* Badges adicionales */
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.meta-tag {
+  background: var(--overlay-1);
+  border: 1px solid var(--border-color);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.product-name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.font-mono {
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+.text-danger {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.text-warning {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+/* Loading and Empty States */
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+
+  p {
+    margin-top: 0.5rem;
+  }
+}
+
+.empty-state app-icon {
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
