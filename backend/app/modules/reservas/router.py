@@ -41,14 +41,49 @@ def listar_mis_reservas(
 # ENDPOINTS DEL ENCARGADO/ADMIN (deben ir ANTES de /{reserva_id})
 # =========================================================================
 
+@router.get("/mi-sucursal", response_model=list[schemas.ReservaCompletaOut])
+def listar_mi_sucursal(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(encargado_or_admin),
+):
+    """Lista reservas de la sucursal del encargado autenticado."""
+    if usuario.rol == "encargado_sucursal":
+        if not usuario.sucursal_id:
+            raise HTTPException(status_code=403, detail="El encargado no tiene sucursal asignada")
+        return service.listar_reservas_mi_sucursal(db, usuario.sucursal_id)
+    # Admin: si tiene sucursal_id filtrado, si no, todas
+    if usuario.sucursal_id:
+        return service.listar_reservas_por_sucursal(db, usuario.sucursal_id)
+    return []
+
+
 @router.get("/sucursal/{sucursal_id}", response_model=list[schemas.ReservaCompletaOut])
 def listar_por_sucursal(
     sucursal_id: int,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(encargado_or_admin),
 ):
-    """Lista reservas de una sucursal (encargado/admin)."""
+    """Lista reservas de una sucursal. El encargado solo puede ver la suya."""
+    if usuario.rol == "encargado_sucursal" and usuario.sucursal_id != sucursal_id:
+        raise HTTPException(status_code=403, detail="No tiene permisos para ver reservas de otra sucursal")
     return service.listar_reservas_por_sucursal(db, sucursal_id)
+
+
+@router.get("/detalle/{reserva_id}", response_model=schemas.ReservaCompletaOut)
+def obtener_detalle_encargado(
+    reserva_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(encargado_or_admin),
+):
+    """Obtiene el detalle de una reserva (encargado solo de su sucursal)."""
+    sucursal_id = usuario.sucursal_id if usuario.rol == "encargado_sucursal" else None
+    if sucursal_id is not None:
+        reserva = service.obtener_reserva_por_sucursal(db, reserva_id, sucursal_id)
+    else:
+        reserva = service.obtener_reserva(db, reserva_id)
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    return reserva
 
 
 # =========================================================================
@@ -81,15 +116,16 @@ def cancelar_reserva(
     return service.obtener_reserva(db, reserva.id, usuario.id)
 
 
-@router.patch("/{reserva_id}/estado", response_model=schemas.ReservaOut)
+@router.patch("/{reserva_id}/estado", response_model=schemas.ReservaCompletaOut)
 def cambiar_estado(
     reserva_id: int,
     nuevo_estado: str,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(encargado_or_admin),
 ):
-    """Cambia el estado de una reserva (encargado/admin)."""
-    reserva = service.cambiar_estado(db, reserva_id, nuevo_estado)
+    """Cambia el estado de una reserva con validaciones (encargado/admin)."""
+    sucursal_id = usuario.sucursal_id if usuario.rol == "encargado_sucursal" else None
+    reserva = service.cambiar_estado_con_validacion(db, reserva_id, nuevo_estado, sucursal_id)
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
-    return reserva
+    return service.obtener_reserva(db, reserva.id)

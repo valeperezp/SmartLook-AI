@@ -39,6 +39,9 @@ import { AuthService } from '../../../core/services/auth.service';
           <a routerLink="/encargado/inventario" routerLinkActive="active">
             <app-icon name="package" [size]="18" /> <span>Inventario</span>
           </a>
+          <a routerLink="/encargado/reservas" routerLinkActive="active">
+            <app-icon name="calendar" [size]="18" /> <span>Reservas</span>
+          </a>
           <a routerLink="/encargado/movimientos" routerLinkActive="active">
             <app-icon name="truck" [size]="18" /> <span>Movimientos</span>
           </a>

@@ -18,6 +18,8 @@ export interface Reserva {
   horario_aproximado: string | null;
   creada_en: string;
   nombre_sucursal?: string;
+  nombre_cliente?: string | null;
+  email_cliente?: string | null;
   items: ReservaItem[];
   total_items: number;
   total_unidades: number;

@@ -23,4 +23,22 @@ export class ReservasService {
   cancelar(id: number) {
     return this.http.patch<Reserva>(`${this.base}/${id}/cancelar`, {});
   }
+
+  // ===== MÉTODOS PARA ENCARGADO =====
+
+  miSucursal() {
+    return this.http.get<Reserva[]>(`${this.base}/mi-sucursal`);
+  }
+
+  detalleEncargado(reservaId: number) {
+    return this.http.get<Reserva>(`${this.base}/detalle/${reservaId}`);
+  }
+
+  cambiarEstado(reservaId: number, nuevoEstado: string) {
+    return this.http.patch<Reserva>(
+      `${this.base}/${reservaId}/estado?nuevo_estado=${nuevoEstado}`,
+      {}
+    );
+  }
 }
+
