@@ -58,7 +58,7 @@
       }
 
       &:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--overlay-1);
         color: var(--text-primary);
       }
 
