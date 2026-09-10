@@ -27,6 +27,7 @@ import app.modules.sucursales.models
 import app.modules.proveedores.models
 import app.modules.catalogo.models
 import app.modules.reservas.models
+import app.modules.inventario.models
 
 
 @asynccontextmanager

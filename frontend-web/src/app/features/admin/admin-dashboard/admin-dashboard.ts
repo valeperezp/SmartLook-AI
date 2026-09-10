@@ -79,6 +79,7 @@ export class AdminDashboard implements OnInit {
         { ruta: 'usuarios', icono: 'users', titulo: 'Usuarios y roles', descripcion: 'Cuentas y permisos' },
         { ruta: 'sucursales', icono: 'store', titulo: 'Sucursales', descripcion: 'Tiendas de la cadena' },
         { ruta: 'proveedores', icono: 'truck', titulo: 'Proveedores', descripcion: 'Proveedores de prendas' },
+        { ruta: 'inventario', icono: 'package', titulo: 'Inventario global', descripcion: 'Existencias por sucursal y alertas' },
       ],
     },
     {

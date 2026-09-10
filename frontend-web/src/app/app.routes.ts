@@ -50,6 +50,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'inventario',
+        loadComponent: () =>
+          import('./features/admin/inventario/inventario-admin').then(
+            (m) => m.InventarioAdmin
+          ),
+      },
+      {
         path: 'catalogo/productos',
         loadComponent: () =>
           import('./features/admin/catalogo/productos/productos-admin').then(
