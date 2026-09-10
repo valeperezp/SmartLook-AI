@@ -1,0 +1,369 @@
+<div class="encargado-reservas-page">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Reservas de mi sucursal</h1>
+      <p>Gestión y atención de reservas en tienda física</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="cargar()" [disabled]="cargando()">
+        <app-icon name="sparkles" [size]="16" />
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notificación -->
+  @if (toast()) {
+    <div class="toast-notification" [class.toast-error]="toastIsError()">
+      <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="18" />
+      <span>{{ toast() }}</span>
+    </div>
+  }
+
+  <!-- KPIs de Reservas -->
+  <div class="stats-grid">
+    <div class="stat-card" [class.active-stat]="filtroEstado() === 'pendiente'" (click)="filtroEstado.set('pendiente')">
+      <div class="stat-icon icon-warning">
+        <app-icon name="shirt" [size]="22" />
+      </div>
+      <div class="stat-info">
+        <strong>{{ totalPendientes() }}</strong>
+        <span>Pendientes por confirmar</span>
+      </div>
+    </div>
+
+    <div class="stat-card" [class.active-stat]="filtroEstado() === 'confirmada'" (click)="filtroEstado.set('confirmada')">
+      <div class="stat-icon icon-info">
+        <app-icon name="package" [size]="22" />
+      </div>
+      <div class="stat-info">
+        <strong>{{ totalConfirmadas() }}</strong>
+        <span>Confirmadas (espera retiro)</span>
+      </div>
+    </div>
+
+    <div class="stat-card" [class.active-stat]="filtroEstado() === 'atendida'" (click)="filtroEstado.set('atendida')">
+      <div class="stat-icon icon-success">
+        <app-icon name="check-circle" [size]="22" />
+      </div>
+      <div class="stat-info">
+        <strong>{{ totalAtendidas() }}</strong>
+        <span>Atendidas / Entregadas</span>
+      </div>
+    </div>
+
+    <div class="stat-card" [class.active-stat]="filtroEstado() === 'cancelada'" (click)="filtroEstado.set('cancelada')">
+      <div class="stat-icon icon-danger">
+        <app-icon name="alert-circle" [size]="22" />
+      </div>
+      <div class="stat-info">
+        <strong>{{ totalCanceladas() }}</strong>
+        <span>Canceladas</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtros y Búsqueda -->
+  <div class="card filters-card">
+    <div class="search-box">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="text"
+        placeholder="Buscar por cliente o ID de reserva..."
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+    </div>
+
+    <div class="filter-pills">
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroEstado() === 'todas'"
+        (click)="filtroEstado.set('todas')"
+      >
+        Todas ({{ reservas().length }})
+      </button>
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroEstado() === 'pendiente'"
+        (click)="filtroEstado.set('pendiente')"
+      >
+        Pendientes ({{ totalPendientes() }})
+      </button>
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroEstado() === 'confirmada'"
+        (click)="filtroEstado.set('confirmada')"
+      >
+        Confirmadas ({{ totalConfirmadas() }})
+      </button>
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroEstado() === 'atendida'"
+        (click)="filtroEstado.set('atendida')"
+      >
+        Atendidas ({{ totalAtendidas() }})
+      </button>
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroEstado() === 'cancelada'"
+        (click)="filtroEstado.set('cancelada')"
+      >
+        Canceladas ({{ totalCanceladas() }})
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla de Reservas -->
+  <div class="card">
+    @if (cargando()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando reservas de la sucursal...</p>
+      </div>
+    } @else if (reservasFiltradas().length === 0) {
+      <div class="empty-state">
+        <app-icon name="package" [size]="44" />
+        <h3>No se encontraron reservas</h3>
+        <p>No hay pedidos que coincidan con los filtros o el estado seleccionado.</p>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Cliente</th>
+              <th>Fecha de Creación</th>
+              <th>Retiro Aproximado</th>
+              <th>Prendas</th>
+              <th>Estado</th>
+              <th>Total Estimado</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of reservasFiltradas(); track r.id) {
+              <tr>
+                <td class="reserva-id">#{{ r.id }}</td>
+                <td>
+                  <div class="cliente-info">
+                    <strong>{{ r.nombre_cliente || 'Cliente #' + r.cliente_id }}</strong>
+                    <span class="cliente-email">{{ r.email_cliente || 'Sin email registrado' }}</span>
+                  </div>
+                </td>
+                <td>{{ r.creada_en | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  @if (r.horario_aproximado) {
+                    <span class="horario-pill">{{ r.horario_aproximado | date:'dd/MM/yyyy HH:mm' }}</span>
+                  } @else {
+                    <span class="text-muted">No especificado</span>
+                  }
+                </td>
+                <td>
+                  <span class="items-badge">{{ r.total_unidades }} un. ({{ r.total_items }} prendas)</span>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="claseBadgeEstado(r.estado)">
+                    {{ r.estado | uppercase }}
+                  </span>
+                </td>
+                <td class="total-cell">${{ r.total_estimado | number:'1.2-2' }}</td>
+                <td style="text-align: right;">
+                  <div class="actions-cell">
+                    <button
+                      type="button"
+                      class="btn-sm btn-secondary"
+                      (click)="abrirDetalle(r)"
+                      title="Ver detalle completo de la reserva"
+                    >
+                      Ver
+                    </button>
+
+                    @if (r.estado === 'pendiente') {
+                      <button
+                        type="button"
+                        class="btn-sm btn-info"
+                        (click)="confirmarReserva(r)"
+                        [disabled]="procesando()"
+                        title="Confirmar reserva"
+                      >
+                        Confirmar
+                      </button>
+                    }
+
+                    @if (r.estado === 'confirmada') {
+                      <button
+                        type="button"
+                        class="btn-sm btn-success"
+                        (click)="atenderReserva(r)"
+                        [disabled]="procesando()"
+                        title="Marcar como atendida (entrega de prendas)"
+                      >
+                        Atender
+                      </button>
+                    }
+
+                    @if (r.estado === 'pendiente' || r.estado === 'confirmada') {
+                      <button
+                        type="button"
+                        class="btn-sm btn-danger"
+                        (click)="cancelarReserva(r)"
+                        [disabled]="procesando()"
+                        title="Cancelar reserva y devolver stock"
+                      >
+                        Cancelar
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Modal Detalle y Atención de Reserva -->
+@if (modalDetalleAbierto() && reservaSeleccionada(); as r) {
+  <div class="modal-backdrop" (click)="cerrarDetalle()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="eyebrow">Gestión de Reserva</span>
+          <h2 class="modal-title">Reserva #{{ r.id }}</h2>
+          <span class="modal-branch">
+            <app-icon name="store" [size]="14" /> {{ r.nombre_sucursal || 'Sucursal asignada' }}
+          </span>
+        </div>
+        <button class="modal-close-btn" (click)="cerrarDetalle()" aria-label="Cerrar modal">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Meta / Datos de la reserva -->
+        <div class="reserva-meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">Cliente</span>
+            <strong class="meta-value">{{ r.nombre_cliente || 'Cliente #' + r.cliente_id }}</strong>
+            <span class="meta-sub">{{ r.email_cliente || 'N/A' }}</span>
+          </div>
+
+          <div class="meta-item">
+            <span class="meta-label">Estado actual</span>
+            <div>
+              <span class="badge" [ngClass]="claseBadgeEstado(r.estado)">
+                {{ r.estado | uppercase }}
+              </span>
+            </div>
+          </div>
+
+          <div class="meta-item">
+            <span class="meta-label">Fecha creación</span>
+            <span class="meta-value">{{ r.creada_en | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+
+          <div class="meta-item">
+            <span class="meta-label">Retiro estimado</span>
+            <span class="meta-value">
+              {{ r.horario_aproximado ? (r.horario_aproximado | date:'dd/MM/yyyy HH:mm') : 'Sin horario fijado' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Tabla de Items -->
+        <h4 class="items-title">Prendas Apartadas</h4>
+        <div class="items-table-wrapper">
+          <table class="data-table items-table">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Talla</th>
+                <th>Color</th>
+                <th>Cant.</th>
+                <th>Precio Unit.</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of r.items; track item.id) {
+                <tr>
+                  <td>
+                    <strong>{{ item.nombre_producto }}</strong>
+                  </td>
+                  <td>{{ item.nombre_talla || 'N/A' }}</td>
+                  <td>{{ item.nombre_color || 'N/A' }}</td>
+                  <td><strong>{{ item.cantidad }} un.</strong></td>
+                  <td>${{ item.precio_unitario | number:'1.2-2' }}</td>
+                  <td>${{ (item.precio_unitario * item.cantidad) | number:'1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Total Estimado -->
+        <div class="reserva-total-box">
+          <div class="total-info">
+            <span class="total-label">Total a cobrar en caja:</span>
+            <span class="total-sub">Pago directo en sucursal al retirar prendas</span>
+          </div>
+          <span class="total-amount">${{ r.total_estimado | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        @if (r.estado === 'pendiente') {
+          <button
+            type="button"
+            class="btn-danger"
+            (click)="cancelarReserva(r)"
+            [disabled]="procesando()"
+          >
+            Cancelar Reserva
+          </button>
+          <button
+            type="button"
+            class="btn-info"
+            (click)="confirmarReserva(r)"
+            [disabled]="procesando()"
+          >
+            Confirmar Reserva
+          </button>
+        }
+
+        @if (r.estado === 'confirmada') {
+          <button
+            type="button"
+            class="btn-danger"
+            (click)="cancelarReserva(r)"
+            [disabled]="procesando()"
+          >
+            Cancelar Reserva
+          </button>
+          <button
+            type="button"
+            class="btn-success"
+            (click)="atenderReserva(r)"
+            [disabled]="procesando()"
+          >
+            Marcar Atendida (Entregar)
+          </button>
+        }
+
+        <button type="button" class="btn-secondary" (click)="cerrarDetalle()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}

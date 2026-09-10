@@ -54,3 +54,6 @@ class ReservaCompletaOut(BaseModel):
     total_items: int = 0
     total_unidades: int = 0
     total_estimado: float = 0.0
+    nombre_cliente: str | None = None
+    email_cliente: str | None = None
+

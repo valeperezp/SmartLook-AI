@@ -127,6 +127,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'reservas',
+        loadComponent: () =>
+          import('./features/encargado/reservas/encargado-reservas').then(
+            (m) => m.EncargadoReservas
+          ),
+      },
+      {
         path: 'movimientos',
         loadComponent: () =>
           import('./features/encargado/movimientos/encargado-movimientos').then(

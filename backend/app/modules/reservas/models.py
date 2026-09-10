@@ -36,6 +36,15 @@ class Reserva(Base):
     def total_estimado(self) -> float:
         return sum(item.cantidad * item.precio_unitario for item in self.items) if self.items else 0.0
 
+    @property
+    def nombre_cliente(self) -> str | None:
+        return self.cliente.nombre if self.cliente else None
+
+    @property
+    def email_cliente(self) -> str | None:
+        return self.cliente.email if self.cliente else None
+
+
 
 
 class ReservaItem(Base):

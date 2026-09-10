@@ -97,6 +97,7 @@ def listar_mis_reservas(db: Session, cliente_id: int) -> list[models.Reserva]:
             joinedload(models.Reserva.items).joinedload(models.ReservaItem.talla),
             joinedload(models.Reserva.items).joinedload(models.ReservaItem.color),
             joinedload(models.Reserva.sucursal),
+            joinedload(models.Reserva.cliente),
         )
         .filter(models.Reserva.cliente_id == cliente_id)
         .order_by(models.Reserva.creada_en.desc())
@@ -115,6 +116,7 @@ def obtener_reserva(
             joinedload(models.Reserva.items).joinedload(models.ReservaItem.talla),
             joinedload(models.Reserva.items).joinedload(models.ReservaItem.color),
             joinedload(models.Reserva.sucursal),
+            joinedload(models.Reserva.cliente),
         )
         .filter(models.Reserva.id == reserva_id)
     )
@@ -159,6 +161,7 @@ def listar_reservas_por_sucursal(db: Session, sucursal_id: int) -> list[models.R
             joinedload(models.Reserva.items).joinedload(models.ReservaItem.talla),
             joinedload(models.Reserva.items).joinedload(models.ReservaItem.color),
             joinedload(models.Reserva.sucursal),
+            joinedload(models.Reserva.cliente),
         )
         .filter(models.Reserva.sucursal_id == sucursal_id)
         .order_by(models.Reserva.creada_en.desc())
@@ -174,3 +177,94 @@ def cambiar_estado(db: Session, reserva_id: int, nuevo_estado: str) -> models.Re
         db.commit()
         db.refresh(reserva)
     return reserva
+
+
+# =========================================================================
+# GESTIÓN DE RESERVAS POR ENCARGADO (CU14)
+# =========================================================================
+
+ESTADOS_PERMITIDOS = {
+    "pendiente": ["confirmada", "cancelada"],
+    "confirmada": ["atendida", "cancelada"],
+    "atendida": [],
+    "cancelada": [],
+}
+
+
+def validar_transicion_estado(estado_actual: str, nuevo_estado: str) -> None:
+    """Valida que la transición de estado sea permitida."""
+    if estado_actual not in ESTADOS_PERMITIDOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Estado actual desconocido: {estado_actual}",
+        )
+    if nuevo_estado not in ESTADOS_PERMITIDOS[estado_actual]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No se puede pasar de '{estado_actual}' a '{nuevo_estado}'. "
+                   f"Transiciones permitidas: {ESTADOS_PERMITIDOS[estado_actual]}",
+        )
+
+
+def listar_reservas_mi_sucursal(db: Session, sucursal_id: int) -> list[models.Reserva]:
+    """Lista reservas de la sucursal del encargado autenticado."""
+    return listar_reservas_por_sucursal(db, sucursal_id)
+
+
+def cambiar_estado_con_validacion(
+    db: Session,
+    reserva_id: int,
+    nuevo_estado: str,
+    sucursal_id: int | None = None,
+) -> models.Reserva | None:
+    """
+    Cambia el estado de una reserva con validación de transición.
+    Si sucursal_id se provee, valida que la reserva pertenezca a esa sucursal.
+    """
+    reserva = db.query(models.Reserva).filter(models.Reserva.id == reserva_id).first()
+    if not reserva:
+        return None
+
+    if sucursal_id is not None and reserva.sucursal_id != sucursal_id:
+        raise HTTPException(
+            status_code=403,
+            detail="No tiene permisos para gestionar reservas de otra sucursal",
+        )
+
+    validar_transicion_estado(reserva.estado, nuevo_estado)
+
+    # Si se cancela, revertir stock
+    if nuevo_estado == "cancelada":
+        for item in reserva.items:
+            _ajustar_stock_reserva(
+                db=db,
+                producto_id=item.producto_id,
+                talla_id=item.talla_id,
+                color_id=item.color_id,
+                sucursal_id=reserva.sucursal_id,
+                cantidad=item.cantidad,
+                liberar=True,
+            )
+
+    reserva.estado = nuevo_estado
+    db.commit()
+    db.refresh(reserva)
+    return reserva
+
+
+def obtener_reserva_por_sucursal(
+    db: Session,
+    reserva_id: int,
+    sucursal_id: int,
+) -> models.Reserva | None:
+    """Obtiene una reserva validando que pertenezca a la sucursal."""
+    reserva = obtener_reserva(db, reserva_id)
+    if not reserva:
+        return None
+    if reserva.sucursal_id != sucursal_id:
+        raise HTTPException(
+            status_code=403,
+            detail="No tiene permisos para ver reservas de otra sucursal",
+        )
+    return reserva
+
