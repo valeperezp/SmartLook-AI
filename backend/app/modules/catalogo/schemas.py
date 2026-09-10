@@ -137,3 +137,39 @@ class ProductoOut(BaseModel):
     categoria: CategoriaOut
     temporada: TemporadaOut | None = None
     coleccion: ColeccionOut | None = None
+
+
+# ---------- Disponibilidad por sucursal ----------
+class DisponibilidadTallaColor(BaseModel):
+    talla_id: int | None = None
+    nombre_talla: str | None = None
+    color_id: int | None = None
+    nombre_color: str | None = None
+    cantidad_disponible: int
+
+
+class DisponibilidadSucursal(BaseModel):
+    sucursal_id: int
+    nombre_sucursal: str
+    ciudad: str | None = None
+    total_disponible: int
+    estado: str  # "disponible", "bajo", "agotado"
+    items: list[DisponibilidadTallaColor] = []
+
+
+class ProductoDisponibilidadOut(BaseModel):
+    producto_id: int
+    nombre_producto: str
+    precio: float
+    imagen_url: str | None = None  # opcional si hay campo futuro
+    total_global: int
+    sucursales_con_stock: int
+    disponibilidad: list[DisponibilidadSucursal] = []
+
+
+class ProductoConDisponibilidadOut(ProductoOut):
+    """Producto con resumen de disponibilidad agregado."""
+    total_disponible: int = 0
+    sucursales_con_stock: int = 0
+    estado_global: str = "agotado"  # disponible, bajo, agotado
+

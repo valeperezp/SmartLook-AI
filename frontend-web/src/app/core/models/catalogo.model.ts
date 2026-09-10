@@ -45,6 +45,9 @@ export interface Producto {
   categoria: Categoria;
   temporada?: Temporada;
   coleccion?: Coleccion;
+  total_disponible?: number;
+  sucursales_con_stock?: number;
+  estado_global?: 'disponible' | 'bajo' | 'agotado';
 }
 
 export interface ProductoCreate {
@@ -56,3 +59,31 @@ export interface ProductoCreate {
   coleccion_id?: number;
   proveedor_id?: number;
 }
+
+export interface DisponibilidadTallaColor {
+  talla_id: number | null;
+  nombre_talla: string | null;
+  color_id: number | null;
+  nombre_color: string | null;
+  cantidad_disponible: number;
+}
+
+export interface DisponibilidadSucursal {
+  sucursal_id: number;
+  nombre_sucursal: string;
+  ciudad: string | null;
+  total_disponible: number;
+  estado: 'disponible' | 'bajo' | 'agotado';
+  items: DisponibilidadTallaColor[];
+}
+
+export interface ProductoDisponibilidad {
+  producto_id: number;
+  nombre_producto: string;
+  precio: number;
+  imagen_url: string | null;
+  total_global: number;
+  sucursales_con_stock: number;
+  disponibilidad: DisponibilidadSucursal[];
+}
+

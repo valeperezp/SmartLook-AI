@@ -3,20 +3,17 @@ import { CanActivateFn, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
-/**
- * Guard de la home ('/'): el cliente la ve normal, pero el administrador
- * no tiene "su" contenido ahí — se lo manda directo al panel de gestión.
- */
 export const homeGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
   return auth.esperarSesion().pipe(
     map(() => {
+      // Sin sesión: catálogo público, dejar pasar
       if (!auth.isLoggedIn()) {
-        router.navigate(['/login']);
-        return false;
+        return true;
       }
+      // Admin y encargado van a sus paneles
       if (auth.isAdmin()) {
         router.navigate(['/admin']);
         return false;
@@ -25,6 +22,7 @@ export const homeGuard: CanActivateFn = () => {
         router.navigate(['/encargado']);
         return false;
       }
+      // Cliente logueado: ve el catálogo normal
       return true;
     })
   );

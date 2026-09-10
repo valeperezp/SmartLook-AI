@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import {
   Categoria,
@@ -7,6 +7,7 @@ import {
   Coleccion,
   Producto,
   ProductoCreate,
+  ProductoDisponibilidad,
   Talla,
   Temporada,
 } from '../models/catalogo.model';
@@ -72,10 +73,15 @@ export class CatalogoService {
   }
 
   // Productos
-  listarProductos(incluirInactivos = false) {
-    return this.http.get<Producto[]>(`${this.base}/productos`, {
-      params: { incluir_inactivos: incluirInactivos },
-    });
+  listarProductos(incluirInactivos = false, sucursalId?: number) {
+    let params = new HttpParams();
+    params = params.set('incluir_inactivos', incluirInactivos);
+    if (sucursalId) params = params.set('sucursal_id', sucursalId);
+    return this.http.get<Producto[]>(`${this.base}/productos`, { params });
+  }
+
+  obtenerDisponibilidad(productoId: number) {
+    return this.http.get<ProductoDisponibilidad>(`${this.base}/productos/${productoId}/disponibilidad`);
   }
   crearProducto(data: ProductoCreate) {
     return this.http.post<Producto>(`${this.base}/productos`, data);

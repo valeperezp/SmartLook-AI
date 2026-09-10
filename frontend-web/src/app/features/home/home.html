@@ -8,7 +8,7 @@
     </h1>
     <p class="hero-subtitle">
       Explorá el catálogo en tiempo real conectado a PostgreSQL/Supabase, con prueba virtual de prendas
-      y reservas inteligentes en sucursales.
+      y disponibilidad en sucursales físicas.
     </p>
 
     <div class="hero-stats">
@@ -39,29 +39,58 @@
   <section class="catalog-section">
     <div class="section-header">
       <div>
-        <span class="eyebrow">Catálogo maestro</span>
+        <span class="eyebrow">Catálogo y disponibilidad</span>
         <h2 class="section-title">Prendas de la temporada</h2>
-        <p class="section-subtitle">Explora los modelos disponibles en la base de datos centralizada</p>
+        <p class="section-subtitle">
+          Consultá disponibilidad por sucursal y stock en tiempo real
+        </p>
       </div>
 
-      <div class="search-bar">
-        <app-icon name="search" [size]="16" />
-        <input
-          type="text"
-          placeholder="Buscar por nombre o descripción..."
-          [ngModel]="searchQuery()"
-          (ngModelChange)="searchQuery.set($event)"
-        />
+      <div class="filters-header-group">
+        <!-- Sucursal Dropdown Filter -->
+        <div class="branch-filter">
+          <app-icon name="store" [size]="16" />
+          <select
+            [ngModel]="selectedSucursalId()"
+            (ngModelChange)="setSucursal($event)"
+            class="select-sucursal"
+            aria-label="Filtrar por sucursal"
+          >
+            <option value="todas">Todas las sucursales</option>
+            @for (suc of sucursales(); track suc.id) {
+              <option [value]="suc.id">{{ suc.nombre }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="search-bar">
+          <app-icon name="search" [size]="16" />
+          <input
+            type="text"
+            placeholder="Buscar prenda..."
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+          />
+        </div>
       </div>
     </div>
 
     <!-- Category Filter Chips -->
     <div class="filter-chips">
-      <button class="chip-btn" [class.active]="selectedCategoryId() === 'todos'" (click)="setCategory('todos')">
+      <button
+        class="chip-btn"
+        [class.active]="selectedCategoryId() === 'todos'"
+        (click)="setCategory('todos')"
+      >
         Todos
       </button>
       @for (cat of categorias(); track cat.id) {
-        <button class="chip-btn" [class.active]="selectedCategoryId() === cat.id" (click)="setCategory(cat.id)">
+        <button
+          class="chip-btn"
+          [class.active]="selectedCategoryId() === cat.id"
+          (click)="setCategory(cat.id)"
+        >
           {{ cat.nombre }}
         </button>
       }
@@ -71,29 +100,50 @@
     @if (isLoading()) {
       <div class="loading-state">
         <div class="spinner"></div>
-        <p>Cargando prendas...</p>
+        <p>Cargando prendas y disponibilidad...</p>
       </div>
     } @else if (filteredProductos().length === 0) {
       <div class="empty-state">
         <app-icon name="shirt" [size]="36" />
         <h3>No se encontraron prendas</h3>
-        <p>Todavía no hay productos cargados en el catálogo, o no coinciden con tu búsqueda.</p>
+        <p>No hay productos que coincidan con la categoría o sucursal seleccionada.</p>
       </div>
     } @else {
       <div class="products-grid">
         @for (prod of filteredProductos(); track prod.id) {
-          <div class="product-card">
+          <div class="product-card" (click)="abrirDetalle(prod)">
             <div class="product-media">
               <app-icon name="shirt" [size]="34" />
               <span class="product-badge">{{ prod.categoria.nombre }}</span>
+
+              <!-- Stock Badge -->
+              <div class="stock-badge-container">
+                @if (prod.estado_global === 'disponible') {
+                  <span class="stock-badge badge-disponible">
+                    <span class="stock-dot"></span> Disponible
+                  </span>
+                } @else if (prod.estado_global === 'bajo') {
+                  <span class="stock-badge badge-bajo">
+                    <span class="stock-dot"></span> Stock bajo
+                  </span>
+                } @else {
+                  <span class="stock-badge badge-agotado">
+                    <span class="stock-dot"></span> Agotado
+                  </span>
+                }
+              </div>
             </div>
 
             <div class="product-body">
               @if (prod.temporada) {
                 <div class="product-meta">
-                  <span class="meta-tag"><app-icon name="calendar" [size]="12" /> {{ prod.temporada.nombre }}</span>
+                  <span class="meta-tag">
+                    <app-icon name="calendar" [size]="12" /> {{ prod.temporada.nombre }}
+                  </span>
                   @if (prod.coleccion) {
-                    <span class="meta-tag"><app-icon name="tag" [size]="12" /> {{ prod.coleccion.nombre }}</span>
+                    <span class="meta-tag">
+                      <app-icon name="tag" [size]="12" /> {{ prod.coleccion.nombre }}
+                    </span>
                   }
                 </div>
               }
@@ -101,11 +151,28 @@
               <h3 class="product-name">{{ prod.nombre }}</h3>
               <p class="product-desc">{{ prod.descripcion || 'Sin descripción adicional' }}</p>
 
+              <!-- Branch Stock Indicator -->
+              <div class="stock-branch-info">
+                <app-icon name="store" [size]="14" />
+                @if (prod.sucursales_con_stock && prod.sucursales_con_stock > 0) {
+                  <span>
+                    Disponible en
+                    <strong>{{ prod.sucursales_con_stock }}</strong>
+                    {{ prod.sucursales_con_stock === 1 ? 'sucursal' : 'sucursales' }}
+                  </span>
+                } @else {
+                  <span class="no-branches">Sin stock en sucursales</span>
+                }
+              </div>
+
               <div class="product-footer">
                 <div class="price-container">
                   <span class="price-label">Precio</span>
                   <span class="price-amount">${{ prod.precio | number:'1.2-2' }}</span>
                 </div>
+                <button type="button" class="btn-check-stock" (click)="abrirDetalle(prod); $event.stopPropagation()">
+                  Ver stock
+                </button>
               </div>
             </div>
           </div>
@@ -114,3 +181,102 @@
     }
   </section>
 </div>
+
+<!-- Modal Detalle de Disponibilidad por Sucursal -->
+@if (modalAbierto() && selectedProducto(); as prod) {
+  <div class="modal-backdrop" (click)="cerrarDetalle()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="eyebrow">{{ prod.categoria.nombre }}</span>
+          <h2 class="modal-title">{{ prod.nombre }}</h2>
+          <span class="modal-price">${{ prod.precio | number:'1.2-2' }}</span>
+        </div>
+        <button class="modal-close-btn" (click)="cerrarDetalle()" aria-label="Cerrar modal">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-body">
+        @if (loadingDisponibilidad()) {
+          <div class="modal-loading">
+            <div class="spinner"></div>
+            <p>Consultando existencias en todas las sucursales...</p>
+          </div>
+        } @else if (errorDisponibilidad()) {
+          <div class="modal-error">
+            <p>{{ errorDisponibilidad() }}</p>
+          </div>
+        } @else if (disponibilidad(); as disp) {
+          <div class="modal-summary">
+            <div class="summary-pill">
+              <span class="summary-label">Total global</span>
+              <span class="summary-val">{{ disp.total_global }} unidades</span>
+            </div>
+            <div class="summary-pill">
+              <span class="summary-label">Sucursales con stock</span>
+              <span class="summary-val">{{ disp.sucursales_con_stock }} de {{ disp.disponibilidad.length }}</span>
+            </div>
+          </div>
+
+          <h3 class="branches-section-title">Disponibilidad por Sucursal</h3>
+
+          <div class="branches-list">
+            @for (suc of disp.disponibilidad; track suc.sucursal_id) {
+              <div class="branch-card" [class.branch-no-stock]="suc.total_disponible === 0">
+                <div class="branch-card-header">
+                  <div class="branch-info">
+                    <h4 class="branch-name">
+                      <app-icon name="store" [size]="15" /> {{ suc.nombre_sucursal }}
+                    </h4>
+                    @if (suc.ciudad) {
+                      <span class="branch-city">{{ suc.ciudad }}</span>
+                    }
+                  </div>
+                  <span
+                    class="branch-status"
+                    [class.status-disponible]="suc.estado === 'disponible'"
+                    [class.status-bajo]="suc.estado === 'bajo'"
+                    [class.status-agotado]="suc.estado === 'agotado'"
+                  >
+                    @if (suc.estado === 'disponible') {
+                      Disponible ({{ suc.total_disponible }} un.)
+                    } @else if (suc.estado === 'bajo') {
+                      Stock bajo ({{ suc.total_disponible }} un.)
+                    } @else {
+                      Agotado
+                    }
+                  </span>
+                </div>
+
+                @if (suc.items.length > 0) {
+                  <div class="items-breakdown">
+                    <span class="breakdown-title">Desglose por Talla y Color:</span>
+                    <div class="talla-color-chips">
+                      @for (item of suc.items; track $index) {
+                        <div class="tc-chip" [class.tc-empty]="item.cantidad_disponible === 0">
+                          <span class="tc-name">
+                            Talla <strong>{{ item.nombre_talla || 'N/A' }}</strong> / {{ item.nombre_color || 'N/A' }}
+                          </span>
+                          <span class="tc-qty">{{ item.cantidad_disponible }} un.</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                } @else {
+                  <p class="branch-empty">No hay existencias cargadas para esta sucursal.</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-modal-close" (click)="cerrarDetalle()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}

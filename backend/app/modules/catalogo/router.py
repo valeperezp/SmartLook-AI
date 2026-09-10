@@ -1,5 +1,5 @@
 """Endpoints HTTP del módulo Catálogo. Lectura abierta, escritura admin."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
@@ -147,13 +147,35 @@ def eliminar_coleccion(coleccion_id: int, db: Session = Depends(get_db)):
 
 
 # ---------- Productos ----------
-@router.get("/productos", response_model=list[schemas.ProductoOut])
+@router.get("/productos", response_model=list[schemas.ProductoConDisponibilidadOut])
 def listar_productos(
     categoria_id: int | None = None,
-    incluir_inactivos: bool = False,
+    sucursal_id: int | None = Query(None, description="Filtrar productos con stock en esta sucursal"),
     db: Session = Depends(get_db),
 ):
-    return service.listar_productos(db, categoria_id, incluir_inactivos)
+    """Lista productos con resumen de disponibilidad agregado."""
+    items = service.listar_productos_con_disponibilidad(
+        db, categoria_id=categoria_id, sucursal_id=sucursal_id
+    )
+    resultado = []
+    for item in items:
+        prod_dict = schemas.ProductoOut.model_validate(item["producto"]).model_dump()
+        prod_dict.update({
+            "total_disponible": item["total_disponible"],
+            "sucursales_con_stock": item["sucursales_con_stock"],
+            "estado_global": item["estado_global"],
+        })
+        resultado.append(prod_dict)
+    return resultado
+
+
+@router.get("/productos/{producto_id}/disponibilidad", response_model=schemas.ProductoDisponibilidadOut)
+def obtener_disponibilidad(producto_id: int, db: Session = Depends(get_db)):
+    """Consulta la disponibilidad de un producto en todas las sucursales."""
+    result = service.obtener_disponibilidad_producto(db, producto_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return result
 
 
 @router.get("/productos/{producto_id}", response_model=schemas.ProductoOut)
