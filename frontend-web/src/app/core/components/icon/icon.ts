@@ -24,7 +24,8 @@ export type IconName =
   | 'sun'
   | 'moon'
   | 'monitor'
-  | 'type';
+  | 'type'
+  | 'search';
 
 @Component({
   selector: 'app-icon',
@@ -161,6 +162,10 @@ export type IconName =
         @case ('type') {
           <path d="M6 20 10.5 5h3L18 20" />
           <path d="M7.7 14.5h8.6" />
+        }
+        @case ('search') {
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="M19.5 19.5 15.3 15.3" />
         }
       }
     </svg>

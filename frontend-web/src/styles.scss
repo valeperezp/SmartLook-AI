@@ -1,83 +1,84 @@
 :root {
   /* ---------- Tokens compartidos (iguales en claro y oscuro) ---------- */
-  --font-heading: 'Outfit', sans-serif;
+  --font-heading: 'Fraunces', serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --primary: #6366f1;
-  --primary-light: #818cf8;
-  --primary-dark: #4f46e5;
-  --accent: #ec4899;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
-  --accent-glow: 0 0 25px rgba(99, 102, 241, 0.4);
+  --primary: #b3714f;
+  --primary-light: #d99872;
+  --primary-dark: #8c5238;
+  --accent: #d4a55c;
+  --accent-gradient: linear-gradient(135deg, #b3714f 0%, #d4a55c 100%);
+  --accent-glow: 0 0 25px rgba(179, 113, 79, 0.25);
 
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  /* Editorial: esquinas mucho menos redondeadas que un look "app/SaaS" */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 
   --backdrop-blur: blur(16px);
 
-  /* ---------- Paleta clara (base) ---------- */
-  --bg-dark: #f1f2f8;
-  --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-card-hover: rgba(255, 255, 255, 0.92);
-  --bg-vignette: rgba(255, 255, 255, 0.6);
-  --surface-solid: #ffffff;
-  --border-color: rgba(15, 23, 42, 0.09);
-  --border-strong: rgba(15, 23, 42, 0.18);
-  --border-glow: rgba(99, 102, 241, 0.25);
-  --overlay-1: rgba(15, 23, 42, 0.04);
-  --overlay-2: rgba(15, 23, 42, 0.06);
-  --overlay-3: rgba(15, 23, 42, 0.1);
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --shadow-subtle: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --shadow-card: 0 20px 40px rgba(15, 23, 42, 0.12);
+  /* ---------- Paleta clara (base) — pastel cálido, no tan "café" ---------- */
+  --bg-dark: #faf6f1;
+  --bg-card: rgba(255, 253, 250, 0.85);
+  --bg-card-hover: rgba(255, 253, 250, 0.96);
+  --bg-vignette: rgba(250, 246, 241, 0.6);
+  --surface-solid: #fffdfb;
+  --border-color: rgba(70, 50, 38, 0.08);
+  --border-strong: rgba(70, 50, 38, 0.16);
+  --border-glow: rgba(179, 113, 79, 0.22);
+  --overlay-1: rgba(70, 50, 38, 0.035);
+  --overlay-2: rgba(70, 50, 38, 0.055);
+  --overlay-3: rgba(70, 50, 38, 0.09);
+  --text-primary: #3d2f24;
+  --text-secondary: #83705f;
+  --text-muted: #b3a292;
+  --shadow-subtle: 0 10px 30px rgba(70, 50, 38, 0.07);
+  --shadow-card: 0 20px 40px rgba(70, 50, 38, 0.1);
 }
 
 /* Sigue al sistema operativo cuando el usuario elige "Sistema" (o no eligió nada aún) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg-dark: #090d16;
-    --bg-card: rgba(18, 24, 38, 0.75);
-    --bg-card-hover: rgba(28, 36, 56, 0.85);
-    --bg-vignette: rgba(15, 23, 42, 0.8);
-    --surface-solid: #111726;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.2);
-    --border-glow: rgba(99, 102, 241, 0.35);
-    --overlay-1: rgba(255, 255, 255, 0.05);
-    --overlay-2: rgba(255, 255, 255, 0.08);
-    --overlay-3: rgba(255, 255, 255, 0.14);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --bg-dark: #262220;
+    --bg-card: rgba(46, 40, 35, 0.75);
+    --bg-card-hover: rgba(58, 50, 44, 0.85);
+    --bg-vignette: rgba(34, 30, 26, 0.8);
+    --surface-solid: #2e2925;
+    --border-color: rgba(245, 237, 225, 0.09);
+    --border-strong: rgba(245, 237, 225, 0.2);
+    --border-glow: rgba(212, 165, 92, 0.32);
+    --overlay-1: rgba(245, 237, 225, 0.045);
+    --overlay-2: rgba(245, 237, 225, 0.07);
+    --overlay-3: rgba(245, 237, 225, 0.12);
+    --text-primary: #f2ebe2;
+    --text-secondary: #c7b7a6;
+    --text-muted: #93836f;
     --shadow-subtle: 0 10px 30px rgba(0, 0, 0, 0.3);
     --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.45);
   }
 }
 
-/* Elección explícita "Oscuro" desde Configuración: gana siempre, sin importar el sistema */
+/* Elección explícita "Oscuro" desde el toggle del navbar: gana siempre, sin importar el sistema */
 :root[data-theme='dark'] {
-  --bg-dark: #090d16;
-  --bg-card: rgba(18, 24, 38, 0.75);
-  --bg-card-hover: rgba(28, 36, 56, 0.85);
-  --bg-vignette: rgba(15, 23, 42, 0.8);
-  --surface-solid: #111726;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.2);
-  --border-glow: rgba(99, 102, 241, 0.35);
-  --overlay-1: rgba(255, 255, 255, 0.05);
-  --overlay-2: rgba(255, 255, 255, 0.08);
-  --overlay-3: rgba(255, 255, 255, 0.14);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --bg-dark: #262220;
+  --bg-card: rgba(46, 40, 35, 0.75);
+  --bg-card-hover: rgba(58, 50, 44, 0.85);
+  --bg-vignette: rgba(34, 30, 26, 0.8);
+  --surface-solid: #2e2925;
+  --border-color: rgba(245, 237, 225, 0.09);
+  --border-strong: rgba(245, 237, 225, 0.2);
+  --border-glow: rgba(212, 165, 92, 0.32);
+  --overlay-1: rgba(245, 237, 225, 0.045);
+  --overlay-2: rgba(245, 237, 225, 0.07);
+  --overlay-3: rgba(245, 237, 225, 0.12);
+  --text-primary: #f2ebe2;
+  --text-secondary: #c7b7a6;
+  --text-muted: #93836f;
   --shadow-subtle: 0 10px 30px rgba(0, 0, 0, 0.3);
   --shadow-card: 0 20px 40px rgba(0, 0, 0, 0.45);
 }
@@ -99,17 +100,13 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
-  background-image:
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, var(--bg-vignette) 0px, transparent 100%);
-  background-attachment: fixed;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 button {
@@ -138,6 +135,16 @@ a {
   -webkit-text-fill-color: transparent;
 }
 
+/* Etiqueta editorial en mayúsculas trackeadas, ej. "NUEVOS", "CATÁLOGO MAESTRO" */
+.eyebrow {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-secondary);
+}
+
 .btn-primary {
   background: var(--accent-gradient);
   color: #fff;
@@ -152,7 +159,7 @@ a {
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 30px rgba(122, 53, 32, 0.45);
   }
 
   &:disabled {

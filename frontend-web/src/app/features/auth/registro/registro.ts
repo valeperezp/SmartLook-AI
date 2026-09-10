@@ -3,27 +3,27 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { IconComponent } from '../../../core/components/icon/icon';
 
 @Component({
   selector: 'app-registro',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
   template: `
     <div class="auth-page">
       <div class="auth-showcase">
-        <div class="showcase-blob blob-1"></div>
-        <div class="showcase-blob blob-2"></div>
         <div class="showcase-content">
           <a routerLink="/" class="showcase-brand">
-            <span class="logo-icon">✨</span>
+            <span class="logo-icon"><app-icon name="sparkles" [size]="18" /></span>
             <span>SmartLook<b>.AI</b></span>
           </a>
+          <span class="eyebrow eyebrow-light">Nueva cuenta</span>
           <h2>Sumate a la moda inteligente</h2>
           <p>Creá tu cuenta y descubrí el catálogo, el vestidor virtual y recomendaciones hechas para vos.</p>
           <ul class="showcase-features">
-            <li><span class="feature-icon">🪞</span> Vestidor virtual con AR</li>
-            <li><span class="feature-icon">🤖</span> Recomendaciones con IA</li>
-            <li><span class="feature-icon">📍</span> Reservá en tu sucursal</li>
+            <li><span class="feature-icon"><app-icon name="focus" [size]="17" /></span> Vestidor virtual con AR</li>
+            <li><span class="feature-icon"><app-icon name="sparkles" [size]="17" /></span> Recomendaciones con IA</li>
+            <li><span class="feature-icon"><app-icon name="store" [size]="17" /></span> Reservá en tu sucursal</li>
           </ul>
         </div>
       </div>
