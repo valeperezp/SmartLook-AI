@@ -1,50 +1,51 @@
-<div class="page-container">
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-content">
-      <div class="hero-chip">
-        <span class="pulse-icon"></span>
-        <span>E-Commerce de Moda Inteligente</span>
-      </div>
-      <h1 class="hero-title">
-        Experiencia de moda del futuro con <span class="gradient-text">Realidad Aumentada e IA</span>
-      </h1>
-      <p class="hero-subtitle">
-        Explorá el catálogo en tiempo real conectado a PostgreSQL/Supabase, con prueba virtual de prendas
-        y reservas inteligentes en sucursales.
-      </p>
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="hero-overlay"></div>
+  <div class="hero-content">
+    <span class="eyebrow eyebrow-light">E-Commerce de Moda Inteligente</span>
+    <h1 class="hero-title">
+      Vestí el futuro con <span class="hero-title-accent">Realidad Aumentada e IA</span>
+    </h1>
+    <p class="hero-subtitle">
+      Explorá el catálogo en tiempo real conectado a PostgreSQL/Supabase, con prueba virtual de prendas
+      y reservas inteligentes en sucursales.
+    </p>
 
-      <div class="hero-stats">
-        <div class="stat-card">
-          <span class="stat-value">{{ productos().length }}</span>
-          <span class="stat-label">Prendas en Catálogo</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value" [ngClass]="backendStatus()">
-            @if (backendStatus() === 'connected') { En línea }
-            @else if (backendStatus() === 'checking') { Conectando }
-            @else { Sin conexión }
-          </span>
-          <span class="stat-label">Backend FastAPI</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-value">AR / IA</span>
-          <span class="stat-label">Vestidor Virtual</span>
-        </div>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <span class="stat-value">{{ productos().length }}</span>
+        <span class="stat-label">Prendas en catálogo</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-value" [ngClass]="backendStatus()">
+          @if (backendStatus() === 'connected') { En línea }
+          @else if (backendStatus() === 'checking') { Conectando }
+          @else { Sin conexión }
+        </span>
+        <span class="stat-label">Backend FastAPI</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item">
+        <span class="stat-value">AR / IA</span>
+        <span class="stat-label">Vestidor virtual</span>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
+<div class="page-container">
   <!-- Catalog Section -->
   <section class="catalog-section">
     <div class="section-header">
       <div>
-        <h2 class="section-title">Catálogo de Prendas</h2>
+        <span class="eyebrow">Catálogo maestro</span>
+        <h2 class="section-title">Prendas de la temporada</h2>
         <p class="section-subtitle">Explora los modelos disponibles en la base de datos centralizada</p>
       </div>
 
       <div class="search-bar">
-        <span class="search-icon">🔍</span>
+        <app-icon name="search" [size]="16" />
         <input
           type="text"
           placeholder="Buscar por nombre o descripción..."
@@ -74,7 +75,7 @@
       </div>
     } @else if (filteredProductos().length === 0) {
       <div class="empty-state">
-        <span class="empty-icon">👗</span>
+        <app-icon name="shirt" [size]="36" />
         <h3>No se encontraron prendas</h3>
         <p>Todavía no hay productos cargados en el catálogo, o no coinciden con tu búsqueda.</p>
       </div>
@@ -82,18 +83,17 @@
       <div class="products-grid">
         @for (prod of filteredProductos(); track prod.id) {
           <div class="product-card">
-            <div class="product-badge">{{ prod.categoria.nombre }}</div>
-
-            <div class="product-icon-container">
-              <div class="product-avatar">👕</div>
+            <div class="product-media">
+              <app-icon name="shirt" [size]="34" />
+              <span class="product-badge">{{ prod.categoria.nombre }}</span>
             </div>
 
             <div class="product-body">
               @if (prod.temporada) {
                 <div class="product-meta">
-                  <span class="meta-tag">🗓️ {{ prod.temporada.nombre }}</span>
+                  <span class="meta-tag"><app-icon name="calendar" [size]="12" /> {{ prod.temporada.nombre }}</span>
                   @if (prod.coleccion) {
-                    <span class="meta-tag">🏷️ {{ prod.coleccion.nombre }}</span>
+                    <span class="meta-tag"><app-icon name="tag" [size]="12" /> {{ prod.coleccion.nombre }}</span>
                   }
                 </div>
               }

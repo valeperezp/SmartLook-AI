@@ -5,11 +5,12 @@ import { HttpClient } from '@angular/common/http';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { Categoria, Producto } from '../../core/models/catalogo.model';
 import { environment } from '../../../environments/environment';
+import { IconComponent } from '../../core/components/icon/icon';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
