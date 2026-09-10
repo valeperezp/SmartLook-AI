@@ -3,6 +3,7 @@ import { adminGuard } from './core/guards/admin.guard';
 import { encargadoGuard } from './core/guards/encargado.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { homeGuard } from './core/guards/home.guard';
+import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -19,6 +20,12 @@ export const routes: Routes = [
     path: 'registro',
     loadComponent: () => import('./features/auth/registro/registro').then((m) => m.Registro),
     canActivate: [guestGuard],
+  },
+  {
+    path: 'mis-reservas',
+    loadComponent: () =>
+      import('./features/mis-reservas/mis-reservas').then((m) => m.MisReservas),
+    canActivate: [authGuard],
   },
   {
     path: 'admin',

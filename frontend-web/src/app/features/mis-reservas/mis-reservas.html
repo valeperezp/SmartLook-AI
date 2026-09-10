@@ -1,0 +1,199 @@
+<div class="mis-reservas-page">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Mis Reservas</h1>
+      <p class="page-subtitle">Historial y estado de tus pedidos y apartados de prendas en tienda</p>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/" class="btn-secondary">
+        <app-icon name="shirt" [size]="16" /> Volver al catálogo
+      </a>
+    </div>
+  </div>
+
+  <!-- Toast Notificación -->
+  @if (toast()) {
+    <div class="toast-notification" [class.toast-error]="toastIsError()">
+      <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="18" />
+      <span>{{ toast() }}</span>
+    </div>
+  }
+
+  <!-- Contenido Principal -->
+  <div class="card">
+    @if (cargando()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando tus reservas...</p>
+      </div>
+    } @else if (reservas().length === 0) {
+      <div class="empty-state">
+        <app-icon name="package" [size]="48" />
+        <h3>No tienes reservas activas</h3>
+        <p>Explorá nuestro catálogo, elegí la prenda en tu sucursal más cercana y reservala online.</p>
+        <a routerLink="/" class="btn-primary" style="margin-top: 1rem;">
+          Ir al catálogo
+        </a>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Sucursal</th>
+              <th>Fecha de Creación</th>
+              <th>Items</th>
+              <th>Estado</th>
+              <th>Total Estimado</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of reservas(); track r.id) {
+              <tr>
+                <td class="reserva-id">#{{ r.id }}</td>
+                <td>
+                  <div class="sucursal-cell">
+                    <app-icon name="store" [size]="14" />
+                    <strong>{{ r.nombre_sucursal || 'Sucursal ' + r.sucursal_id }}</strong>
+                  </div>
+                </td>
+                <td>{{ r.creada_en | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  <span class="items-badge">{{ r.total_unidades }} un. ({{ r.total_items }} prendas)</span>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="claseBadgeEstado(r.estado)">
+                    {{ r.estado | uppercase }}
+                  </span>
+                </td>
+                <td class="total-cell">${{ r.total_estimado | number:'1.2-2' }}</td>
+                <td style="text-align: right;">
+                  <div class="actions-cell">
+                    <button
+                      type="button"
+                      class="btn-sm btn-secondary"
+                      (click)="abrirDetalle(r)"
+                      title="Ver detalle de la reserva"
+                    >
+                      Ver detalle
+                    </button>
+                    @if (r.estado === 'pendiente') {
+                      <button
+                        type="button"
+                        class="btn-sm btn-danger"
+                        (click)="cancelarReserva(r)"
+                        [disabled]="cancelando()"
+                        title="Cancelar reserva"
+                      >
+                        Cancelar
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Modal Detalle de Reserva -->
+@if (modalDetalleAbierto() && reservaSeleccionada(); as r) {
+  <div class="modal-backdrop" (click)="cerrarDetalle()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="eyebrow">Detalle de Reserva</span>
+          <h2 class="modal-title">Reserva #{{ r.id }}</h2>
+          <span class="modal-branch">
+            <app-icon name="store" [size]="14" /> {{ r.nombre_sucursal || 'Sucursal ' + r.sucursal_id }}
+          </span>
+        </div>
+        <button class="modal-close-btn" (click)="cerrarDetalle()" aria-label="Cerrar modal">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Meta / Resumen -->
+        <div class="reserva-meta">
+          <div class="meta-item">
+            <span class="meta-label">Estado:</span>
+            <span class="badge" [ngClass]="claseBadgeEstado(r.estado)">
+              {{ r.estado | uppercase }}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Fecha creación:</span>
+            <span class="meta-value">{{ r.creada_en | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+          @if (r.horario_aproximado) {
+            <div class="meta-item">
+              <span class="meta-label">Retiro estimado:</span>
+              <span class="meta-value">{{ r.horario_aproximado | date:'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Tabla de Items -->
+        <h4 class="items-title">Prendas Reservadas</h4>
+        <div class="items-table-wrapper">
+          <table class="data-table items-table">
+            <thead>
+              <tr>
+                <th>Prenda</th>
+                <th>Talla</th>
+                <th>Color</th>
+                <th>Cant.</th>
+                <th>Precio Unit.</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of r.items; track item.id) {
+                <tr>
+                  <td>
+                    <strong>{{ item.nombre_producto }}</strong>
+                  </td>
+                  <td>{{ item.nombre_talla || 'N/A' }}</td>
+                  <td>{{ item.nombre_color || 'N/A' }}</td>
+                  <td>{{ item.cantidad }} un.</td>
+                  <td>${{ item.precio_unitario | number:'1.2-2' }}</td>
+                  <td>${{ (item.precio_unitario * item.cantidad) | number:'1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Total Estimado -->
+        <div class="reserva-total">
+          <span class="total-label">Total estimado a pagar en sucursal:</span>
+          <span class="total-amount">${{ r.total_estimado | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        @if (r.estado === 'pendiente') {
+          <button
+            type="button"
+            class="btn-danger"
+            (click)="cancelarReserva(r)"
+            [disabled]="cancelando()"
+            style="margin-right: auto;"
+          >
+            Cancelar esta reserva
+          </button>
+        }
+        <button type="button" class="btn-secondary" (click)="cerrarDetalle()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}
