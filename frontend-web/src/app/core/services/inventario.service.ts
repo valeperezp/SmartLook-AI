@@ -5,6 +5,7 @@ import {
   AlertaStock,
   FiltrosInventario,
   InventarioItem,
+  MovimientoInventario,
   ResumenInventario,
 } from '../models/inventario.model';
 
@@ -39,5 +40,49 @@ export class InventarioService {
 
   porProducto(productoId: number) {
     return this.http.get<InventarioItem[]>(`${this.base}/producto/${productoId}`);
+  }
+
+  crearMovimiento(data: {
+    inventario_id: number;
+    tipo: 'entrada' | 'salida';
+    cantidad: number;
+    motivo?: string;
+  }) {
+    return this.http.post<MovimientoInventario>(`${this.base}/movimientos`, data);
+  }
+
+  ajustarStock(data: {
+    inventario_id: number;
+    cantidad?: number;
+    nueva_cantidad?: number;
+    motivo?: string;
+  }) {
+    const payload = {
+      inventario_id: data.inventario_id,
+      nueva_cantidad: data.nueva_cantidad ?? data.cantidad ?? 0,
+      motivo: data.motivo,
+    };
+    return this.http.post<InventarioItem>(`${this.base}/ajuste`, payload);
+  }
+
+  actualizarStockMinimo(inventarioId: number, stock_minimo: number) {
+    return this.http.patch<InventarioItem>(
+      `${this.base}/${inventarioId}/stock-minimo`,
+      { stock_minimo }
+    );
+  }
+
+  miSucursal() {
+    return this.http.get<InventarioItem[]>(`${this.base}/mi-sucursal`);
+  }
+
+  listarMovimientos(filtros: { tipo?: string; limite?: number; limit?: number } = {}) {
+    let params = new HttpParams();
+    if (filtros.tipo) params = params.set('tipo', filtros.tipo);
+    const lim = filtros.limit ?? filtros.limite;
+    if (lim) {
+      params = params.set('limit', lim);
+    }
+    return this.http.get<MovimientoInventario[]>(`${this.base}/movimientos`, { params });
   }
 }

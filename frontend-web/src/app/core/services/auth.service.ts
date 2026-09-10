@@ -21,6 +21,7 @@ export class AuthService {
   currentUser = signal<Usuario | null>(null);
   isLoggedIn = computed(() => this.currentUser() !== null);
   isAdmin = computed(() => this.currentUser()?.rol === 'administrador');
+  isEncargado = computed(() => this.currentUser()?.rol === 'encargado_sucursal');
 
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
@@ -53,6 +54,12 @@ export class AuthService {
 
   registrar(nombre: string, email: string, password: string) {
     return this.http.post<Usuario>(`${this.apiUrl}/auth/registro`, { nombre, email, password });
+  }
+
+  refrescarUsuario() {
+    return this.http.get<Usuario>(`${this.apiUrl}/auth/me`).pipe(
+      tap((usuario) => this.currentUser.set(usuario))
+    );
   }
 
   /**

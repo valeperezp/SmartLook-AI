@@ -42,3 +42,30 @@ export interface FiltrosInventario {
   solo_disponibles?: boolean;
   solo_agotados?: boolean;
 }
+
+export interface MovimientoInventario {
+  id: number;
+  inventario_id: number;
+  tipo: 'entrada' | 'salida' | 'ajuste' | 'venta' | 'reserva' | string;
+  cantidad: number;
+  motivo?: string | null;
+  usuario_id?: number | null;
+  nombre_usuario?: string | null;
+  nombre_producto?: string | null;
+  nombre_sucursal?: string | null;
+  creado_en: string;
+}
+
+export interface MovimientoCreate {
+  inventario_id: number;
+  tipo: 'entrada' | 'salida';
+  cantidad: number;
+  motivo?: string;
+}
+
+export interface AjusteStockCreate {
+  inventario_id: number;
+  cantidad?: number;
+  nueva_cantidad?: number;
+  motivo?: string;
+}

@@ -21,6 +21,10 @@ export const homeGuard: CanActivateFn = () => {
         router.navigate(['/admin']);
         return false;
       }
+      if (auth.isEncargado()) {
+        router.navigate(['/encargado']);
+        return false;
+      }
       return true;
     })
   );

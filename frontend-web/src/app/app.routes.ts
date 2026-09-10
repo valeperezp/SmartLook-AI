@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
+import { encargadoGuard } from './core/guards/encargado.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { homeGuard } from './core/guards/home.guard';
 
@@ -92,6 +93,37 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/catalogo/colecciones/colecciones-admin').then(
             (m) => m.ColeccionesAdmin
+          ),
+      },
+    ],
+  },
+  {
+    path: 'encargado',
+    loadComponent: () =>
+      import('./features/encargado/encargado-layout/encargado-layout').then(
+        (m) => m.EncargadoLayout
+      ),
+    canActivate: [encargadoGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/encargado/encargado-dashboard/encargado-dashboard').then(
+            (m) => m.EncargadoDashboard
+          ),
+      },
+      {
+        path: 'inventario',
+        loadComponent: () =>
+          import('./features/encargado/inventario/encargado-inventario').then(
+            (m) => m.EncargadoInventario
+          ),
+      },
+      {
+        path: 'movimientos',
+        loadComponent: () =>
+          import('./features/encargado/movimientos/encargado-movimientos').then(
+            (m) => m.EncargadoMovimientos
           ),
       },
     ],
