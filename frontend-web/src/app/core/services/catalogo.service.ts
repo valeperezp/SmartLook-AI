@@ -92,4 +92,22 @@ export class CatalogoService {
   eliminarProducto(id: number) {
     return this.http.delete<Producto>(`${this.base}/productos/${id}`);
   }
+
+  // ===== MÉTODOS PARA PROVEEDOR (CU18) =====
+  listarMisProductos(incluirInactivos = false) {
+    const params = new HttpParams().set('incluir_inactivos', incluirInactivos);
+    return this.http.get<Producto[]>(`${this.base}/mis-productos`, { params });
+  }
+
+  crearMiProducto(data: ProductoCreate) {
+    return this.http.post<Producto>(`${this.base}/mis-productos`, data);
+  }
+
+  actualizarMiProducto(id: number, data: Partial<ProductoCreate>) {
+    return this.http.put<Producto>(`${this.base}/mis-productos/${id}`, data);
+  }
+
+  eliminarMiProducto(id: number) {
+    return this.http.delete<Producto>(`${this.base}/mis-productos/${id}`);
+  }
 }

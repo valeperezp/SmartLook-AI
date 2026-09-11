@@ -1,0 +1,103 @@
+<div class="proveedor-catalogo-page">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Catálogo completo</h1>
+      <p>Vista de solo lectura del catálogo global de la plataforma</p>
+    </div>
+  </div>
+
+  <!-- Banner Informativo -->
+  <div class="info-banner">
+    <app-icon name="alert-circle" [size]="20" />
+    <div class="banner-text">
+      <strong>Modo de solo lectura</strong>
+      <span>Esta sección muestra el catálogo general de SmartLook-AI. Solo puedes crear, modificar o desactivar tus propios productos desde la sección <b>Mis Productos</b>.</span>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros y Búsqueda -->
+  <div class="card filters-card">
+    <div class="search-box">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="text"
+        placeholder="Buscar prendas en el catálogo general..."
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+    </div>
+
+    <!-- Chips de Categorías -->
+    <div class="category-pills">
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroCategoria() === 'todas'"
+        (click)="setCategoria('todas')"
+      >
+        Todas ({{ productos().length }})
+      </button>
+      @for (c of categorias(); track c.id) {
+        <button
+          type="button"
+          class="pill-btn"
+          [class.active]="filtroCategoria() === c.id"
+          (click)="setCategoria(c.id)"
+        >
+          {{ c.nombre }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Grid de Productos -->
+  @if (cargando()) {
+    <div class="card loading-card">
+      <div class="spinner"></div>
+      <p>Cargando catálogo global...</p>
+    </div>
+  } @else if (productosFiltrados().length === 0) {
+    <div class="card empty-card">
+      <app-icon name="package" [size]="44" />
+      <h3>No se encontraron productos</h3>
+      <p>No hay artículos que coincidan con la categoría o término buscado.</p>
+    </div>
+  } @else {
+    <div class="products-grid">
+      @for (p of productosFiltrados(); track p.id) {
+        <div class="product-card" [class.inactive]="!p.activo">
+          <div class="card-top">
+            <span class="category-tag">{{ p.categoria?.nombre || 'General' }}</span>
+            <span class="badge" [class.badge-success]="p.activo" [class.badge-muted]="!p.activo">
+              {{ p.activo ? 'Activo' : 'Inactivo' }}
+            </span>
+          </div>
+
+          <div class="card-content">
+            <h3 class="product-title">{{ p.nombre }}</h3>
+            @if (p.descripcion) {
+              <p class="product-desc">{{ p.descripcion }}</p>
+            }
+            <div class="meta-row">
+              @if (p.temporada) {
+                <span class="meta-pill">{{ p.temporada.nombre }}</span>
+              }
+              @if (p.coleccion) {
+                <span class="meta-pill">{{ p.coleccion.nombre }}</span>
+              }
+            </div>
+          </div>
+
+          <div class="card-footer">
+            <div class="price-box">
+              <span class="price-label">Precio</span>
+              <strong class="price-amount">&#36;{{ p.precio | number:'1.2-2' }}</strong>
+            </div>
+            <div class="id-tag">ID: #{{ p.id }}</div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

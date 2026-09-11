@@ -1,4 +1,5 @@
 """Lógica de negocio del módulo Catálogo (independiente de FastAPI/HTTP)."""
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.catalogo import models, schemas
@@ -349,4 +350,65 @@ def listar_productos_con_disponibilidad(
         })
 
     return resultados
+
+
+# =========================================================================
+# GESTIÓN DE PRODUCTOS POR PROVEEDOR (CU18)
+# =========================================================================
+
+def listar_productos_por_proveedor(db: Session, proveedor_id: int, incluir_inactivos: bool = False) -> list[models.Producto]:
+    """Lista los productos asociados a un proveedor específico."""
+    query = db.query(models.Producto).filter(models.Producto.proveedor_id == proveedor_id)
+    if not incluir_inactivos:
+        query = query.filter(models.Producto.activo.is_(True))
+    return query.order_by(models.Producto.nombre).all()
+
+
+def crear_producto_proveedor(db: Session, data: schemas.ProductoCreate, proveedor_id: int) -> models.Producto:
+    """Crea un producto asignándolo automáticamente al proveedor."""
+    producto = models.Producto(
+        nombre=data.nombre,
+        descripcion=data.descripcion,
+        precio=data.precio,
+        categoria_id=data.categoria_id,
+        temporada_id=data.temporada_id,
+        coleccion_id=data.coleccion_id,
+        proveedor_id=proveedor_id,
+        modelo_ar_url=data.modelo_ar_url,
+    )
+    db.add(producto)
+    db.commit()
+    db.refresh(producto)
+    return producto
+
+
+def actualizar_producto_proveedor(db: Session, producto_id: int, data: schemas.ProductoUpdate, proveedor_id: int) -> models.Producto | None:
+    """Actualiza un producto validando que sea del proveedor. NO permite cambiar proveedor_id."""
+    producto = db.query(models.Producto).filter(models.Producto.id == producto_id).first()
+    if not producto:
+        return None
+    if producto.proveedor_id != proveedor_id:
+        raise HTTPException(status_code=403, detail="No puede modificar productos de otro proveedor")
+
+    # Aplicar solo los campos permitidos (excluir proveedor_id)
+    datos = data.model_dump(exclude_unset=True, exclude={'proveedor_id'})
+    for campo, valor in datos.items():
+        setattr(producto, campo, valor)
+
+    db.commit()
+    db.refresh(producto)
+    return producto
+
+
+def eliminar_producto_proveedor(db: Session, producto_id: int, proveedor_id: int) -> models.Producto | None:
+    """Desactiva un producto validando que sea del proveedor."""
+    producto = db.query(models.Producto).filter(models.Producto.id == producto_id).first()
+    if not producto:
+        return None
+    if producto.proveedor_id != proveedor_id:
+        raise HTTPException(status_code=403, detail="No puede desactivar productos de otro proveedor")
+    producto.activo = False
+    db.commit()
+    db.refresh(producto)
+    return producto
 

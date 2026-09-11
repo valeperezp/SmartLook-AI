@@ -74,7 +74,7 @@ export class Login {
     this.auth.login(this.email, this.password).subscribe({
       next: () => {
         this.loading.set(false);
-        this.router.navigate([this.auth.isAdmin() ? '/admin' : '/']);
+        this.router.navigate([this.auth.getHomeRoute()]);
       },
       error: () => {
         this.loading.set(false);

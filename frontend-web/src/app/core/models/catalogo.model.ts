@@ -58,6 +58,8 @@ export interface ProductoCreate {
   temporada_id?: number;
   coleccion_id?: number;
   proveedor_id?: number;
+  modelo_ar_url?: string;
+  activo?: boolean;
 }
 
 export interface DisponibilidadTallaColor {
