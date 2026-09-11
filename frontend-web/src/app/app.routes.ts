@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
 import { encargadoGuard } from './core/guards/encargado.guard';
+import { proveedorGuard } from './core/guards/proveedor.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { homeGuard } from './core/guards/home.guard';
 import { authGuard } from './core/guards/auth.guard';
@@ -138,6 +139,37 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/encargado/movimientos/encargado-movimientos').then(
             (m) => m.EncargadoMovimientos
+          ),
+      },
+    ],
+  },
+  {
+    path: 'proveedor',
+    loadComponent: () =>
+      import('./features/proveedor/proveedor-layout/proveedor-layout').then(
+        (m) => m.ProveedorLayout
+      ),
+    canActivate: [proveedorGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/proveedor/proveedor-dashboard/proveedor-dashboard').then(
+            (m) => m.ProveedorDashboard
+          ),
+      },
+      {
+        path: 'productos',
+        loadComponent: () =>
+          import('./features/proveedor/proveedor-productos/proveedor-productos').then(
+            (m) => m.ProveedorProductos
+          ),
+      },
+      {
+        path: 'catalogo',
+        loadComponent: () =>
+          import('./features/proveedor/proveedor-catalogo/proveedor-catalogo').then(
+            (m) => m.ProveedorCatalogo
           ),
       },
     ],

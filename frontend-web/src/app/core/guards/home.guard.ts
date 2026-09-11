@@ -13,13 +13,9 @@ export const homeGuard: CanActivateFn = () => {
       if (!auth.isLoggedIn()) {
         return true;
       }
-      // Admin y encargado van a sus paneles
-      if (auth.isAdmin()) {
-        router.navigate(['/admin']);
-        return false;
-      }
-      if (auth.isEncargado()) {
-        router.navigate(['/encargado']);
+      // Admin, encargado y proveedor van a sus paneles
+      if (auth.isAdmin() || auth.isEncargado() || auth.isProveedor()) {
+        router.navigate([auth.getHomeRoute()]);
         return false;
       }
       // Cliente logueado: ve el catálogo normal

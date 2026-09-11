@@ -4,11 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
 from app.modules.catalogo import schemas, service
+from app.modules.usuarios.models import Usuario
 from app.shared.db.session import get_db
 
 router = APIRouter(prefix="/catalogo", tags=["catalogo"])
 
 admin_only = require_roles("administrador")
+proveedor_only = require_roles("proveedor")
 
 
 # ---------- Categorías ----------
@@ -205,3 +207,56 @@ def eliminar_producto(producto_id: int, db: Session = Depends(get_db)):
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
+
+
+# ---------- Productos del Proveedor (CU18) ----------
+@router.get("/mis-productos", response_model=list[schemas.ProductoOut])
+def listar_mis_productos(
+    incluir_inactivos: bool = Query(False, description="Incluir productos inactivos"),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(proveedor_only),
+):
+    if not usuario.proveedor_id:
+        raise HTTPException(status_code=403, detail="El proveedor no tiene proveedor_id asignado")
+    return service.listar_productos_por_proveedor(db, usuario.proveedor_id, incluir_inactivos=incluir_inactivos)
+
+
+@router.post("/mis-productos", response_model=schemas.ProductoOut, status_code=201)
+def crear_mi_producto(
+    data: schemas.ProductoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(proveedor_only),
+):
+    if not usuario.proveedor_id:
+        raise HTTPException(status_code=403, detail="El proveedor no tiene proveedor_id asignado")
+    return service.crear_producto_proveedor(db, data, usuario.proveedor_id)
+
+
+@router.put("/mis-productos/{producto_id}", response_model=schemas.ProductoOut)
+def actualizar_mi_producto(
+    producto_id: int,
+    data: schemas.ProductoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(proveedor_only),
+):
+    if not usuario.proveedor_id:
+        raise HTTPException(status_code=403, detail="El proveedor no tiene proveedor_id asignado")
+    producto = service.actualizar_producto_proveedor(db, producto_id, data, usuario.proveedor_id)
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return producto
+
+
+@router.delete("/mis-productos/{producto_id}", response_model=schemas.ProductoOut)
+def eliminar_mi_producto(
+    producto_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(proveedor_only),
+):
+    if not usuario.proveedor_id:
+        raise HTTPException(status_code=403, detail="El proveedor no tiene proveedor_id asignado")
+    producto = service.eliminar_producto_proveedor(db, producto_id, usuario.proveedor_id)
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    return producto
+

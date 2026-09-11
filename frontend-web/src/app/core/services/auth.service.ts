@@ -22,6 +22,16 @@ export class AuthService {
   isLoggedIn = computed(() => this.currentUser() !== null);
   isAdmin = computed(() => this.currentUser()?.rol === 'administrador');
   isEncargado = computed(() => this.currentUser()?.rol === 'encargado_sucursal');
+  isProveedor = computed(() => this.currentUser()?.rol === 'proveedor');
+
+  getHomeRoute(): string {
+    const user = this.currentUser();
+    if (!user) return '/login';
+    if (user.rol === 'administrador') return '/admin';
+    if (user.rol === 'encargado_sucursal') return '/encargado';
+    if (user.rol === 'proveedor') return '/proveedor';
+    return '/';
+  }
 
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);

@@ -24,6 +24,7 @@ def crear_usuario(db: Session, data: schemas.UsuarioCreate) -> models.Usuario:
         password_hash=hash_password(data.password),
         rol=data.rol,
         sucursal_id=data.sucursal_id,
+        proveedor_id=data.proveedor_id,
     )
     db.add(usuario)
     db.commit()
@@ -49,6 +50,8 @@ def actualizar_rol(db: Session, usuario_id: int, data: schemas.UsuarioRolUpdate)
     usuario.rol = data.rol
     if data.sucursal_id is not None:
         usuario.sucursal_id = data.sucursal_id
+    if data.proveedor_id is not None:
+        usuario.proveedor_id = data.proveedor_id
     db.commit()
     db.refresh(usuario)
     return usuario

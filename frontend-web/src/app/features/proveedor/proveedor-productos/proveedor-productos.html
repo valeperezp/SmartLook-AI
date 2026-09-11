@@ -1,0 +1,239 @@
+<div class="proveedor-productos-page">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Mis Productos</h1>
+      <p>Gestión de las prendas suministradas por tu empresa</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="abrirModalNuevo()">
+        <app-icon name="sparkles" [size]="16" />
+        <span>Nuevo Producto</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notificación -->
+  @if (toast()) {
+    <div class="toast-notification" [class.toast-error]="toastIsError()">
+      <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="18" />
+      <span>{{ toast() }}</span>
+    </div>
+  }
+
+  <!-- Barra de Filtros y Búsqueda -->
+  <div class="card filters-card">
+    <div class="search-box">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="text"
+        placeholder="Buscar por nombre o descripción..."
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+    </div>
+    <div class="count-pill">
+      <span>{{ productosFiltrados().length }} de {{ productos().length }} productos</span>
+    </div>
+  </div>
+
+  <!-- Tabla de Productos -->
+  <div class="card">
+    @if (cargando()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando tus productos...</p>
+      </div>
+    } @else if (productosFiltrados().length === 0) {
+      <div class="empty-state">
+        <app-icon name="shirt" [size]="44" />
+        <h3>No se encontraron productos</h3>
+        <p>No hay prendas que coincidan con tu búsqueda o aún no has registrado productos.</p>
+        <button class="btn-primary" (click)="abrirModalNuevo()" style="margin-top: 1rem;">
+          <app-icon name="sparkles" [size]="16" />
+          <span>Crear Primer Producto</span>
+        </button>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th>Temporada</th>
+              <th>Colección</th>
+              <th>Precio</th>
+              <th>Estado</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of productosFiltrados(); track p.id) {
+              <tr>
+                <td class="id-cell">#{{ p.id }}</td>
+                <td>
+                  <div class="producto-info">
+                    <strong>{{ p.nombre }}</strong>
+                    @if (p.descripcion) {
+                      <span class="desc-text">{{ p.descripcion }}</span>
+                    }
+                  </div>
+                </td>
+                <td>{{ p.categoria?.nombre || '—' }}</td>
+                <td>{{ p.temporada?.nombre || '—' }}</td>
+                <td>{{ p.coleccion?.nombre || '—' }}</td>
+                <td class="price-cell">&#36;{{ p.precio | number:'1.2-2' }}</td>
+                <td>
+                  <span class="badge" [class.badge-success]="p.activo" [class.badge-danger]="!p.activo">
+                    {{ p.activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td style="text-align: right;">
+                  <div class="actions-cell">
+                    @if (p.activo) {
+                      <button
+                        type="button"
+                        class="btn-secondary btn-sm"
+                        (click)="abrirModalEditar(p)"
+                        title="Editar información del producto"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-danger btn-sm"
+                        (click)="desactivar(p)"
+                        title="Desactivar producto"
+                      >
+                        Desactivar
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn-success btn-sm"
+                        (click)="reactivar(p)"
+                        title="Reactivar producto"
+                      >
+                        Reactivar
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Modal Crear / Editar Producto -->
+@if (modalAbierto()) {
+  <div class="modal-backdrop" (click)="cerrarModal()">
+    <div class="modal-container" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="eyebrow">{{ productoEditando() ? 'Modificar Producto' : 'Alta de Producto' }}</span>
+          <h2 class="modal-title">{{ productoEditando() ? ('Editar #' + productoEditando()?.id) : 'Nuevo Producto' }}</h2>
+        </div>
+        <button class="modal-close-btn" (click)="cerrarModal()" aria-label="Cerrar modal">
+          ✕
+        </button>
+      </div>
+
+      <form (ngSubmit)="guardar()">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label>Nombre del producto *</label>
+              <input
+                type="text"
+                [(ngModel)]="form.nombre"
+                name="nombre"
+                placeholder="Ej. Camiseta Algodón Pima"
+                required
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label>Precio *</label>
+              <input
+                type="number"
+                [(ngModel)]="form.precio"
+                name="precio"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 1rem;">
+            <label>Descripción</label>
+            <textarea
+              [(ngModel)]="form.descripcion"
+              name="descripcion"
+              rows="3"
+              placeholder="Detalles sobre materiales, corte, lavado..."
+            ></textarea>
+          </div>
+
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group flex-1">
+              <label>Categoría *</label>
+              <select [(ngModel)]="form.categoria_id" name="categoria_id" required>
+                <option [ngValue]="undefined">— Seleccionar —</option>
+                @for (c of categorias(); track c.id) {
+                  <option [ngValue]="c.id">{{ c.nombre }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label>Temporada</label>
+              <select [(ngModel)]="form.temporada_id" name="temporada_id">
+                <option [ngValue]="undefined">— Ninguna —</option>
+                @for (t of temporadas(); track t.id) {
+                  <option [ngValue]="t.id">{{ t.nombre }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 1rem;">
+            <div class="form-group flex-1">
+              <label>Colección</label>
+              <select [(ngModel)]="form.coleccion_id" name="coleccion_id">
+                <option [ngValue]="undefined">— Ninguna —</option>
+                @for (col of colecciones(); track col.id) {
+                  <option [ngValue]="col.id">{{ col.nombre }}</option>
+                }
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label>URL Modelo 3D / AR (Opcional)</label>
+              <input
+                type="text"
+                [(ngModel)]="form.modelo_ar_url"
+                name="modelo_ar_url"
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" (click)="cerrarModal()" [disabled]="guardando()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn-primary" [disabled]="guardando()">
+            <app-icon name="check-circle" [size]="16" />
+            <span>{{ guardando() ? 'Guardando...' : (productoEditando() ? 'Actualizar Producto' : 'Crear Producto') }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
