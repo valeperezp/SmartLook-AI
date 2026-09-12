@@ -21,6 +21,7 @@ from app.modules.ia.router import router as ia_router
 from app.modules.reportes.router import router as reportes_router
 
 from contextlib import asynccontextmanager
+from app.shared.core.config import settings
 from app.shared.db.session import engine, Base
 import app.modules.usuarios.models
 import app.modules.sucursales.models
@@ -46,7 +47,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # restringir en producción
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
