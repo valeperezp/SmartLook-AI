@@ -1,3 +1,3 @@
 export const environment = {
-  apiUrl: 'https://TU-BACKEND-DE-RAILWAY.up.railway.app',
+  apiUrl: 'https://smartlook-ai-production.up.railway.app',
 };
