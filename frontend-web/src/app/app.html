@@ -30,11 +30,16 @@
         <app-icon [name]="preferencias.tema() === 'dark' ? 'moon' : 'sun'" [size]="18" />
       </button>
       @if (auth.isLoggedIn()) {
-        <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
-          <app-icon name="package" [size]="16" /> Mis Reservas
-        </a>
+        @if (auth.isCliente()) {
+          <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+            <app-icon name="package" [size]="16" /> Mis Reservas
+          </a>
+        }
         <span class="user-chip"><app-icon name="user" [size]="15" /> {{ auth.currentUser()?.nombre }}</span>
-        <button class="btn-secondary" (click)="logout()">Cerrar sesión</button>
+        <button class="icon-btn btn-logout" (click)="logout()" aria-label="Cerrar sesión">
+          <app-icon name="logout" [size]="18" />
+          <span class="tooltip">Cerrar sesión</span>
+        </button>
       } @else {
         <a routerLink="/login" class="btn-secondary">Iniciar sesión</a>
         <a routerLink="/registro" class="btn-primary">Registrarme</a>

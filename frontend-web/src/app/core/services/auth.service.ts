@@ -23,6 +23,7 @@ export class AuthService {
   isAdmin = computed(() => this.currentUser()?.rol === 'administrador');
   isEncargado = computed(() => this.currentUser()?.rol === 'encargado_sucursal');
   isProveedor = computed(() => this.currentUser()?.rol === 'proveedor');
+  isCliente = computed(() => this.currentUser()?.rol === 'cliente');
 
   getHomeRoute(): string {
     const user = this.currentUser();

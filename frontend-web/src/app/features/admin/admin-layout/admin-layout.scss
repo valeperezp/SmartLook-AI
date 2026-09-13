@@ -4,9 +4,14 @@
   display: block;
 }
 
+/* ---------- Escritorio: sidebar estático, empuja el contenido ---------- */
 .admin-shell {
   display: flex;
   min-height: calc(100vh - 80px);
+}
+
+.sidebar-backdrop {
+  display: none;
 }
 
 .admin-sidebar {
@@ -63,8 +68,8 @@
       }
 
       &.active {
-        background: rgba(99, 102, 241, 0.15);
-        color: var(--primary-light);
+        background: var(--overlay-2);
+        color: var(--primary);
       }
     }
 
@@ -77,6 +82,7 @@
       white-space: nowrap;
     }
   }
+
 }
 
 .admin-content {
@@ -85,38 +91,48 @@
   overflow-x: auto;
 }
 
+/* ---------- Mobile/tablet: el sidebar pasa a ser un panel flotante ----------
+   que se superpone al contenido en vez de empujarlo (si no, en una pantalla
+   angosta el contenido queda apretado contra la pared). */
 @media (max-width: 900px) {
   .admin-shell {
-    flex-direction: column;
+    position: relative;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 80px 0 0 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 35;
   }
 
   .admin-sidebar {
-    width: 100%;
-    flex-basis: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
+    position: fixed;
+    top: 80px;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 85vw;
+    flex: none;
+    overflow-y: auto;
+    z-index: 40;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.12);
+    opacity: 1;
+    transform: translateX(0);
+    transition: transform 0.25s ease;
 
     &.collapsed {
-      flex-basis: 0;
-      width: 100%;
-      height: 0;
-      padding-top: 0;
-      padding-bottom: 0;
-      border-bottom-color: transparent;
+      width: 260px;
+      padding: 1.75rem 1.25rem;
+      opacity: 1;
+      border-right-color: var(--border-color);
+      transform: translateX(-100%);
     }
 
     h3,
     nav {
       width: auto;
-    }
-
-    nav {
-      flex-direction: row;
-      flex-wrap: wrap;
-    }
-
-    .nav-group {
-      width: 100%;
     }
   }
 

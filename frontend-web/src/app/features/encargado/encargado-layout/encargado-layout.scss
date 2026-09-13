@@ -2,9 +2,14 @@
   display: block;
 }
 
+/* ---------- Escritorio: sidebar estático, empuja el contenido ---------- */
 .encargado-shell {
   display: flex;
   min-height: calc(100vh - 80px);
+}
+
+.sidebar-backdrop {
+  display: none;
 }
 
 .encargado-sidebar {
@@ -16,6 +21,17 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+
+  &.collapsed {
+    flex-basis: 0;
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    opacity: 0;
+    border-right-color: transparent;
+  }
 
   .sidebar-header {
     display: flex;
@@ -131,33 +147,6 @@
     }
   }
 
-  .sidebar-footer {
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
-
-    .btn-logout {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      padding: 0.6rem;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-color);
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s ease;
-
-      &:hover {
-        background: rgba(239, 68, 68, 0.1);
-        color: var(--danger);
-        border-color: rgba(239, 68, 68, 0.3);
-      }
-    }
-  }
 }
 
 .encargado-content {
@@ -166,24 +155,51 @@
   overflow-x: auto;
 }
 
+/* ---------- Mobile/tablet: el sidebar pasa a ser un panel flotante ---------- */
 @media (max-width: 900px) {
   .encargado-shell {
-    flex-direction: column;
+    position: relative;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 80px 0 0 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 35;
   }
 
   .encargado-sidebar {
-    width: 100%;
-    flex-basis: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
+    position: fixed;
+    top: 80px;
+    left: 0;
+    bottom: 0;
+    width: 270px;
+    max-width: 85vw;
+    flex: none;
+    overflow-y: auto;
+    z-index: 40;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.12);
+    opacity: 1;
+    transform: translateX(0);
+    transition: transform 0.25s ease;
 
-    nav {
-      flex-direction: row;
-      flex-wrap: wrap;
+    &.collapsed {
+      width: 270px;
+      padding: 1.75rem 1.25rem;
+      opacity: 1;
+      border-right-color: var(--border-color);
+      transform: translateX(-100%);
     }
   }
 
   .encargado-content {
     padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .encargado-content {
+    padding: 1.1rem 0.9rem;
   }
 }
