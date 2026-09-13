@@ -35,8 +35,11 @@ export class App {
     return url.startsWith('/login') || url.startsWith('/registro');
   });
 
-  /** El botón de colapsar módulos solo tiene sentido dentro del panel admin. */
-  showSidebarToggle = computed(() => this.currentUrl().startsWith('/admin'));
+  /** El botón de colapsar módulos solo tiene sentido dentro de un panel con sidebar. */
+  showSidebarToggle = computed(() => {
+    const url = this.currentUrl();
+    return url.startsWith('/admin') || url.startsWith('/encargado') || url.startsWith('/proveedor');
+  });
 
   logout() {
     this.auth.logout();

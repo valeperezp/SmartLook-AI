@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { AuthService } from '../../../core/services/auth.service';
+import { AdminUiService } from '../../../core/services/admin-ui.service';
 
 @Component({
   selector: 'app-encargado-layout',
@@ -10,7 +11,10 @@ import { AuthService } from '../../../core/services/auth.service';
   imports: [CommonModule, RouterLink, RouterLinkActive, RouterOutlet, IconComponent],
   template: `
     <div class="encargado-shell">
-      <aside class="encargado-sidebar">
+      @if (ui.sidebarOpen()) {
+        <div class="sidebar-backdrop" (click)="ui.toggleSidebar()"></div>
+      }
+      <aside class="encargado-sidebar" [class.collapsed]="!ui.sidebarOpen()">
         <div class="sidebar-header">
           <div class="brand-title">
             <app-icon name="store" [size]="20" />
@@ -46,12 +50,6 @@ import { AuthService } from '../../../core/services/auth.service';
             <app-icon name="truck" [size]="18" /> <span>Movimientos</span>
           </a>
         </nav>
-
-        <div class="sidebar-footer">
-          <button type="button" class="btn-logout" (click)="logout()">
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
       </aside>
 
       <main class="encargado-content">
@@ -63,9 +61,6 @@ import { AuthService } from '../../../core/services/auth.service';
 })
 export class EncargadoLayout {
   private auth = inject(AuthService);
+  ui = inject(AdminUiService);
   user = this.auth.currentUser;
-
-  logout() {
-    this.auth.logout();
-  }
 }

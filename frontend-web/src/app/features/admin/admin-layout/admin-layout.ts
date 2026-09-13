@@ -9,6 +9,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
   imports: [RouterLink, RouterLinkActive, RouterOutlet, IconComponent],
   template: `
     <div class="admin-shell">
+      @if (adminUi.sidebarOpen()) {
+        <div class="sidebar-backdrop" (click)="adminUi.toggleSidebar()"></div>
+      }
       <aside class="admin-sidebar" [class.collapsed]="!adminUi.sidebarOpen()">
         <h3>Panel Admin</h3>
         <nav>
