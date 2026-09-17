@@ -8,6 +8,7 @@ import { CatalogoService } from '../../core/services/catalogo.service';
 import { SucursalesService } from '../../core/services/sucursales.service';
 import { ReservasService } from '../../core/services/reservas.service';
 import { AuthService } from '../../core/services/auth.service';
+import { IaService } from '../../core/services/ia.service';
 
 import {
   Categoria,
@@ -18,6 +19,7 @@ import {
 } from '../../core/models/catalogo.model';
 import { Sucursal } from '../../core/models/sucursal.model';
 import { Reserva, ReservaCreate, ReservaItemCreate } from '../../core/models/reserva.model';
+import { ProductoRecomendado } from '../../core/models/ia.model';
 import { environment } from '../../../environments/environment';
 import { IconComponent } from '../../core/components/icon/icon';
 
@@ -34,7 +36,11 @@ export class Home implements OnInit {
   private catalogoService = inject(CatalogoService);
   private sucursalesService = inject(SucursalesService);
   private reservasService = inject(ReservasService);
+  private iaService = inject(IaService);
   auth = inject(AuthService);
+
+  recomendaciones = signal<ProductoRecomendado[]>([]);
+  cargandoRecomendaciones = signal<boolean>(false);
 
   backendStatus = signal<'checking' | 'connected' | 'error'>('checking');
   productos = signal<Producto[]>([]);
@@ -92,6 +98,28 @@ export class Home implements OnInit {
     this.cargarCategorias();
     this.cargarSucursales();
     this.cargarProductos();
+    if (this.auth.isLoggedIn()) {
+      this.cargarRecomendaciones();
+    }
+  }
+
+  cargarRecomendaciones() {
+    this.cargandoRecomendaciones.set(true);
+    this.iaService.recomendaciones(8).subscribe({
+      next: (data) => {
+        this.recomendaciones.set(data);
+        this.cargandoRecomendaciones.set(false);
+      },
+      error: () => this.cargandoRecomendaciones.set(false),
+    });
+  }
+
+  verRecomendacion(rec: ProductoRecomendado) {
+    this.selectedCategoryId.set('todos');
+    this.selectedSucursalId.set('todas');
+    this.searchQuery.set(rec.nombre_producto);
+    this.cargarProductos();
+    document.querySelector('.catalog-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   checkBackendHealth() {

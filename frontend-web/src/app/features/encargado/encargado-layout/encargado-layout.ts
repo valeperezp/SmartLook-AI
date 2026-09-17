@@ -49,6 +49,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           <a routerLink="/encargado/movimientos" routerLinkActive="active">
             <app-icon name="truck" [size]="18" /> <span>Movimientos</span>
           </a>
+          <a routerLink="/encargado/reportes" routerLinkActive="active">
+            <app-icon name="bar-chart" [size]="18" /> <span>Reportes</span>
+          </a>
         </nav>
       </aside>
 

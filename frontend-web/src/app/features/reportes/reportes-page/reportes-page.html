@@ -1,0 +1,160 @@
+<div class="reportes-header">
+  <div>
+    <h1>Reportes y dashboards</h1>
+    <p>Indicadores de reservas e inventario {{ isAdmin() ? 'de toda la plataforma' : 'de tu sucursal' }}.</p>
+  </div>
+
+  @if (isAdmin()) {
+    <div class="filtro-sucursal">
+      <app-icon name="store" [size]="16" />
+      <select (change)="onSucursalChange($any($event.target).value)">
+        <option value="">Todas las sucursales</option>
+        @for (s of sucursales(); track s.id) {
+          <option [value]="s.id">{{ s.nombre }}</option>
+        }
+      </select>
+    </div>
+  }
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon icon-primary"><app-icon name="calendar" [size]="22" /></div>
+    <div class="stat-info">
+      <strong>{{ resumen()?.total_reservas ?? 0 }}</strong>
+      <span>Reservas totales</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-muted"><app-icon name="shirt" [size]="22" /></div>
+    <div class="stat-info">
+      <strong>{{ resumen()?.total_unidades_reservadas ?? 0 }}</strong>
+      <span>Unidades reservadas</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-success"><app-icon name="package" [size]="22" /></div>
+    <div class="stat-info">
+      <strong>{{ resumen()?.inventario_disponible ?? 0 }}</strong>
+      <span>Unidades disponibles</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-warning"><app-icon name="alert-circle" [size]="22" /></div>
+    <div class="stat-info">
+      <strong>{{ resumen()?.productos_stock_bajo ?? 0 }}</strong>
+      <span>Alertas de stock bajo</span>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon icon-danger"><app-icon name="alert-circle" [size]="22" /></div>
+    <div class="stat-info">
+      <strong>{{ resumen()?.productos_agotados ?? 0 }}</strong>
+      <span>Artículos agotados</span>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-columns">
+  <div class="card column-card">
+    <div class="column-header">
+      <h3><app-icon name="check-circle" [size]="18" /><span>Reservas por estado</span></h3>
+    </div>
+
+    @if (porEstado().length === 0) {
+      <p class="empty-state">Todavía no hay reservas registradas.</p>
+    } @else {
+      <div class="estado-list">
+        @for (e of porEstado(); track e.estado) {
+          <div class="estado-row">
+            <div class="estado-label">
+              <span class="badge" [ngClass]="estadoClass(e.estado)">{{ e.estado | titlecase }}</span>
+              <span class="estado-cantidad">{{ e.cantidad }}</span>
+            </div>
+            <div class="estado-bar-track">
+              <div class="estado-bar-fill" [ngClass]="estadoClass(e.estado)" [style.width.%]="estadoPct(e.cantidad)"></div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="card column-card">
+    <div class="column-header">
+      <h3><app-icon name="truck" [size]="18" /><span>Reservas de los últimos 14 días</span></h3>
+    </div>
+
+    @if (porDia().length === 0) {
+      <p class="empty-state">No hay reservas recientes en este período.</p>
+    } @else {
+      <div class="dia-chart">
+        @for (d of porDia(); track d.fecha) {
+          <div class="dia-col">
+            <div class="dia-bar-track">
+              <div class="dia-bar-fill" [style.height.%]="(d.cantidad / maxPorDia()) * 100"></div>
+            </div>
+            <span class="dia-cantidad">{{ d.cantidad }}</span>
+            <span class="dia-fecha">{{ formatFecha(d.fecha) }}</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+@if (isAdmin()) {
+  <div class="card column-card full-width">
+    <div class="column-header">
+      <h3><app-icon name="store" [size]="18" /><span>Comparativa entre sucursales</span></h3>
+    </div>
+
+    @if (porSucursal().length === 0) {
+      <p class="empty-state">No hay datos de sucursales disponibles.</p>
+    } @else {
+      <table class="reporte-table">
+        <thead>
+          <tr>
+            <th>Sucursal</th>
+            <th>Reservas</th>
+            <th>Unidades reservadas</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of porSucursal(); track s.sucursal_id) {
+            <tr>
+              <td>{{ s.nombre_sucursal }}</td>
+              <td>{{ s.cantidad_reservas }}</td>
+              <td>{{ s.total_unidades }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+}
+
+<div class="card column-card full-width">
+  <div class="column-header">
+    <h3><app-icon name="shirt" [size]="18" /><span>Productos más reservados</span></h3>
+  </div>
+
+  @if (topProductos().length === 0) {
+    <p class="empty-state">Todavía no hay suficientes reservas para generar un ranking.</p>
+  } @else {
+    <div class="top-productos-list">
+      @for (p of topProductos(); track p.producto_id) {
+        <div class="top-producto-row">
+          <div class="top-producto-info">
+            <strong>{{ p.nombre_producto }}</strong>
+            <span>{{ p.nombre_categoria || 'Sin categoría' }} &bull; {{ p.total_reservas }} reserva(s)</span>
+          </div>
+          <div class="top-producto-bar-track">
+            <div class="top-producto-bar-fill" [style.width.%]="(p.total_unidades / maxUnidadesTop()) * 100"></div>
+          </div>
+          <span class="top-producto-unidades">{{ p.total_unidades }} un.</span>
+        </div>
+      }
+    </div>
+  }
+</div>

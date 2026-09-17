@@ -35,6 +35,44 @@
 </section>
 
 <div class="page-container">
+  <!-- Recomendaciones IA (CU06 / CU20) -->
+  @if (auth.isLoggedIn()) {
+    <section class="recomendaciones-section">
+      <div class="section-header">
+        <div>
+          <span class="eyebrow">Sugerido por IA</span>
+          <h2 class="section-title">Recomendado para vos</h2>
+          <p class="section-subtitle">Basado en tus reservas anteriores y en lo más popular entre otros clientes</p>
+        </div>
+      </div>
+
+      @if (cargandoRecomendaciones()) {
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Analizando tus preferencias...</p>
+        </div>
+      } @else if (recomendaciones().length > 0) {
+        <div class="recomendaciones-scroll">
+          @for (rec of recomendaciones(); track rec.producto_id) {
+            <div class="recomendacion-card" (click)="verRecomendacion(rec)">
+              <div class="recomendacion-media">
+                <app-icon name="sparkles" [size]="26" />
+                @if (rec.nombre_categoria) {
+                  <span class="product-badge">{{ rec.nombre_categoria }}</span>
+                }
+              </div>
+              <div class="recomendacion-body">
+                <h3 class="recomendacion-name">{{ rec.nombre_producto }}</h3>
+                <p class="recomendacion-motivo">{{ rec.motivo }}</p>
+                <span class="recomendacion-precio">${{ rec.precio | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
   <!-- Catalog Section -->
   <section class="catalog-section">
     <div class="section-header">

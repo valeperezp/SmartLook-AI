@@ -1,0 +1,19 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+import { PerfilPreferencias, ProductoRecomendado } from '../models/ia.model';
+
+@Injectable({ providedIn: 'root' })
+export class IaService {
+  private http = inject(HttpClient);
+  private readonly base = `${environment.apiUrl}/ia`;
+
+  preferencias() {
+    return this.http.get<PerfilPreferencias>(`${this.base}/preferencias`);
+  }
+
+  recomendaciones(limit = 8) {
+    const params = new HttpParams().set('limit', limit);
+    return this.http.get<ProductoRecomendado[]>(`${this.base}/recomendaciones`, { params });
+  }
+}
