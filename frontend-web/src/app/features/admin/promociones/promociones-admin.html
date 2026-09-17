@@ -1,0 +1,497 @@
+<div class="promociones-container">
+  <!-- Toast Notification -->
+  @if (toast()) {
+    <div class="toast-notification" [class.toast-error]="toastIsError()">
+      <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="18" />
+      <span>{{ toast() }}</span>
+    </div>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-titles">
+      <div class="header-icon-wrap">
+        <app-icon name="percent" [size]="24" />
+      </div>
+      <div>
+        <h1>Promociones</h1>
+        <p>Gestionar descuentos y ofertas</p>
+      </div>
+    </div>
+    <button type="button" class="btn-primary" (click)="abrirModalCrear()">
+      <app-icon name="plus" [size]="18" />
+      <span>Nueva promoción</span>
+    </button>
+  </header>
+
+  <!-- Filtros y Búsqueda -->
+  <section class="filters-card">
+    <div class="search-box">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="text"
+        placeholder="Buscar promoción por nombre o descripción..."
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+      @if (busqueda()) {
+        <button type="button" class="btn-clear-search" (click)="busqueda.set('')" title="Limpiar búsqueda">
+          &times;
+        </button>
+      }
+    </div>
+
+    <div class="status-chips">
+      <button
+        type="button"
+        class="chip"
+        [class.active]="filtroEstado() === 'todas'"
+        (click)="filtroEstado.set('todas')"
+      >
+        Todas ({{ promociones().length }})
+      </button>
+      <button
+        type="button"
+        class="chip"
+        [class.active]="filtroEstado() === 'activas'"
+        (click)="filtroEstado.set('activas')"
+      >
+        Activas
+      </button>
+      <button
+        type="button"
+        class="chip"
+        [class.active]="filtroEstado() === 'inactivas'"
+        (click)="filtroEstado.set('inactivas')"
+      >
+        Inactivas
+      </button>
+    </div>
+  </section>
+
+  <!-- Contenido Principal -->
+  <section class="content-card">
+    @if (cargando()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando promociones...</p>
+      </div>
+    } @else if (errorCarga()) {
+      <div class="empty-state">
+        <app-icon name="alert-circle" [size]="44" />
+        <p>Ocurrió un error al cargar las promociones.</p>
+        <button type="button" class="btn-secondary" (click)="cargar()">Reintentar</button>
+      </div>
+    } @else if (promocionesFiltradas().length === 0) {
+      <div class="empty-state">
+        <app-icon name="percent" [size]="44" />
+        <p>No se encontraron promociones con los filtros seleccionados.</p>
+        @if (promociones().length === 0) {
+          <button type="button" class="btn-primary" (click)="abrirModalCrear()">
+            <app-icon name="plus" [size]="18" />
+            <span>Crear primera promoción</span>
+          </button>
+        }
+      </div>
+    } @else {
+      <!-- Tabla Desktop -->
+      <div class="table-responsive">
+        <table class="table-promociones">
+          <colgroup>
+            <col style="width: 22%;" />
+            <col style="width: 9%;" />
+            <col style="width: 8%;" />
+            <col style="width: 16%;" />
+            <col style="width: 10%;" />
+            <col style="width: 9%;" />
+            <col style="width: 26%;" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="th-nombre">Nombre</th>
+              <th class="th-tipo">Tipo</th>
+              <th class="th-valor">Valor</th>
+              <th class="th-vigencia">Vigencia</th>
+              <th class="th-productos">Productos</th>
+              <th class="th-estado">Estado</th>
+              <th class="th-acciones text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (promo of promocionesFiltradas(); track promo.id) {
+              <tr [class.row-inactive]="!promo.activo">
+                <td class="col-main">
+                  <span class="promo-name">{{ promo.nombre }}</span>
+                  @if (promo.descripcion) {
+                    <span class="promo-desc">{{ promo.descripcion }}</span>
+                  }
+                </td>
+                <td class="col-tipo">
+                  <span class="type-pill" [class.type-percent]="promo.tipo === 'porcentaje'">
+                    {{ promo.tipo === 'porcentaje' ? 'Porcentaje' : 'Monto fijo' }}
+                  </span>
+                </td>
+                <td class="col-valor">
+                  <strong class="promo-value">{{ formatearValor(promo) }}</strong>
+                </td>
+                <td class="col-dates">
+                  <span>{{ formatearFecha(promo.fecha_inicio) }} &rarr; {{ formatearFecha(promo.fecha_fin) }}</span>
+                </td>
+                <td class="col-productos">
+                  <button
+                    type="button"
+                    class="btn-products-badge"
+                    (click)="abrirModalProductos(promo)"
+                    title="Gestionar productos"
+                  >
+                    <app-icon name="package" [size]="14" />
+                    <span>{{ promo.total_productos }} prod.</span>
+                  </button>
+                </td>
+                <td class="col-estado">
+                  <span class="badge" [class.badge-success]="promo.activo" [class.badge-muted]="!promo.activo">
+                    {{ promo.activo ? 'Activa' : 'Inactiva' }}
+                  </span>
+                </td>
+                <td class="text-right col-actions">
+                  <div class="actions-group">
+                    <button
+                      type="button"
+                      class="btn-action btn-action-list"
+                      (click)="abrirModalProductos(promo)"
+                      title="Productos asociados"
+                    >
+                      <app-icon name="list" [size]="14" />
+                      <span>Productos</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-action btn-action-edit"
+                      (click)="abrirModalEditar(promo)"
+                      title="Editar promoción"
+                    >
+                      <app-icon name="pencil" [size]="14" />
+                      <span>Editar</span>
+                    </button>
+                    @if (promo.activo) {
+                      <button
+                        type="button"
+                        class="btn-action btn-action-danger"
+                        (click)="desactivar(promo)"
+                        title="Desactivar promoción"
+                      >
+                        Desactivar
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn-action btn-action-reactivate"
+                        (click)="reactivar(promo)"
+                        title="Reactivar promoción"
+                      >
+                        Reactivar
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Vista Cards para Móvil -->
+      <div class="cards-mobile">
+        @for (promo of promocionesFiltradas(); track promo.id) {
+          <article class="mobile-promo-card" [class.card-inactive]="!promo.activo">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title">{{ promo.nombre }}</h3>
+                @if (promo.descripcion) {
+                  <p class="card-desc">{{ promo.descripcion }}</p>
+                }
+              </div>
+              <span class="badge" [class.badge-success]="promo.activo" [class.badge-muted]="!promo.activo">
+                {{ promo.activo ? 'Activa' : 'Inactiva' }}
+              </span>
+            </div>
+
+            <div class="card-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Tipo</span>
+                <span class="detail-val">{{ promo.tipo === 'porcentaje' ? 'Porcentaje' : 'Monto fijo' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Valor</span>
+                <strong class="detail-val promo-value">{{ formatearValor(promo) }}</strong>
+              </div>
+              <div class="detail-item full-width">
+                <span class="detail-label">Vigencia</span>
+                <span class="detail-val">{{ formatearFecha(promo.fecha_inicio) }} &rarr; {{ formatearFecha(promo.fecha_fin) }}</span>
+              </div>
+              <div class="detail-item full-width">
+                <span class="detail-label">Productos asociados</span>
+                <button
+                  type="button"
+                  class="btn-products-badge"
+                  (click)="abrirModalProductos(promo)"
+                >
+                  <app-icon name="package" [size]="14" />
+                  <span>{{ promo.total_productos }} productos</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="card-footer-actions">
+              <button
+                type="button"
+                class="btn-action btn-action-list"
+                (click)="abrirModalProductos(promo)"
+              >
+                <app-icon name="list" [size]="16" />
+                <span>Productos</span>
+              </button>
+              <button
+                type="button"
+                class="btn-action btn-action-edit"
+                (click)="abrirModalEditar(promo)"
+              >
+                <app-icon name="pencil" [size]="16" />
+                <span>Editar</span>
+              </button>
+              @if (promo.activo) {
+                <button
+                  type="button"
+                  class="btn-action btn-action-danger"
+                  (click)="desactivar(promo)"
+                >
+                  Desactivar
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="btn-action btn-action-reactivate"
+                  (click)="reactivar(promo)"
+                >
+                  Reactivar
+                </button>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- MODAL CREAR / EDITAR PROMOCIÓN -->
+  @if (modalAbierto()) {
+    <div class="modal-overlay" (click)="cerrarModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <div>
+            <h3>{{ promocionEditando() ? 'Editar promoción' : 'Nueva promoción' }}</h3>
+            <p class="modal-subtitle">
+              {{ promocionEditando() ? 'Modificá los detalles de la oferta' : 'Completá los datos de la nueva oferta' }}
+            </p>
+          </div>
+          <button type="button" class="btn-close" (click)="cerrarModal()" title="Cerrar">&times;</button>
+        </header>
+
+        <form (ngSubmit)="guardar()" class="modal-form">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="promo-nombre">Nombre <span class="required">*</span></label>
+              <input
+                id="promo-nombre"
+                type="text"
+                maxlength="150"
+                placeholder="Ej. Liquidación de Invierno"
+                [ngModel]="form().nombre"
+                (ngModelChange)="form().nombre = $event"
+                name="nombre"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="promo-desc">Descripción (opcional)</label>
+              <textarea
+                id="promo-desc"
+                rows="2"
+                maxlength="500"
+                placeholder="Ej. Descuento especial en prendas seleccionadas"
+                [ngModel]="form().descripcion"
+                (ngModelChange)="form().descripcion = $event"
+                name="descripcion"
+              ></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="promo-tipo">Tipo <span class="required">*</span></label>
+                <select
+                  id="promo-tipo"
+                  [ngModel]="form().tipo"
+                  (ngModelChange)="form().tipo = $event"
+                  name="tipo"
+                >
+                  <option value="porcentaje">Porcentaje (%)</option>
+                  <option value="monto_fijo">Monto fijo ($)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="promo-valor">
+                  {{ form().tipo === 'porcentaje' ? 'Porcentaje (%)' : 'Monto fijo ($)' }}
+                  <span class="required">*</span>
+                </label>
+                <input
+                  id="promo-valor"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  [max]="form().tipo === 'porcentaje' ? 100 : 999999"
+                  placeholder="Ej. 15"
+                  [ngModel]="form().valor"
+                  (ngModelChange)="form().valor = $event"
+                  name="valor"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="promo-inicio">Fecha inicio <span class="required">*</span></label>
+                <input
+                  id="promo-inicio"
+                  type="date"
+                  [ngModel]="form().fecha_inicio"
+                  (ngModelChange)="form().fecha_inicio = $event"
+                  name="fecha_inicio"
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="promo-fin">Fecha fin <span class="required">*</span></label>
+                <input
+                  id="promo-fin"
+                  type="date"
+                  [ngModel]="form().fecha_fin"
+                  (ngModelChange)="form().fecha_fin = $event"
+                  name="fecha_fin"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="info-note">
+              <app-icon name="package" [size]="16" />
+              <span>Los productos se asocian después desde el botón 'Productos'.</span>
+            </div>
+          </div>
+
+          <footer class="modal-footer">
+            <button type="button" class="btn-secondary" (click)="cerrarModal()" [disabled]="guardando()">
+              Cancelar
+            </button>
+            <button type="submit" class="btn-primary" [disabled]="guardando()">
+              @if (guardando()) {
+                <span>Guardando...</span>
+              } @else {
+                <span>Guardar</span>
+              }
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL GESTIONAR PRODUCTOS DE LA PROMOCIÓN -->
+  @if (modalProductosAbierto() && promocionProductos()) {
+    <div class="modal-overlay" (click)="cerrarModalProductos()">
+      <div class="modal-card modal-lg" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+          <div>
+            <h3>Productos en la promoción</h3>
+            <p class="modal-subtitle">
+              Promoción: <strong>{{ promocionProductos()?.nombre }}</strong> ({{ formatearValor(promocionProductos()!) }})
+            </p>
+          </div>
+          <button type="button" class="btn-close" (click)="cerrarModalProductos()" title="Cerrar">&times;</button>
+        </header>
+
+        <div class="modal-body modal-body-products">
+          <!-- Búsqueda rápida de productos -->
+          <div class="search-box mb-3">
+            <app-icon name="search" [size]="18" />
+            <input
+              type="text"
+              placeholder="Filtrar por nombre o categoría de prenda..."
+              [ngModel]="busquedaProductos()"
+              (ngModelChange)="busquedaProductos.set($event)"
+            />
+            @if (busquedaProductos()) {
+              <button type="button" class="btn-clear-search" (click)="busquedaProductos.set('')">
+                &times;
+              </button>
+            }
+          </div>
+
+          <!-- Contador de seleccionados -->
+          <div class="selection-counter-bar">
+            <span>
+              <strong>{{ productosSeleccionados().size }}</strong> productos seleccionados
+            </span>
+          </div>
+
+          <!-- Lista seleccionable de productos -->
+          <div class="product-selection-list">
+            @if (productosFiltradosModal().length === 0) {
+              <div class="empty-list-note">
+                <p>No se encontraron productos disponibles en el catálogo.</p>
+              </div>
+            } @else {
+              @for (prod of productosFiltradosModal(); track prod.id) {
+                <label class="product-item-row" [class.selected]="productosSeleccionados().has(prod.id)">
+                  <div class="checkbox-col">
+                    <input
+                      type="checkbox"
+                      [checked]="productosSeleccionados().has(prod.id)"
+                      (change)="toggleProducto(prod.id)"
+                    />
+                  </div>
+                  <div class="product-info-col">
+                    <strong class="p-name">{{ prod.nombre }}</strong>
+                    <span class="p-cat">{{ prod.categoria ? prod.categoria.nombre : 'Sin categoría' }}</span>
+                  </div>
+                  <div class="product-pricing-col">
+                    <span class="p-original">Original: ${{ prod.precio }}</span>
+                    <span class="p-discounted">
+                      Promo: <strong>${{ calcularPrecioConDescuento(prod.precio, promocionProductos()) }}</strong>
+                    </span>
+                  </div>
+                </label>
+              }
+            }
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn-secondary" (click)="cerrarModalProductos()" [disabled]="guardando()">
+            Cancelar
+          </button>
+          <button type="button" class="btn-primary" (click)="guardarProductos()" [disabled]="guardando()">
+            @if (guardando()) {
+              <span>Guardando...</span>
+            } @else {
+              <span>Guardar cambios ({{ productosSeleccionados().size }})</span>
+            }
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

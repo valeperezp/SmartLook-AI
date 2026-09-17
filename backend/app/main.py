@@ -19,6 +19,7 @@ from app.modules.ventas.router import router as ventas_router
 from app.modules.pagos.router import router as pagos_router
 from app.modules.ia.router import router as ia_router
 from app.modules.reportes.router import router as reportes_router
+from app.modules.promociones.router import router as promociones_router
 
 from contextlib import asynccontextmanager
 from app.shared.db.session import engine, Base
@@ -28,6 +29,9 @@ import app.modules.proveedores.models
 import app.modules.catalogo.models
 import app.modules.reservas.models
 import app.modules.inventario.models
+import app.modules.ventas.models
+import app.modules.pagos.models
+import app.modules.promociones.models
 
 
 @asynccontextmanager
@@ -44,6 +48,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+from app.shared.core.config import settings
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # restringir en producción
@@ -51,6 +60,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+os.makedirs(f"{settings.uploads_dir}/qr", exist_ok=True)
+os.makedirs(f"{settings.uploads_dir}/comprobantes", exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
 
 # Registro de routers — un dominio, un router, un prefijo
 app.include_router(auth_router)
@@ -64,6 +78,7 @@ app.include_router(ventas_router)
 app.include_router(pagos_router)
 app.include_router(ia_router)
 app.include_router(reportes_router)
+app.include_router(promociones_router)
 
 
 @app.get("/", tags=["health"])

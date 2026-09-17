@@ -1,0 +1,161 @@
+<div class="mobile-wrapper">
+  <!-- Brand Header -->
+  <header class="app-header">
+    <div class="brand-badge">
+      <app-icon name="sparkles" [size]="18" />
+      <span>SmartLook AI</span>
+    </div>
+    <h1>Comprobante de Pago</h1>
+    <p class="header-subtitle">Verificación de transferencia y pago por QR</p>
+  </header>
+
+  <!-- Input file oculto -->
+  <input
+    #fileInput
+    type="file"
+    accept="image/*"
+    capture="environment"
+    style="display: none"
+    (change)="onFileSelected($event)"
+  />
+
+  @if (cargando()) {
+    <div class="card state-card">
+      <div class="spinner"></div>
+      <p>Cargando información del pago...</p>
+    </div>
+  } @else if (error() && !pago()) {
+    <!-- Error al cargar el pago -->
+    <div class="card state-card error-card">
+      <div class="icon-circle icon-danger">
+        <app-icon name="alert-circle" [size]="32" />
+      </div>
+      <h2>No se pudo encontrar el pago</h2>
+      <p class="state-msg">{{ error() }}</p>
+      <p class="hint">Verificá que el enlace o código QR sea el correcto.</p>
+    </div>
+  } @else if (enviado()) {
+    <!-- Éxito: Comprobante enviado -->
+    <div class="card state-card success-card">
+      <div class="icon-circle icon-success">
+        <app-icon name="check-circle" [size]="44" />
+      </div>
+      <h2>¡Comprobante enviado!</h2>
+      <p class="state-msg">
+        Tu comprobante ha sido recibido con éxito. Por favor esperá un momento a que el cajero verifique la transacción.
+      </p>
+
+      <div class="details-box">
+        <div class="detail-row">
+          <span>Pago</span>
+          <strong>#{{ pago()?.id }}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Monto</span>
+          <strong class="highlight">{{ pago()?.monto_formateado }}</strong>
+        </div>
+        @if (pago()?.nombre_sucursal) {
+          <div class="detail-row">
+            <span>Sucursal</span>
+            <strong>{{ pago()?.nombre_sucursal }}</strong>
+          </div>
+        }
+      </div>
+
+      <div class="success-footer">
+        <span>Podés cerrar esta ventana o mostrarle esta pantalla al cajero.</span>
+      </div>
+    </div>
+  } @else {
+    <!-- Flujo normal de subida -->
+    <main class="content-flow">
+      <!-- Error inline si ocurrió durante la subida -->
+      @if (error()) {
+        <div class="inline-error">
+          <app-icon name="alert-circle" [size]="18" />
+          <span>{{ error() }}</span>
+        </div>
+      }
+
+      <!-- Resumen del Pago -->
+      <section class="card payment-summary-card">
+        <div class="card-header">
+          <span class="payment-id">Pago #{{ pago()?.id }}</span>
+          <span class="badge badge-warning">{{ pago()?.estado | uppercase }}</span>
+        </div>
+
+        <div class="amount-container">
+          <span class="amount-label">Total a pagar</span>
+          <span class="amount-value">{{ pago()?.monto_formateado }}</span>
+        </div>
+
+        @if (pago()?.nombre_sucursal) {
+          <div class="branch-info">
+            <app-icon name="store" [size]="16" />
+            <span>{{ pago()?.nombre_sucursal }}</span>
+          </div>
+        }
+      </section>
+
+      <!-- Zona de captura / subida de foto -->
+      <section class="card upload-card">
+        <h3>Subí tu comprobante</h3>
+        <p class="upload-sub">
+          Tomá una foto clara o subí una captura de pantalla del comprobante bancario emitido por tu aplicación.
+        </p>
+
+        @if (!previewUrl()) {
+          <button
+            type="button"
+            class="capture-btn"
+            (click)="fileInput.click()"
+            [disabled]="subiendo()"
+          >
+            <div class="capture-icon">
+              <app-icon name="sparkles" [size]="28" />
+            </div>
+            <strong>Tomar foto o subir imagen</strong>
+            <span>PNG, JPG o WEBP hasta 10 MB</span>
+          </button>
+        } @else {
+          <div class="preview-container">
+            <div class="preview-frame">
+              <img [src]="previewUrl()" alt="Vista previa del comprobante" class="preview-img" />
+            </div>
+
+            <button
+              type="button"
+              class="btn-change-photo"
+              (click)="nuevaFoto(fileInput)"
+              [disabled]="subiendo()"
+            >
+              Cambiar foto
+            </button>
+          </div>
+        }
+
+        <div class="notice-box">
+          <app-icon name="alert-circle" [size]="16" />
+          <span>El comprobante debe mostrar claramente el monto, la fecha y el número de referencia.</span>
+        </div>
+      </section>
+
+      <!-- Botón de acción principal -->
+      <div class="action-footer">
+        <button
+          type="button"
+          class="btn-submit"
+          (click)="enviarComprobante()"
+          [disabled]="!archivoSeleccionado() || subiendo()"
+        >
+          @if (subiendo()) {
+            <div class="spinner-sm"></div>
+            <span>Enviando comprobante...</span>
+          } @else {
+            <span>Enviar comprobante</span>
+          }
+        </button>
+      </div>
+    </main>
+  }
+</div>

@@ -5,8 +5,14 @@ import { proveedorGuard } from './core/guards/proveedor.guard';
 import { guestGuard } from './core/guards/guest.guard';
 import { homeGuard } from './core/guards/home.guard';
 import { authGuard } from './core/guards/auth.guard';
+import { cajeroGuard } from './core/guards/cajero.guard';
 
 export const routes: Routes = [
+  {
+    path: 'pago/:id/comprobante',
+    loadComponent: () =>
+      import('./features/publico/pago-comprobante/pago-comprobante').then((m) => m.PagoComprobante),
+  },
   {
     path: '',
     loadComponent: () => import('./features/home/home').then((m) => m.Home),
@@ -57,6 +63,11 @@ export const routes: Routes = [
           import('./features/admin/proveedores/proveedores-admin').then(
             (m) => m.ProveedoresAdmin
           ),
+      },
+      {
+        path: 'promociones',
+        loadComponent: () =>
+          import('./features/admin/promociones/promociones-admin').then((m) => m.PromocionesAdmin),
       },
       {
         path: 'inventario',
@@ -141,6 +152,24 @@ export const routes: Routes = [
             (m) => m.EncargadoMovimientos
           ),
       },
+      {
+        path: 'mi-qr',
+        loadComponent: () => import('./features/encargado/mi-qr/mi-qr').then((m) => m.MiQR),
+      },
+      {
+        path: 'pagos-pendientes',
+        loadComponent: () =>
+          import('./features/encargado/pagos-pendientes/pagos-pendientes').then(
+            (m) => m.PagosPendientes
+          ),
+      },
+      {
+        path: 'ventas',
+        loadComponent: () =>
+          import('./features/encargado/ventas/ventas-sucursal').then(
+            (m) => m.VentasSucursal
+          ),
+      },
     ],
   },
   {
@@ -170,6 +199,27 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/proveedor/proveedor-catalogo/proveedor-catalogo').then(
             (m) => m.ProveedorCatalogo
+          ),
+      },
+    ],
+  },
+  {
+    path: 'cajero',
+    loadComponent: () =>
+      import('./features/cajero/cajero-layout/cajero-layout').then((m) => m.CajeroLayout),
+    canActivate: [cajeroGuard],
+    children: [
+      { path: '', redirectTo: 'ventas', pathMatch: 'full' },
+      {
+        path: 'ventas',
+        loadComponent: () =>
+          import('./features/cajero/ventas/nueva-venta').then((m) => m.NuevaVenta),
+      },
+      {
+        path: 'ventas-hoy',
+        loadComponent: () =>
+          import('./features/cajero/ventas-historial/ventas-historial').then(
+            (m) => m.VentasHistorial
           ),
       },
     ],

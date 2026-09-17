@@ -1,0 +1,68 @@
+<div class="modal-overlay" (click)="cancelar()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <!-- HEADER FIJO -->
+    <header class="modal-header">
+      <div class="header-info">
+        <div class="header-badge">
+          <app-icon name="store" [size]="16" />
+          <span>Pasarela de Pago Electrónico</span>
+        </div>
+        <h2>Cobrar Venta #{{ ventaId }}</h2>
+        <p class="client-name">
+          Cliente: <strong>{{ nombreCliente || 'Cliente presencial' }}</strong>
+        </p>
+      </div>
+      <div class="amount-badge">
+        <span class="currency">USD</span>
+        <span class="value">${{ monto | number:'1.2-2' }}</span>
+      </div>
+    </header>
+
+    <!-- ERROR BANNER -->
+    @if (errorMensaje()) {
+      <div class="error-banner">
+        <app-icon name="alert-circle" [size]="18" />
+        <span>{{ errorMensaje() }}</span>
+      </div>
+    }
+
+    <!-- BODY CON SCROLL INTERNO -->
+    <main class="modal-body">
+      @if (cargandoStripe()) {
+        <div class="loading-container">
+          <app-icon name="sparkles" [size]="32" />
+          <p>Iniciando conexión segura con Stripe...</p>
+        </div>
+      }
+
+      <div id="payment-element" #paymentContainer [class.hidden]="cargandoStripe()"></div>
+    </main>
+
+    <!-- FOOTER FIJO -->
+    <footer class="modal-footer">
+      <button
+        type="button"
+        class="btn-cancel"
+        [disabled]="procesandoPago()"
+        (click)="cancelar()"
+      >
+        Cancelar
+      </button>
+
+      <button
+        type="button"
+        class="btn-confirm"
+        [disabled]="cargandoStripe() || procesandoPago() || !stripeListo()"
+        (click)="confirmarPago()"
+      >
+        @if (procesandoPago()) {
+          <app-icon name="sparkles" [size]="18" />
+          <span>Procesando pago...</span>
+        } @else {
+          <app-icon name="check-circle" [size]="18" />
+          <span>Confirmar Pago (${{ monto | number:'1.2-2' }})</span>
+        }
+      </button>
+    </footer>
+  </div>
+</div>

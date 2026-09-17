@@ -23,6 +23,7 @@ export class AuthService {
   isAdmin = computed(() => this.currentUser()?.rol === 'administrador');
   isEncargado = computed(() => this.currentUser()?.rol === 'encargado_sucursal');
   isProveedor = computed(() => this.currentUser()?.rol === 'proveedor');
+  isCajero = computed(() => this.currentUser()?.rol === 'cajero');
 
   getHomeRoute(): string {
     const user = this.currentUser();
@@ -30,6 +31,7 @@ export class AuthService {
     if (user.rol === 'administrador') return '/admin';
     if (user.rol === 'encargado_sucursal') return '/encargado';
     if (user.rol === 'proveedor') return '/proveedor';
+    if (user.rol === 'cajero') return '/cajero';
     return '/';
   }
 
