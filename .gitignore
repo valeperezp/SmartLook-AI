@@ -27,3 +27,8 @@ mobile-app/.packages
 .idea/
 .vscode/
 *.log
+
+# Claude Code (config/caché local de la herramienta, no es parte del proyecto)
+.agents/
+.claude/skills/
+skills-lock.json

@@ -103,6 +103,13 @@ export const routes: Routes = [
             (m) => m.ColeccionesAdmin
           ),
       },
+      {
+        path: 'reportes',
+        loadComponent: () =>
+          import('./features/reportes/reportes-page/reportes-page').then(
+            (m) => m.ReportesPage
+          ),
+      },
     ],
   },
   {
@@ -139,6 +146,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/encargado/movimientos/encargado-movimientos').then(
             (m) => m.EncargadoMovimientos
+          ),
+      },
+      {
+        path: 'reportes',
+        loadComponent: () =>
+          import('./features/reportes/reportes-page/reportes-page').then(
+            (m) => m.ReportesPage
           ),
       },
     ],

@@ -31,6 +31,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           <a routerLink="/admin/inventario" routerLinkActive="active">
             <app-icon name="package" [size]="18" /> <span>Inventario</span>
           </a>
+          <a routerLink="/admin/reportes" routerLinkActive="active">
+            <app-icon name="bar-chart" [size]="18" /> <span>Reportes</span>
+          </a>
           <span class="nav-group">Catálogo maestro</span>
           <a routerLink="/admin/catalogo/productos" routerLinkActive="active">
             <app-icon name="shirt" [size]="18" /> <span>Productos</span>

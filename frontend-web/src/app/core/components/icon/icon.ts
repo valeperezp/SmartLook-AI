@@ -26,7 +26,8 @@ export type IconName =
   | 'monitor'
   | 'type'
   | 'search'
-  | 'logout';
+  | 'logout'
+  | 'bar-chart';
 
 @Component({
   selector: 'app-icon',
@@ -172,6 +173,9 @@ export type IconName =
           <path d="M9 20.5H6.5a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2H9" />
           <path d="M16 16.5l4.5-4.5-4.5-4.5" />
           <path d="M20.2 12H9.3" />
+        }
+        @case ('bar-chart') {
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
         }
       }
     </svg>
