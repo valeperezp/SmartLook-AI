@@ -25,7 +25,16 @@ export type IconName =
   | 'moon'
   | 'monitor'
   | 'type'
-  | 'search';
+  | 'search'
+  | 'qr'
+  | 'credit-card'
+  | 'receipt'
+  | 'dollar-sign'
+  | 'shopping-cart'
+  | 'percent'
+  | 'plus'
+  | 'pencil'
+  | 'list';
 
 @Component({
   selector: 'app-icon',
@@ -166,6 +175,55 @@ export type IconName =
         @case ('search') {
           <circle cx="10.5" cy="10.5" r="6.5" />
           <path d="M19.5 19.5 15.3 15.3" />
+        }
+        @case ('qr') {
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="5" y="5" width="3" height="3" fill="currentColor" stroke="none" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="16" y="5" width="3" height="3" fill="currentColor" stroke="none" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="5" y="16" width="3" height="3" fill="currentColor" stroke="none" />
+          <rect x="14" y="14" width="3" height="3" fill="currentColor" stroke="none" />
+          <rect x="18" y="14" width="3" height="3" fill="currentColor" stroke="none" />
+          <rect x="14" y="18" width="3" height="3" fill="currentColor" stroke="none" />
+          <rect x="18" y="18" width="3" height="3" fill="currentColor" stroke="none" />
+        }
+        @case ('credit-card') {
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+        }
+        @case ('receipt') {
+          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+          <path d="M8 7h8M8 11h8M8 15h5" />
+        }
+        @case ('dollar-sign') {
+          <line x1="12" y1="2" x2="12" y2="22" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        }
+        @case ('shopping-cart') {
+          <circle cx="8" cy="21" r="1" />
+          <circle cx="19" cy="21" r="1" />
+          <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+        }
+        @case ('percent') {
+          <line x1="19" y1="5" x2="5" y2="19" />
+          <circle cx="6.5" cy="6.5" r="2.5" />
+          <circle cx="17.5" cy="17.5" r="2.5" />
+        }
+        @case ('plus') {
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        }
+        @case ('pencil') {
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+        }
+        @case ('list') {
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
         }
       }
     </svg>

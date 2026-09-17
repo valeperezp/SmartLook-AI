@@ -27,3 +27,11 @@ mobile-app/.packages
 .idea/
 .vscode/
 *.log
+
+# Uploads (contenido generado por usuarios)
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/qr/
+!backend/uploads/qr/.gitkeep
+!backend/uploads/comprobantes/
+!backend/uploads/comprobantes/.gitkeep

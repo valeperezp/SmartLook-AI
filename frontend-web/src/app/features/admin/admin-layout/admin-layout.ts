@@ -25,6 +25,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           <a routerLink="/admin/proveedores" routerLinkActive="active">
             <app-icon name="truck" [size]="18" /> <span>Proveedores</span>
           </a>
+          <a routerLink="/admin/promociones" routerLinkActive="active">
+            <app-icon name="percent" [size]="18" /> <span>Promociones</span>
+          </a>
           <a routerLink="/admin/inventario" routerLinkActive="active">
             <app-icon name="package" [size]="18" /> <span>Inventario</span>
           </a>

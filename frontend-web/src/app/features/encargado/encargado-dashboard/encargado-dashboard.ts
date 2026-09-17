@@ -92,6 +92,36 @@ import {
             <p>Auditar todas las entradas, salidas y ajustes de tu sucursal.</p>
           </div>
         </a>
+
+        <a routerLink="/encargado/mi-qr" class="action-card">
+          <div class="action-icon">
+            <app-icon name="qr" [size]="24" />
+          </div>
+          <div class="action-text">
+            <strong>Mi QR de Sucursal</strong>
+            <p>Configurar y actualizar el código QR de pagos de tu sucursal.</p>
+          </div>
+        </a>
+
+        <a routerLink="/encargado/pagos-pendientes" class="action-card">
+          <div class="action-icon">
+            <app-icon name="credit-card" [size]="24" />
+          </div>
+          <div class="action-text">
+            <strong>Pagos pendientes</strong>
+            <p>Verificar comprobantes QR</p>
+          </div>
+        </a>
+
+        <a routerLink="/encargado/ventas" class="action-card">
+          <div class="action-icon">
+            <app-icon name="receipt" [size]="24" />
+          </div>
+          <div class="action-text">
+            <strong>Ventas de mi sucursal</strong>
+            <p>Ver historial de transacciones</p>
+          </div>
+        </a>
       </div>
     </div>
 

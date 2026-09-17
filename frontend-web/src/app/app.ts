@@ -38,7 +38,23 @@ export class App {
   /** El botón de colapsar módulos solo tiene sentido dentro del panel admin. */
   showSidebarToggle = computed(() => this.currentUrl().startsWith('/admin'));
 
+  constructor() {
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => {
+        try {
+          const widgets = document.querySelectorAll(
+            '[class*="stripe-assistant"], [id*="stripe-assistant"], iframe[name*="assistant"], iframe[title*="assistant" i]'
+          );
+          widgets.forEach((el) => el.remove());
+        } catch {
+          // ignore
+        }
+      });
+  }
+
   logout() {
     this.auth.logout();
   }
 }
+

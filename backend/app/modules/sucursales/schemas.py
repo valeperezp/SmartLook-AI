@@ -1,4 +1,5 @@
 """Esquemas Pydantic del módulo Sucursales."""
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
@@ -25,3 +26,14 @@ class SucursalOut(SucursalBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     activa: bool
+
+
+class SucursalQROut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    sucursal_id: int
+    imagen_path: str
+    activo: bool
+    creado_en: datetime
+    desactivado_en: datetime | None = None
+    imagen_url: str = ""

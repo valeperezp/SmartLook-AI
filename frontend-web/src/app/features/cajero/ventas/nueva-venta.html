@@ -1,0 +1,404 @@
+<div class="tpv-container">
+  @if (toast()) {
+    <div class="toast-banner" [class.toast-error]="toastError()">
+      <app-icon [name]="toastError() ? 'alert-circle' : 'check-circle'" [size]="18" />
+      <span>{{ toast() }}</span>
+    </div>
+  }
+
+  <div class="tpv-header">
+    <div>
+      <h1 class="tpv-title">Terminal Punto de Venta (TPV)</h1>
+      <p class="tpv-subtitle">Registrar venta presencial en {{ user()?.sucursal_nombre || 'Sucursal Centro' }}</p>
+    </div>
+    <div class="tpv-actions">
+      <button class="btn-secondary" (click)="cargarProductos()">
+        <app-icon name="sparkles" [size]="16" />
+        <span>Actualizar Catálogo</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="tpv-layout">
+    <!-- COLUMNA IZQUIERDA (70%): Catálogo de productos -->
+    <section class="tpv-catalog">
+      <div class="catalog-filters">
+        <div class="search-box">
+          <app-icon name="search" [size]="18" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o descripción..."
+            [ngModel]="busqueda()"
+            (ngModelChange)="busqueda.set($event)"
+          />
+        </div>
+
+        <div class="category-tabs">
+          <button
+            class="tab-pill"
+            [class.active]="categoriaSeleccionada() === null"
+            (click)="categoriaSeleccionada.set(null)"
+          >
+            Todas las categorías
+          </button>
+          @for (cat of categorias(); track cat.id) {
+            <button
+              class="tab-pill"
+              [class.active]="categoriaSeleccionada() === cat.id"
+              (click)="categoriaSeleccionada.set(cat.id)"
+            >
+              {{ cat.nombre }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (cargandoProductos()) {
+        <div class="loading-state">
+          <app-icon name="sparkles" [size]="32" />
+          <p>Cargando productos disponibles...</p>
+        </div>
+      } @else if (productosFiltrados().length === 0) {
+        <div class="empty-state">
+          <app-icon name="package" [size]="40" />
+          <h3>No se encontraron productos</h3>
+          <p>Probá con otro término de búsqueda o categoría.</p>
+        </div>
+      } @else {
+        <div class="product-grid">
+          @for (prod of productosFiltrados(); track prod.id) {
+            <div class="product-card">
+              <div class="card-header">
+                <span class="category-badge">{{ prod.categoria.nombre }}</span>
+                <span class="price-tag">${{ prod.precio | number:'1.2-2' }}</span>
+              </div>
+              <div class="card-body">
+                <h3 class="prod-title">{{ prod.nombre }}</h3>
+                <p class="prod-desc">{{ prod.descripcion || 'Sin descripción' }}</p>
+              </div>
+              <div class="card-footer">
+                <button
+                  type="button"
+                  class="btn-add"
+                  (click)="abrirSelectorVariante(prod)"
+                >
+                  <app-icon name="tag" [size]="16" />
+                  <span>Seleccionar y Agregar</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- COLUMNA DERECHA (30%): Carrito de Venta -->
+    <aside class="tpv-cart">
+      <div class="cart-card">
+        <div class="cart-header">
+          <div class="cart-title">
+            <app-icon name="store" [size]="20" />
+            <h2>Ticket Actual</h2>
+          </div>
+          @if (carrito().length > 0) {
+            <button class="btn-clear" (click)="vaciarCarrito()" title="Vaciar carrito">
+              Vaciar
+            </button>
+          }
+        </div>
+
+        <div class="cart-client-box">
+          <label>ID Cliente (Opcional)</label>
+          <input
+            type="number"
+            placeholder="Ej. 2 (Dejar vacío para cliente presencial)"
+            [ngModel]="clienteId()"
+            (ngModelChange)="clienteId.set($event)"
+          />
+        </div>
+
+        <div class="cart-items-container">
+          @if (carrito().length === 0) {
+            <div class="cart-empty">
+              <app-icon name="tag" [size]="32" />
+              <p>El ticket está vacío</p>
+              <small>Hacé click en "Seleccionar y Agregar" en cualquier producto</small>
+            </div>
+          } @else {
+            <div class="cart-list">
+              @for (item of carrito(); track $index) {
+                <div class="cart-item">
+                  <div class="item-info">
+                    <strong>{{ item.nombreProducto }}</strong>
+                    <div class="item-variant">
+                      @if (item.nombreTalla) { <span>Talla: {{ item.nombreTalla }}</span> }
+                      @if (item.nombreColor) { <span>Color: {{ item.nombreColor }}</span> }
+                    </div>
+                    <span class="item-price">${{ item.precio | number:'1.2-2' }} c/u</span>
+                  </div>
+
+                  <div class="item-controls">
+                    <div class="stepper">
+                      <button type="button" (click)="actualizarCantidadItem($index, -1)">-</button>
+                      <span>{{ item.cantidad }}</span>
+                      <button type="button" (click)="actualizarCantidadItem($index, 1)">+</button>
+                    </div>
+                    <span class="item-subtotal">${{ (item.precio * item.cantidad) | number:'1.2-2' }}</span>
+                    <button type="button" class="btn-remove" (click)="eliminarItemCarrito($index)">✕</button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="cart-footer">
+          <div class="cart-summary">
+            <div class="summary-row">
+              <span>Unidades:</span>
+              <strong>{{ unidadesCarrito() }}</strong>
+            </div>
+            <div class="summary-row total-row">
+              <span>Total:</span>
+              <span class="total-amount">${{ totalCarrito() | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="btn-checkout"
+            [disabled]="carrito().length === 0 || procesando()"
+            (click)="cobrar()"
+          >
+            @if (procesando()) {
+              <app-icon name="sparkles" [size]="18" />
+              <span>Procesando venta...</span>
+            } @else {
+              <app-icon name="check-circle" [size]="20" />
+              <span>Cobrar ${{ totalCarrito() | number:'1.2-2' }}</span>
+            }
+          </button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- MODAL: SELECCIÓN DE VARIANTE (TALLA Y COLOR) -->
+@if (modalVarianteAbierto() && productoParaAgregar()) {
+  <div class="modal-backdrop" (click)="cerrarModalVariante()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3>{{ productoParaAgregar()?.nombre }}</h3>
+          <span class="price-highlight">${{ productoParaAgregar()?.precio | number:'1.2-2' }}</span>
+        </div>
+        <button class="btn-close" (click)="cerrarModalVariante()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        @if (cargandoVariantes()) {
+          <div class="modal-loading">
+            <app-icon name="sparkles" [size]="24" />
+            <p>Verificando stock en sucursal...</p>
+          </div>
+        } @else if (variantesDisponibles().length === 0) {
+          <div class="no-stock-alert">
+            <app-icon name="alert-circle" [size]="24" />
+            <p><strong>Agotado en esta sucursal</strong></p>
+            <p>No hay variantes con stock disponible actualmente.</p>
+          </div>
+        } @else {
+          <label class="form-label">Seleccionar Talla y Color:</label>
+          <div class="variant-chips">
+            @for (v of variantesDisponibles(); track $index) {
+              <div
+                class="variant-chip"
+                [class.selected]="varianteSeleccionada() === v"
+                (click)="varianteSeleccionada.set(v)"
+              >
+                <strong>{{ v.nombre_talla || 'Única' }} / {{ v.nombre_color || 'Estándar' }}</strong>
+                <small>{{ v.cantidad_disponible }} disponibles</small>
+              </div>
+            }
+          </div>
+
+          <div class="quantity-group">
+            <label class="form-label">Cantidad a vender:</label>
+            <div class="stepper-large">
+              <button
+                type="button"
+                [disabled]="cantidadParaAgregar() <= 1"
+                (click)="decrementarCantidad()"
+              >-</button>
+              <span>{{ cantidadParaAgregar() }}</span>
+              <button
+                type="button"
+                [disabled]="varianteSeleccionada() && cantidadParaAgregar() >= (varianteSeleccionada()?.cantidad_disponible || 1)"
+                (click)="incrementarCantidad()"
+              >+</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="cerrarModalVariante()">Cancelar</button>
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="variantesDisponibles().length === 0 || !varianteSeleccionada()"
+          (click)="agregarAlCarrito()"
+        >
+          Agregar al Carrito
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL: TICKET DE VENTA COMPLETADA -->
+@if (ticketVenta()) {
+  <div class="modal-backdrop">
+    <div class="modal-card ticket-card" (click)="$event.stopPropagation()">
+      <div class="ticket-header">
+        <div class="success-icon">
+          <app-icon name="check-circle" [size]="36" />
+        </div>
+        <h2>¡Venta Registrada!</h2>
+        <p class="ticket-status">Estado: {{ ticketVenta()?.estado | uppercase }}</p>
+      </div>
+
+      <div class="ticket-body">
+        <div class="ticket-meta">
+          <div><span>Ticket #:</span> <strong>{{ ticketVenta()?.id }}</strong></div>
+          <div><span>Sucursal:</span> <strong>{{ ticketVenta()?.nombre_sucursal }}</strong></div>
+          <div><span>Cajero:</span> <strong>{{ ticketVenta()?.nombre_cajero }}</strong></div>
+          <div><span>Cliente:</span> <strong>{{ ticketVenta()?.nombre_cliente }}</strong></div>
+          <div><span>Canal:</span> <strong>{{ ticketVenta()?.canal }}</strong></div>
+          <div><span>Fecha:</span> <strong>{{ ticketVenta()?.creada_en | date:'dd/MM/yyyy HH:mm' }}</strong></div>
+        </div>
+
+        <hr class="ticket-divider" />
+
+        <div class="ticket-items">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Cant.</th>
+                <th>P. Unit</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of ticketVenta()?.items; track item.id) {
+                <tr>
+                  <td>
+                    <strong>{{ item.nombre_producto }}</strong>
+                    <div class="ticket-item-sub">
+                      {{ item.nombre_talla || '-' }} / {{ item.nombre_color || '-' }}
+                    </div>
+                  </td>
+                  <td>{{ item.cantidad }}</td>
+                  <td>${{ item.precio_unitario | number:'1.2-2' }}</td>
+                  <td>${{ item.subtotal | number:'1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <hr class="ticket-divider" />
+
+        <div class="ticket-total">
+          <span>TOTAL VENTA:</span>
+          <span class="total-big">${{ ticketVenta()?.total | number:'1.2-2' }}</span>
+        </div>
+
+        <hr class="ticket-divider" />
+
+        <!-- SECCIÓN DE PAGOS REGISTRADOS -->
+        <div class="ticket-payments-section">
+          <div class="section-title-sm">
+            <app-icon name="store" [size]="15" />
+            <span>Transacciones / Pagos Electrónicos</span>
+          </div>
+
+          @if (cargandoPagos()) {
+            <p class="loading-payments">Cargando pagos...</p>
+          } @else if (pagosTicket().length === 0) {
+            <div class="no-payments-tag">
+              <app-icon name="alert-circle" [size]="14" />
+              <span>Pendiente de pago electrónico (o pagado en efectivo)</span>
+            </div>
+          } @else {
+            <div class="payments-list">
+              @for (p of pagosTicket(); track p.id) {
+                <div class="payment-row">
+                  <div class="pay-main">
+                    <span class="pay-method">{{ p.metodo | uppercase }}</span>
+                    @if (p.referencia_externa) {
+                      <span class="pay-ref">Ref: {{ p.referencia_externa }}</span>
+                    }
+                  </div>
+                  <div class="pay-side">
+                    <span class="status-badge status-{{ p.estado }}">{{ p.estado }}</span>
+                    <strong class="pay-amount">${{ p.monto | number:'1.2-2' }}</strong>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer modal-footer-split">
+        <button type="button" class="btn-secondary" (click)="cerrarTicket()">
+          <app-icon name="tag" [size]="16" />
+          <span>Nueva Venta</span>
+        </button>
+
+        <div class="payment-actions-group">
+          <button
+            type="button"
+            class="btn-stripe"
+            (click)="abrirPagoTarjeta()"
+          >
+            <app-icon name="check-circle" [size]="16" />
+            <span>Cobrar con Tarjeta</span>
+          </button>
+
+          <button
+            type="button"
+            class="btn-qr"
+            (click)="abrirPagoQR()"
+          >
+            <app-icon name="qr" [size]="16" />
+            <span>Cobrar con QR</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- MODAL DE PAGO CON STRIPE -->
+@if (mostrarModalPago() && ticketVenta()) {
+  <app-pago-modal
+    [ventaId]="ticketVenta()!.id"
+    [monto]="ticketVenta()!.total"
+    [nombreCliente]="ticketVenta()!.nombre_cliente"
+    (cerrar)="onCerrarPagoModal($event)"
+  />
+}
+
+<!-- MODAL DE PAGO CON QR -->
+@if (mostrarModalPagoQR() && ticketVenta()) {
+  <app-pago-qr-modal
+    [ventaId]="ticketVenta()!.id"
+    [sucursalId]="auth.currentUser()!.sucursal_id!"
+    [monto]="ticketVenta()!.total"
+    (cerrar)="onCerrarPagoQR($event)"
+  />
+}

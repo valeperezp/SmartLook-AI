@@ -367,3 +367,17 @@ a {
     font-size: 0.95rem;
   }
 }
+
+/* Ocultar badge o widget flotante inyectado por Stripe Testing Assistant */
+[class*='stripe-assistant'],
+[id*='stripe-assistant'],
+[data-stripe-assistant],
+iframe[name*='assistant'],
+iframe[title*='assistant' i] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  clip-path: inset(100%) !important;
+}
+

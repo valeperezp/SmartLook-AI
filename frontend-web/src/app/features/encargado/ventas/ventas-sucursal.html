@@ -1,0 +1,441 @@
+<div class="ventas-container">
+  <!-- Toast flotante -->
+  @if (toast()) {
+    <div class="toast-notification">
+      <app-icon name="check-circle" [size]="18" />
+      <span>{{ toast() }}</span>
+    </div>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Ventas de mi sucursal</h1>
+      <p class="page-subtitle">
+        Historial de transacciones de
+        <strong>{{ user()?.sucursal_nombre || ('Sucursal #' + (user()?.sucursal_id || '1')) }}</strong>
+      </p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-secondary" (click)="exportarCSV()" [disabled]="ventasFiltradas().length === 0">
+        <app-icon name="focus" [size]="16" />
+        <span>Exportar CSV</span>
+      </button>
+      <button type="button" class="btn-primary" (click)="cargar()" [disabled]="cargando()">
+        <app-icon name="sparkles" [size]="16" />
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Grid de 4 KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card card-blue">
+      <div class="kpi-icon icon-blue">
+        <app-icon name="receipt" [size]="22" />
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Ventas</span>
+        <strong class="kpi-value">{{ totalVentas() }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card card-green">
+      <div class="kpi-icon icon-green">
+        <app-icon name="dollar-sign" [size]="22" />
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Monto Total</span>
+        <strong class="kpi-value">{{ montoTotal() | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card card-orange">
+      <div class="kpi-icon icon-orange">
+        <app-icon name="shopping-cart" [size]="22" />
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Ticket Promedio</span>
+        <strong class="kpi-value">{{ ticketPromedio() | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card card-purple">
+      <div class="kpi-icon icon-purple">
+        <app-icon name="package" [size]="22" />
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Unidades Vendidas</span>
+        <strong class="kpi-value">{{ unidadesVendidas() }} un.</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros -->
+  <section class="filters-card">
+    <div class="search-box">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="text"
+        placeholder="Buscar por cliente o # ticket..."
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+    </div>
+
+    <div class="filter-groups">
+      <!-- Filtro Fecha -->
+      <div class="filter-group">
+        <span class="group-label">Período:</span>
+        <div class="chips-row">
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroFecha() === 'hoy'"
+            (click)="setFecha('hoy')"
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroFecha() === 'semana'"
+            (click)="setFecha('semana')"
+          >
+            Semana
+          </button>
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroFecha() === 'mes'"
+            (click)="setFecha('mes')"
+          >
+            Mes
+          </button>
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroFecha() === 'todas'"
+            (click)="setFecha('todas')"
+          >
+            Todas
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtro Canal -->
+      <div class="filter-group">
+        <span class="group-label">Canal:</span>
+        <div class="chips-row">
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroCanal() === 'todos'"
+            (click)="setCanal('todos')"
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroCanal() === 'presencial'"
+            (click)="setCanal('presencial')"
+          >
+            Presencial
+          </button>
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroCanal() === 'online'"
+            (click)="setCanal('online')"
+          >
+            Online
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtro Estado -->
+      <div class="filter-group">
+        <span class="group-label">Estado:</span>
+        <div class="chips-row">
+          <button
+            type="button"
+            class="chip-btn"
+            [class.active]="filtroEstado() === 'todos'"
+            (click)="setEstado('todos')"
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            class="chip-btn chip-completada"
+            [class.active]="filtroEstado() === 'completada'"
+            (click)="setEstado('completada')"
+          >
+            Completada
+          </button>
+          <button
+            type="button"
+            class="chip-btn chip-pendiente"
+            [class.active]="filtroEstado() === 'pendiente'"
+            (click)="setEstado('pendiente')"
+          >
+            Pendiente
+          </button>
+          <button
+            type="button"
+            class="chip-btn chip-cancelada"
+            [class.active]="filtroEstado() === 'cancelada'"
+            (click)="setEstado('cancelada')"
+          >
+            Cancelada
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lista de Ventas o Estados -->
+  <main class="ventas-content">
+    <!-- Estado: Cargando -->
+    @if (cargando()) {
+      <div class="state-card">
+        <div class="spinner"></div>
+        <p>Cargando ventas de la sucursal...</p>
+      </div>
+    }
+
+    <!-- Estado: Error -->
+    @else if (error()) {
+      <div class="state-card error-card">
+        <app-icon name="alert-circle" [size]="44" />
+        <h3>Ocurrió un error</h3>
+        <p>{{ error() }}</p>
+        <button type="button" class="btn-primary" (click)="cargar()">Reintentar</button>
+      </div>
+    }
+
+    <!-- Estado: Vacío -->
+    @else if (ventasFiltradas().length === 0) {
+      <div class="state-card empty-card">
+        <div class="empty-icon-circle">
+          <app-icon name="receipt" [size]="40" />
+        </div>
+        <h3>No hay ventas en este período</h3>
+        <p>No se encontraron transacciones con los filtros seleccionados.</p>
+        @if (filtroFecha() !== 'todas' || filtroCanal() !== 'todos' || filtroEstado() !== 'todos' || busqueda()) {
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="filtroFecha.set('todas'); filtroCanal.set('todos'); filtroEstado.set('todos'); busqueda.set('')"
+          >
+            Restablecer filtros
+          </button>
+        }
+      </div>
+    }
+
+    <!-- Estado: Lista de Cards -->
+    @else {
+      <div class="cards-list">
+        @for (venta of ventasFiltradas(); track venta.id) {
+          <article class="venta-card" (click)="abrirDetalle(venta)">
+            <div class="card-main-header">
+              <div class="ticket-group">
+                <span class="ticket-title">Venta #{{ venta.id }}</span>
+                <span
+                  class="status-badge"
+                  [class.status-completada]="venta.estado === 'completada'"
+                  [class.status-pendiente]="venta.estado === 'pendiente'"
+                  [class.status-cancelada]="venta.estado === 'cancelada'"
+                >
+                  {{ venta.estado | uppercase }}
+                </span>
+              </div>
+              <div class="ticket-total">
+                {{ venta.total | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </div>
+            </div>
+
+            <div class="card-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Fecha y Hora</span>
+                <span class="detail-value">{{ venta.creada_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+
+              <div class="detail-item">
+                <span class="detail-label">Cliente</span>
+                <span class="detail-value text-truncate">{{ venta.nombre_cliente || 'Cliente presencial' }}</span>
+              </div>
+
+              <div class="detail-item">
+                <span class="detail-label">Canal</span>
+                <span class="detail-value canal-val">
+                  <app-icon [name]="venta.canal === 'online' ? 'monitor' : 'store'" [size]="14" />
+                  <span>{{ venta.canal | uppercase }}</span>
+                </span>
+              </div>
+
+              <div class="detail-item">
+                <span class="detail-label">Artículos</span>
+                <span class="detail-value">{{ venta.total_items }} items / {{ venta.total_unidades }} un.</span>
+              </div>
+            </div>
+
+            <div class="card-footer-action">
+              <span class="cajero-hint">
+                Atendido por: <b>{{ venta.nombre_cajero || 'Cajero' }}</b>
+              </span>
+              <button type="button" class="btn-view-detail" (click)="abrirDetalle(venta); $event.stopPropagation()">
+                <span>Ver detalle</span>
+                <app-icon name="chevron-left" [size]="14" class="icon-rotate" />
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+  <!-- MODAL DE DETALLE DE VENTA -->
+  @if (modalDetalleAbierto() && ventaSeleccionada()) {
+    <div class="modal-backdrop" (click)="cerrarDetalle()">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <!-- Header modal -->
+        <header class="modal-header">
+          <div class="modal-title-group">
+            <div class="title-with-badge">
+              <h2>Venta #{{ ventaSeleccionada()!.id }}</h2>
+              <span
+                class="status-badge"
+                [class.status-completada]="ventaSeleccionada()!.estado === 'completada'"
+                [class.status-pendiente]="ventaSeleccionada()!.estado === 'pendiente'"
+                [class.status-cancelada]="ventaSeleccionada()!.estado === 'cancelada'"
+              >
+                {{ ventaSeleccionada()!.estado | uppercase }}
+              </span>
+            </div>
+            <span class="modal-timestamp">{{ ventaSeleccionada()!.creada_en | date: 'dd/MM/yyyy HH:mm:ss' }}</span>
+          </div>
+          <button type="button" class="btn-close-modal" (click)="cerrarDetalle()">✕</button>
+        </header>
+
+        <!-- Body modal -->
+        <div class="modal-body">
+          <!-- Info general -->
+          <div class="general-info-grid">
+            <div class="info-block">
+              <span class="info-label">Sucursal</span>
+              <strong class="info-text">{{ ventaSeleccionada()!.nombre_sucursal || ('Sucursal #' + ventaSeleccionada()!.sucursal_id) }}</strong>
+            </div>
+            <div class="info-block">
+              <span class="info-label">Cajero</span>
+              <strong class="info-text">{{ ventaSeleccionada()!.nombre_cajero || '-' }}</strong>
+            </div>
+            <div class="info-block">
+              <span class="info-label">Cliente</span>
+              <strong class="info-text">{{ ventaSeleccionada()!.nombre_cliente || 'Cliente presencial' }}</strong>
+            </div>
+            <div class="info-block">
+              <span class="info-label">Canal de Venta</span>
+              <strong class="info-text uppercase">{{ ventaSeleccionada()!.canal }}</strong>
+            </div>
+            <div class="info-block">
+              <span class="info-label">Total Unidades</span>
+              <strong class="info-text">{{ ventaSeleccionada()!.total_unidades }} un.</strong>
+            </div>
+            <div class="info-block">
+              <span class="info-label">Total Items</span>
+              <strong class="info-text">{{ ventaSeleccionada()!.total_items }}</strong>
+            </div>
+          </div>
+
+          <!-- Tabla de items -->
+          <section class="items-section">
+            <h4 class="section-heading">Productos Vendidos</h4>
+            <div class="table-responsive">
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Talla</th>
+                    <th>Color</th>
+                    <th class="text-center">Cant.</th>
+                    <th class="text-right">Precio</th>
+                    <th class="text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of ventaSeleccionada()!.items; track item.id) {
+                    <tr>
+                      <td>
+                        <strong class="item-name">{{ item.nombre_producto }}</strong>
+                      </td>
+                      <td>{{ item.nombre_talla || '-' }}</td>
+                      <td>{{ item.nombre_color || '-' }}</td>
+                      <td class="text-center font-bold">{{ item.cantidad }}</td>
+                      <td class="text-right">{{ item.precio_unitario | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+                      <td class="text-right font-bold text-success">
+                        {{ item.subtotal | currency: 'USD' : 'symbol' : '1.2-2' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Sección Pagos Electrónicos (si existen) -->
+          @if (cargandoPagos()) {
+            <div class="pagos-loading">
+              <div class="spinner-small"></div>
+              <span>Consultando registros de pago...</span>
+            </div>
+          } @else if (pagosVenta().length > 0) {
+            <section class="pagos-section">
+              <h4 class="section-heading">Transacciones de Pago Registradas</h4>
+              <div class="pagos-list">
+                @for (pago of pagosVenta(); track pago.id) {
+                  <div class="pago-item-row">
+                    <div class="pago-method-group">
+                      <app-icon [name]="pago.metodo === 'qr' ? 'qr' : 'credit-card'" [size]="18" />
+                      <span class="pago-metodo">{{ pago.metodo | uppercase }}</span>
+                      <span
+                        class="status-badge status-small"
+                        [class.status-completada]="pago.estado === 'completado'"
+                        [class.status-pendiente]="pago.estado === 'pendiente'"
+                        [class.status-cancelada]="pago.estado === 'fallido'"
+                      >
+                        {{ pago.estado | uppercase }}
+                      </span>
+                    </div>
+
+                    <div class="pago-meta-info">
+                      @if (pago.referencia_externa) {
+                        <span class="pago-ref">Ref: {{ pago.referencia_externa }}</span>
+                      }
+                      <strong class="pago-amount">
+                        {{ pago.monto_formateado || (pago.monto | currency: 'USD' : 'symbol' : '1.2-2') }}
+                      </strong>
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          <!-- Barra Total Destacado -->
+          <div class="total-summary-card">
+            <span class="summary-label">TOTAL FACTURADO:</span>
+            <span class="summary-amount">{{ ventaSeleccionada()!.total | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+          </div>
+        </div>
+
+        <!-- Footer modal -->
+        <footer class="modal-footer">
+          <button type="button" class="btn-primary" (click)="cerrarDetalle()">Cerrar</button>
+        </footer>
+      </div>
+    </div>
+  }
+</div>

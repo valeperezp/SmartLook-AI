@@ -45,6 +45,15 @@ import { AuthService } from '../../../core/services/auth.service';
           <a routerLink="/encargado/movimientos" routerLinkActive="active">
             <app-icon name="truck" [size]="18" /> <span>Movimientos</span>
           </a>
+          <a routerLink="/encargado/mi-qr" routerLinkActive="active">
+            <app-icon name="qr" [size]="18" /> <span>Mi QR</span>
+          </a>
+          <a routerLink="/encargado/ventas" routerLinkActive="active">
+            <app-icon name="receipt" [size]="18" /> <span>Ventas</span>
+          </a>
+          <a routerLink="/encargado/pagos-pendientes" routerLinkActive="active">
+            <app-icon name="credit-card" [size]="18" /> <span>Pagos por verificar</span>
+          </a>
         </nav>
 
         <div class="sidebar-footer">

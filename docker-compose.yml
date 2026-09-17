@@ -7,6 +7,7 @@ services:
       - ./backend/.env
     volumes:
       - ./backend/app:/app/app
+      - uploads_data:/app/uploads
     restart: unless-stopped
 
   frontend:
@@ -22,3 +23,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  uploads_data:
