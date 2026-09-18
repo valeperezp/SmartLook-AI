@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { SucursalesService } from '../../core/services/sucursales.service';
 import { ReservasService } from '../../core/services/reservas.service';
+import { CarritoService } from '../../core/services/carrito.service';
 import { AuthService } from '../../core/services/auth.service';
 
 import {
@@ -34,6 +35,7 @@ export class Home implements OnInit {
   private catalogoService = inject(CatalogoService);
   private sucursalesService = inject(SucursalesService);
   private reservasService = inject(ReservasService);
+  carritoService = inject(CarritoService);
   auth = inject(AuthService);
 
   backendStatus = signal<'checking' | 'connected' | 'error'>('checking');
@@ -70,6 +72,14 @@ export class Home implements OnInit {
   reservaCreando = signal<boolean>(false);
   reservaToast = signal<string | null>(null);
   reservaToastIsError = signal<boolean>(false);
+
+  // Modal y estado para Añadir al Carrito
+  modalCarritoAbierto = signal<boolean>(false);
+  productoParaCarrito = signal<Producto | null>(null);
+  variantesParaCarrito = signal<DisponibilidadTallaColor[]>([]);
+  varianteSeleccionadaCarrito = signal<DisponibilidadTallaColor | null>(null);
+  cantidadParaCarrito = signal<number>(1);
+  cargandoVariantesCarrito = signal<boolean>(false);
 
   private toastTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -258,5 +268,95 @@ export class Home implements OnInit {
     this.toastTimeout = setTimeout(() => {
       this.reservaToast.set(null);
     }, 3500);
+  }
+
+  // Métodos para Añadir al Carrito
+  abrirModalCarrito(prod: Producto) {
+    this.productoParaCarrito.set(prod);
+    this.cantidadParaCarrito.set(1);
+    this.varianteSeleccionadaCarrito.set(null);
+    this.variantesParaCarrito.set([]);
+    this.cargandoVariantesCarrito.set(true);
+    this.modalCarritoAbierto.set(true);
+
+    this.catalogoService.obtenerDisponibilidad(prod.id).subscribe({
+      next: (disp) => {
+        this.cargandoVariantesCarrito.set(false);
+        const mapa = new Map<string, DisponibilidadTallaColor>();
+        disp.disponibilidad.forEach((suc) => {
+          suc.items.forEach((item) => {
+            if (item.cantidad_disponible > 0) {
+              const clave = `${item.talla_id}_${item.color_id}`;
+              if (mapa.has(clave)) {
+                const ex = mapa.get(clave)!;
+                ex.cantidad_disponible += item.cantidad_disponible;
+              } else {
+                mapa.set(clave, { ...item });
+              }
+            }
+          });
+        });
+        const lista = Array.from(mapa.values());
+        this.variantesParaCarrito.set(lista);
+        if (lista.length > 0) {
+          this.varianteSeleccionadaCarrito.set(lista[0]);
+        }
+      },
+      error: () => {
+        this.cargandoVariantesCarrito.set(false);
+        this.mostrarReservaToast('No se pudo verificar el stock del producto', true);
+      },
+    });
+  }
+
+  cerrarModalCarrito() {
+    this.modalCarritoAbierto.set(false);
+    this.productoParaCarrito.set(null);
+    this.varianteSeleccionadaCarrito.set(null);
+    this.variantesParaCarrito.set([]);
+    this.cantidadParaCarrito.set(1);
+  }
+
+  confirmarAgregarAlCarrito() {
+    const prod = this.productoParaCarrito();
+    if (!prod) return;
+
+    const variante = this.varianteSeleccionadaCarrito();
+    const cant = this.cantidadParaCarrito();
+
+    if (cant < 1) {
+      this.mostrarReservaToast('La cantidad debe ser al menos 1', true);
+      return;
+    }
+
+    this.carritoService.agregar({
+      productoId: prod.id,
+      nombreProducto: prod.nombre,
+      precio: Number(prod.precio),
+      tallaId: variante?.talla_id ?? null,
+      nombreTalla: variante?.nombre_talla ?? null,
+      colorId: variante?.color_id ?? null,
+      nombreColor: variante?.nombre_color ?? null,
+      cantidad: cant,
+      maxDisponible: variante?.cantidad_disponible,
+    });
+
+    this.mostrarReservaToast(`¡"${prod.nombre}" añadido al carrito!`, false);
+    this.cerrarModalCarrito();
+  }
+
+  agregarDirectoDesdeChip(prod: Producto, item: DisponibilidadTallaColor) {
+    this.carritoService.agregar({
+      productoId: prod.id,
+      nombreProducto: prod.nombre,
+      precio: Number(prod.precio),
+      tallaId: item.talla_id,
+      nombreTalla: item.nombre_talla,
+      colorId: item.color_id,
+      nombreColor: item.nombre_color,
+      cantidad: 1,
+      maxDisponible: item.cantidad_disponible,
+    });
+    this.mostrarReservaToast(`¡"${prod.nombre}" (${item.nombre_talla || ''}) añadido al carrito!`, false);
   }
 }

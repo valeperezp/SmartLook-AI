@@ -1,0 +1,152 @@
+<div class="cart-page-container">
+  <div class="cart-header">
+    <div class="header-titles">
+      <span class="eyebrow">Bolsa de compras</span>
+      <h1 class="cart-title">Mi Carrito</h1>
+    </div>
+    @if (!carritoService.estaVacio()) {
+      <button type="button" class="btn-vaciar" (click)="vaciar()" title="Vaciar todos los productos">
+        <app-icon name="alert-circle" [size]="15" /> Vaciar carrito
+      </button>
+    }
+  </div>
+
+  @if (carritoService.estaVacio()) {
+    <div class="empty-cart-state">
+      <div class="empty-icon-circle">
+        <app-icon name="shopping-cart" [size]="48" />
+      </div>
+      <h2>Tu carrito está vacío</h2>
+      <p>Aún no añadiste ninguna prenda. Explorá nuestro catálogo y descubrí las últimas tendencias.</p>
+      <a routerLink="/" class="btn-primary btn-explore">
+        <app-icon name="shirt" [size]="18" /> Explorar catálogo
+      </a>
+    </div>
+  } @else {
+    <div class="cart-layout">
+      <!-- Columna izquierda: Lista de prendas -->
+      <div class="cart-items-column">
+        <div class="cart-items-card">
+          <div class="items-header">
+            <span class="col-product">Prenda</span>
+            <span class="col-price">Precio</span>
+            <span class="col-qty">Cantidad</span>
+            <span class="col-subtotal">Subtotal</span>
+            <span class="col-action"></span>
+          </div>
+
+          <div class="items-list">
+            @for (item of carritoService.items(); track $index) {
+              <div class="cart-item-row">
+                <div class="item-product-info">
+                  <div class="item-icon-box">
+                    <app-icon name="shirt" [size]="22" />
+                  </div>
+                  <div class="item-details">
+                    <h3 class="item-name">{{ item.nombreProducto }}</h3>
+                    <div class="item-variant-badges">
+                      @if (item.nombreTalla) {
+                        <span class="variant-tag">Talla: <strong>{{ item.nombreTalla }}</strong></span>
+                      }
+                      @if (item.nombreColor) {
+                        <span class="variant-tag">Color: <strong>{{ item.nombreColor }}</strong></span>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div class="item-price">
+                  ${{ item.precio | number:'1.2-2' }}
+                </div>
+
+                <div class="item-quantity">
+                  <div class="quantity-stepper">
+                    <button
+                      type="button"
+                      class="step-btn"
+                      (click)="decrementar($index)"
+                      [title]="item.cantidad === 1 ? 'Eliminar prenda' : 'Reducir cantidad'"
+                    >
+                      -
+                    </button>
+                    <span class="step-value">{{ item.cantidad }}</span>
+                    <button
+                      type="button"
+                      class="step-btn"
+                      (click)="incrementar($index)"
+                      [disabled]="item.maxDisponible !== undefined && item.cantidad >= item.maxDisponible"
+                      title="Aumentar cantidad"
+                    >
+                      +
+                    </button>
+                  </div>
+                  @if (item.maxDisponible && item.cantidad >= item.maxDisponible) {
+                    <span class="max-notice">Máximo stock</span>
+                  }
+                </div>
+
+                <div class="item-subtotal">
+                  ${{ (item.precio * item.cantidad) | number:'1.2-2' }}
+                </div>
+
+                <div class="item-action">
+                  <button
+                    type="button"
+                    class="btn-remove-item"
+                    (click)="eliminar($index)"
+                    title="Quitar prenda del carrito"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="cart-back-link">
+          <a routerLink="/" class="back-link">
+            ← Seguir comprando prendas
+          </a>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Resumen de compra -->
+      <div class="cart-summary-column">
+        <div class="summary-card">
+          <h2 class="summary-title">Resumen de Compra</h2>
+
+          <div class="summary-rows">
+            <div class="summary-row">
+              <span class="row-label">Prendas (unidades)</span>
+              <span class="row-val">{{ carritoService.cantidadTotal() }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="row-label">Subtotal estimado</span>
+              <span class="row-val">${{ carritoService.total() | number:'1.2-2' }}</span>
+            </div>
+            <div class="summary-row divider"></div>
+            <div class="summary-row total-row">
+              <span class="total-label">Total a pagar</span>
+              <span class="total-amount">${{ carritoService.total() | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="summary-notice">
+            <app-icon name="store" [size]="16" />
+            <span>Seleccionarás la sucursal de retiro o despacho en el siguiente paso.</span>
+          </div>
+
+          <button
+            type="button"
+            class="btn-primary btn-checkout"
+            (click)="irAlCheckout()"
+          >
+            <span>Continuar al checkout</span>
+            <app-icon name="credit-card" [size]="18" />
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -30,6 +30,11 @@ class VentaPresencialCreate(BaseModel):
     items: list[VentaItemCreate] = Field(..., min_length=1)
 
 
+class VentaOnlineCreate(BaseModel):
+    sucursal_id: int
+    items: list[VentaItemCreate] = Field(..., min_length=1)
+
+
 class VentaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int

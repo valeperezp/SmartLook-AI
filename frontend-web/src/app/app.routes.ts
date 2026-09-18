@@ -29,9 +29,26 @@ export const routes: Routes = [
     canActivate: [guestGuard],
   },
   {
+    path: 'mis-compras',
+    loadComponent: () =>
+      import('./features/mis-compras/mis-compras').then((m) => m.MisCompras),
+    canActivate: [authGuard],
+  },
+  {
     path: 'mis-reservas',
     loadComponent: () =>
       import('./features/mis-reservas/mis-reservas').then((m) => m.MisReservas),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'carrito',
+    loadComponent: () =>
+      import('./features/carrito/carrito').then((m) => m.Carrito),
+  },
+  {
+    path: 'checkout',
+    loadComponent: () =>
+      import('./features/checkout/checkout').then((m) => m.Checkout),
     canActivate: [authGuard],
   },
   {
@@ -220,6 +237,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/cajero/ventas-historial/ventas-historial').then(
             (m) => m.VentasHistorial
+          ),
+      },
+      {
+        path: 'pagos-pendientes',
+        loadComponent: () =>
+          import('./features/encargado/pagos-pendientes/pagos-pendientes').then(
+            (m) => m.PagosPendientes
           ),
       },
     ],

@@ -170,9 +170,21 @@
                   <span class="price-label">Precio</span>
                   <span class="price-amount">${{ prod.precio | number:'1.2-2' }}</span>
                 </div>
-                <button type="button" class="btn-check-stock" (click)="abrirDetalle(prod); $event.stopPropagation()">
-                  Ver stock
-                </button>
+                <div class="product-card-actions">
+                  <button
+                    type="button"
+                    class="btn-add-cart"
+                    [disabled]="prod.estado_global === 'agotado'"
+                    (click)="abrirModalCarrito(prod); $event.stopPropagation()"
+                    title="Añadir al carrito"
+                  >
+                    <app-icon name="shopping-cart" [size]="14" />
+                    <span>Añadir</span>
+                  </button>
+                  <button type="button" class="btn-check-stock" (click)="abrirDetalle(prod); $event.stopPropagation()">
+                    Stock
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -260,13 +272,23 @@
                           </span>
                           <span class="tc-qty">{{ item.cantidad_disponible }} un.</span>
                           @if (item.cantidad_disponible > 0) {
-                            <button
-                              type="button"
-                              class="btn-reservar-chip"
-                              (click)="abrirReservaModal(prod, suc, item)"
-                            >
-                              Reservar
-                            </button>
+                            <div class="chip-action-btns">
+                              <button
+                                type="button"
+                                class="btn-cart-chip"
+                                (click)="agregarDirectoDesdeChip(prod, item)"
+                                title="Añadir al carrito"
+                              >
+                                <app-icon name="shopping-cart" [size]="12" /> Añadir
+                              </button>
+                              <button
+                                type="button"
+                                class="btn-reservar-chip"
+                                (click)="abrirReservaModal(prod, suc, item)"
+                              >
+                                Reservar
+                              </button>
+                            </div>
                           }
                         </div>
                       }
@@ -379,6 +401,86 @@
           <div class="toast-inline" [class.toast-error]="reservaToastIsError()">
             {{ reservaToast() }}
           </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Mini-Modal de Añadir al Carrito -->
+@if (modalCarritoAbierto() && productoParaCarrito(); as prod) {
+  <div class="modal-backdrop reserva-backdrop" (click)="cerrarModalCarrito()">
+    <div class="modal-container reserva-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="eyebrow">Añadir al Carrito</span>
+          <h2 class="modal-title">{{ prod.nombre }}</h2>
+          <span class="modal-price" style="font-size: 1.1rem; color: var(--accent); font-weight: 700;">
+            ${{ prod.precio | number:'1.2-2' }}
+          </span>
+        </div>
+        <button class="modal-close-btn" (click)="cerrarModalCarrito()" aria-label="Cerrar modal">
+          ✕
+        </button>
+      </div>
+
+      <div class="modal-body">
+        @if (cargandoVariantesCarrito()) {
+          <div class="modal-loading" style="padding: 2rem; text-align: center;">
+            <div class="spinner"></div>
+            <p>Cargando tallas y colores disponibles...</p>
+          </div>
+        } @else if (variantesParaCarrito().length === 0) {
+          <div class="modal-error" style="padding: 1.5rem; text-align: center;">
+            <p>Actualmente no hay stock disponible para esta prenda.</p>
+          </div>
+        } @else {
+          <form (ngSubmit)="confirmarAgregarAlCarrito()" class="reserva-form">
+            <div class="form-group">
+              <label for="variante-select">Seleccioná Talla y Color</label>
+              <select
+                id="variante-select"
+                [ngModel]="varianteSeleccionadaCarrito()"
+                (ngModelChange)="varianteSeleccionadaCarrito.set($event)"
+                name="variante"
+                class="form-select"
+                style="width: 100%; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
+                required
+              >
+                @for (v of variantesParaCarrito(); track $index) {
+                  <option [ngValue]="v">
+                    Talla {{ v.nombre_talla || 'Única' }} &bull; {{ v.nombre_color || 'Estándar' }} ({{ v.cantidad_disponible }} un. disponibles)
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="cart-cantidad">Cantidad</label>
+              <input
+                id="cart-cantidad"
+                type="number"
+                min="1"
+                [max]="varianteSeleccionadaCarrito()?.cantidad_disponible || 99"
+                [ngModel]="cantidadParaCarrito()"
+                (ngModelChange)="cantidadParaCarrito.set($event)"
+                name="cantidad"
+                style="width: 100%; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
+                required
+              />
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+              <button
+                type="submit"
+                class="btn-primary"
+                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.85rem;"
+              >
+                <app-icon name="shopping-cart" [size]="16" />
+                Añadir al Carrito
+              </button>
+            </div>
+          </form>
         }
       </div>
     </div>

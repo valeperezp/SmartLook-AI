@@ -10,6 +10,7 @@ from app.modules.ventas import schemas, service
 router = APIRouter(prefix="/ventas", tags=["ventas"])
 
 cajero_or_admin = require_roles("cajero", "administrador", "encargado_sucursal")
+cliente_or_admin = require_roles("cliente", "administrador")
 
 
 @router.post("", response_model=schemas.VentaOut, status_code=201)
@@ -23,6 +24,25 @@ def crear_venta_presencial(
     if usuario.rol == "cajero" and usuario.sucursal_id != data.sucursal_id:
         raise HTTPException(status_code=403, detail="El cajero solo puede vender en su sucursal asignada")
     return service.crear_venta_presencial(db, data, cajero_id=usuario.id)
+
+
+@router.post("/online", response_model=schemas.VentaOut, status_code=201)
+def crear_venta_online(
+    data: schemas.VentaOnlineCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(cliente_or_admin),
+):
+    """Registra una venta online para el cliente autenticado."""
+    return service.crear_venta_online(db, data, cliente_id=usuario.id)
+
+
+@router.get("/mis-compras", response_model=list[schemas.VentaOut])
+def listar_mis_compras(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(cliente_or_admin),
+):
+    """Lista las compras online del cliente autenticado."""
+    return service.listar_mis_compras(db, cliente_id=usuario.id)
 
 
 @router.get("/{venta_id}", response_model=schemas.VentaOut)

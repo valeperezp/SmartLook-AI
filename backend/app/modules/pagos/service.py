@@ -51,6 +51,9 @@ def crear_payment_intent(db: Session, data: schemas.PaymentIntentCreate) -> dict
 
 def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
     """Confirma el pago consultando el PaymentIntent a Stripe y guarda el Pago."""
+    # NOTE: Las ventas online pendientes sin pago completado no expiran automáticamente
+    # en esta fase. Se requiere una tarea en background/cron para cancelar ventas
+    # pendientes tras una ventana de tiempo definida (deuda técnica conocida).
     _inicializar_stripe()
 
     try:
@@ -58,7 +61,8 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
     except stripe.error.StripeError as e:
         raise HTTPException(status_code=400, detail=f"Error de Stripe: {str(e)}")
 
-    venta_id = int(intent.metadata.get("venta_id", 0))
+    metadata = intent.metadata.to_dict() if hasattr(intent.metadata, "to_dict") else intent.metadata
+    venta_id = int(metadata.get("venta_id", 0))
     if not venta_id:
         raise HTTPException(status_code=400, detail="PaymentIntent sin venta_id")
 
@@ -66,18 +70,43 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
     if not venta:
         raise HTTPException(status_code=404, detail="Venta asociada no encontrada")
 
-    estado_pago = "completado" if intent.status == "succeeded" else "fallido"
+    if intent.status == "succeeded":
+        pago = models.Pago(
+            venta_id=venta_id,
+            metodo=metadata.get("metodo", "tarjeta"),
+            monto=float(venta.total),
+            estado="completado",
+            referencia_externa=intent.id,
+        )
+        db.add(pago)
+        db.commit()
+        db.refresh(pago)
 
-    pago = models.Pago(
-        venta_id=venta_id,
-        metodo=intent.metadata.get("metodo", "tarjeta"),
-        monto=float(venta.total),
-        estado=estado_pago,
-        referencia_externa=intent.id,
-    )
-    db.add(pago)
-    db.commit()
-    db.refresh(pago)
+        # Si es una venta online pendiente, completar la venta y descontar stock
+        if venta.canal == "online" and venta.estado == "pendiente":
+            from app.modules.ventas.service import completar_venta_y_descontar_stock
+
+            try:
+                completar_venta_y_descontar_stock(db, venta.id)
+            except HTTPException as e:
+                pago.estado = "fallido"
+                pago.referencia_externa = f"{intent.id} - FALLO STOCK: {e.detail}"
+                venta.estado = "cancelada"
+                db.commit()
+                raise e
+    else:
+        pago = models.Pago(
+            venta_id=venta_id,
+            metodo=metadata.get("metodo", "tarjeta"),
+            monto=float(venta.total),
+            estado="fallido",
+            referencia_externa=intent.id,
+        )
+        db.add(pago)
+        if venta.canal == "online":
+            venta.estado = "cancelada"
+        db.commit()
+        db.refresh(pago)
 
     return pago
 
@@ -115,7 +144,10 @@ def crear_pago_qr(db: Session, venta_id: int) -> models.Pago:
     venta = db.query(Venta).filter(Venta.id == venta_id).first()
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
-    
+
+    if venta.estado == "cancelada":
+        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada")
+
     pago = models.Pago(
         venta_id=venta_id,
         metodo="qr",
@@ -181,15 +213,36 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
     if not pago.comprobante_path:
         raise HTTPException(status_code=400, detail="El pago no tiene comprobante subido")
     
-    pago.estado = "completado" if aprobar else "fallido"
     pago.confirmado_por_id = usuario_id
     pago.confirmado_en = datetime.now(timezone.utc)
     
-    if motivo:
-        pago.referencia_externa = f"RECHAZADO: {motivo[:100]}"
-    
-    db.commit()
-    db.refresh(pago)
+    venta = db.query(Venta).filter(Venta.id == pago.venta_id).first()
+
+    if aprobar:
+        pago.estado = "completado"
+        db.commit()
+        db.refresh(pago)
+
+        # Si es una venta online pendiente, completar la venta y descontar stock
+        if venta and venta.canal == "online" and venta.estado == "pendiente":
+            from app.modules.ventas.service import completar_venta_y_descontar_stock
+
+            try:
+                completar_venta_y_descontar_stock(db, venta.id)
+            except HTTPException as e:
+                pago.estado = "fallido"
+                pago.referencia_externa = f"FALLO STOCK: {e.detail}"
+                venta.estado = "cancelada"
+                db.commit()
+                raise e
+    else:
+        pago.estado = "fallido"
+        if motivo:
+            pago.referencia_externa = f"RECHAZADO: {motivo[:100]}"
+        if venta and venta.canal == "online":
+            venta.estado = "cancelada"
+        db.commit()
+        db.refresh(pago)
     
     return pago
 

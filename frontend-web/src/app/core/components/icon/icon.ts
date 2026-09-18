@@ -34,6 +34,7 @@ export type IconName =
   | 'percent'
   | 'plus'
   | 'pencil'
+  | 'clock'
   | 'list';
 
 @Component({
@@ -216,6 +217,10 @@ export type IconName =
         }
         @case ('pencil') {
           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+        }
+        @case ('clock') {
+          <circle cx="12" cy="12" r="9" />
+          <polyline points="12 7 12 12 15 15" />
         }
         @case ('list') {
           <line x1="8" y1="6" x2="21" y2="6" />
