@@ -41,6 +41,7 @@ export interface Producto {
   coleccion_id?: number;
   proveedor_id?: number;
   modelo_ar_url?: string;
+  imagen_url?: string;
   activo: boolean;
   categoria: Categoria;
   temporada?: Temporada;
@@ -59,6 +60,7 @@ export interface ProductoCreate {
   coleccion_id?: number;
   proveedor_id?: number;
   modelo_ar_url?: string;
+  imagen_url?: string;
   activo?: boolean;
 }
 

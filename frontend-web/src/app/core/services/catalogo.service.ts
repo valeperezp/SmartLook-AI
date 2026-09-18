@@ -92,6 +92,11 @@ export class CatalogoService {
   eliminarProducto(id: number) {
     return this.http.delete<Producto>(`${this.base}/productos/${id}`);
   }
+  subirImagenProducto(id: number, archivo: File) {
+    const formData = new FormData();
+    formData.append('archivo', archivo);
+    return this.http.post<Producto>(`${this.base}/productos/${id}/imagen`, formData);
+  }
 
   // ===== MÉTODOS PARA PROVEEDOR (CU18) =====
   listarMisProductos(incluirInactivos = false) {

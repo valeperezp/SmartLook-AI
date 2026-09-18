@@ -136,8 +136,7 @@
     <div class="modal-container" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-group">
-          <span class="eyebrow">{{ productoEditando() ? 'Modificar Producto' : 'Alta de Producto' }}</span>
-          <h2 class="modal-title">{{ productoEditando() ? ('Editar #' + productoEditando()?.id) : 'Nuevo Producto' }}</h2>
+          <h2 class="modal-title">{{ productoEditando() ? ('Editar producto #' + productoEditando()?.id) : 'Nuevo producto' }}</h2>
         </div>
         <button class="modal-close-btn" (click)="cerrarModal()" aria-label="Cerrar modal">
           ✕

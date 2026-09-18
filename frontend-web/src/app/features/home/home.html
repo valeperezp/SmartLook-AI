@@ -2,7 +2,6 @@
 <section class="hero-section">
   <div class="hero-overlay"></div>
   <div class="hero-content">
-    <span class="eyebrow eyebrow-light">E-Commerce de Moda Inteligente</span>
     <h1 class="hero-title">
       Vestí el futuro con <span class="hero-title-accent">Realidad Aumentada e IA</span>
     </h1>
@@ -40,7 +39,6 @@
     <section class="recomendaciones-section">
       <div class="section-header">
         <div>
-          <span class="eyebrow">Sugerido por IA</span>
           <h2 class="section-title">Recomendado para vos</h2>
           <p class="section-subtitle">Basado en tus reservas anteriores y en lo más popular entre otros clientes</p>
         </div>
@@ -56,7 +54,11 @@
           @for (rec of recomendaciones(); track rec.producto_id) {
             <div class="recomendacion-card" (click)="verRecomendacion(rec)">
               <div class="recomendacion-media">
-                <app-icon name="sparkles" [size]="26" />
+                @if (rec.imagen_url) {
+                  <img [src]="rec.imagen_url" [alt]="rec.nombre_producto" class="recomendacion-image" />
+                } @else {
+                  <app-icon name="sparkles" [size]="26" />
+                }
                 @if (rec.nombre_categoria) {
                   <span class="product-badge">{{ rec.nombre_categoria }}</span>
                 }
@@ -77,7 +79,6 @@
   <section class="catalog-section">
     <div class="section-header">
       <div>
-        <span class="eyebrow">Catálogo y disponibilidad</span>
         <h2 class="section-title">Prendas de la temporada</h2>
         <p class="section-subtitle">
           Consultá disponibilidad por sucursal y stock en tiempo real
@@ -151,7 +152,11 @@
         @for (prod of filteredProductos(); track prod.id) {
           <div class="product-card" (click)="abrirDetalle(prod)">
             <div class="product-media">
-              <app-icon name="shirt" [size]="34" />
+              @if (prod.imagen_url) {
+                <img [src]="prod.imagen_url" [alt]="prod.nombre" class="product-image" />
+              } @else {
+                <app-icon name="shirt" [size]="34" />
+              }
               <span class="product-badge">{{ prod.categoria.nombre }}</span>
 
               <!-- Stock Badge -->
@@ -226,12 +231,12 @@
     <div class="modal-container" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-group">
-          <span class="eyebrow">{{ prod.categoria.nombre }}</span>
+          <span class="modal-category">{{ prod.categoria.nombre }}</span>
           <h2 class="modal-title">{{ prod.nombre }}</h2>
           <span class="modal-price">${{ prod.precio | number:'1.2-2' }}</span>
         </div>
         <button class="modal-close-btn" (click)="cerrarDetalle()" aria-label="Cerrar modal">
-          ✕
+          <app-icon name="x" [size]="16" />
         </button>
       </div>
 
@@ -334,11 +339,11 @@
     <div class="modal-container reserva-modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-group">
-          <span class="eyebrow">Confirmar Reserva</span>
+          <span class="modal-category">Confirmar reserva</span>
           <h2 class="modal-title">{{ item.nombre_producto }}</h2>
         </div>
         <button class="modal-close-btn" (click)="cerrarReservaModal()" aria-label="Cerrar modal de reserva">
-          ✕
+          <app-icon name="x" [size]="16" />
         </button>
       </div>
 
@@ -360,7 +365,7 @@
           </div>
           <div class="reserva-info-item">
             <span class="label">Stock disponible</span>
-            <span class="value" style="color: #4ade80;">{{ item.disponible }} un.</span>
+            <span class="value value-accent">{{ item.disponible }} un.</span>
           </div>
         </div>
 
@@ -426,9 +431,8 @@
 <!-- Toast flotante cuando el modal ya se cerró -->
 @if (reservaToast() && !reservaModalAbierto()) {
   <div
-    class="toast-inline"
+    class="toast-inline toast-floating"
     [class.toast-error]="reservaToastIsError()"
-    style="position: fixed; bottom: 2rem; right: 2rem; z-index: 1200; box-shadow: 0 4px 20px rgba(0,0,0,0.5); margin: 0; min-width: 280px;"
   >
     {{ reservaToast() }}
   </div>

@@ -117,7 +117,7 @@
   }
 
   tr.row-alert td {
-    background: rgba(245, 158, 11, 0.03);
+    background: rgba(179, 132, 63, 0.03);
   }
 
   .text-right {
@@ -155,24 +155,24 @@
       transition: all 0.15s ease;
 
       &.btn-in {
-        background: rgba(16, 185, 129, 0.12);
+        background: rgba(76, 122, 90, 0.12);
         color: var(--success);
-        border-color: rgba(16, 185, 129, 0.25);
+        border-color: rgba(76, 122, 90, 0.25);
 
         &:hover {
           background: var(--success);
-          color: #ffffff;
+          color: #fdf3e7;
         }
       }
 
       &.btn-out {
-        background: rgba(239, 68, 68, 0.12);
+        background: rgba(163, 64, 47, 0.12);
         color: var(--danger);
-        border-color: rgba(239, 68, 68, 0.25);
+        border-color: rgba(163, 64, 47, 0.25);
 
         &:hover:not(:disabled) {
           background: var(--danger);
-          color: #ffffff;
+          color: #fdf3e7;
         }
 
         &:disabled {
@@ -182,13 +182,13 @@
       }
 
       &.btn-adj {
-        background: rgba(179, 113, 79, 0.12);
+        background: rgba(124, 38, 53, 0.12);
         color: var(--primary);
-        border-color: rgba(179, 113, 79, 0.25);
+        border-color: rgba(124, 38, 53, 0.25);
 
         &:hover {
           background: var(--primary);
-          color: #ffffff;
+          color: #fdf3e7;
         }
       }
 

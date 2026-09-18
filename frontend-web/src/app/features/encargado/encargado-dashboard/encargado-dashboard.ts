@@ -17,7 +17,7 @@ import {
   template: `
     <div class="dash-header">
       <div>
-        <h1>Hola, <span class="gradient-text">{{ user()?.nombre || 'Encargado' }}</span></h1>
+        <h1>Hola, <span class="text-accent">{{ user()?.nombre || 'Encargado' }}</span></h1>
         <p>Panel de control operativo de tu sucursal asignada.</p>
       </div>
       <div class="branch-pill">

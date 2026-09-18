@@ -72,7 +72,7 @@
               <span class="estado-cantidad">{{ e.cantidad }}</span>
             </div>
             <div class="estado-bar-track">
-              <div class="estado-bar-fill" [ngClass]="estadoClass(e.estado)" [style.width.%]="estadoPct(e.cantidad)"></div>
+              <div class="estado-bar-fill" [ngClass]="estadoClass(e.estado)" [style.transform]="'scaleX(' + (estadoPct(e.cantidad) / 100) + ')'"></div>
             </div>
           </div>
         }

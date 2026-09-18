@@ -68,23 +68,23 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      background: rgba(179, 113, 79, 0.15);
+      background: rgba(124, 38, 53, 0.15);
       color: var(--primary);
 
       &.icon-primary {
-        background: rgba(179, 113, 79, 0.15);
+        background: rgba(124, 38, 53, 0.15);
         color: var(--primary);
       }
       &.icon-success {
-        background: rgba(16, 185, 129, 0.15);
+        background: rgba(76, 122, 90, 0.15);
         color: var(--success);
       }
       &.icon-warning {
-        background: rgba(245, 158, 11, 0.15);
+        background: rgba(179, 132, 63, 0.15);
         color: var(--warning);
       }
       &.icon-danger {
-        background: rgba(239, 68, 68, 0.15);
+        background: rgba(163, 64, 47, 0.15);
         color: var(--danger);
       }
       &.icon-muted {
@@ -183,8 +183,10 @@
 
   .estado-bar-fill {
     height: 100%;
+    width: 100%;
     border-radius: 999px;
-    transition: width 0.3s ease;
+    transform-origin: left center;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 
     &.badge-success { background: var(--success); }
     &.badge-info { background: var(--text-secondary); }

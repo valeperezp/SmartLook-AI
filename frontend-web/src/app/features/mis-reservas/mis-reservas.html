@@ -108,7 +108,6 @@
     <div class="modal-container" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-group">
-          <span class="eyebrow">Detalle de Reserva</span>
           <h2 class="modal-title">Reserva #{{ r.id }}</h2>
           <span class="modal-branch">
             <app-icon name="store" [size]="14" /> {{ r.nombre_sucursal || 'Sucursal ' + r.sucursal_id }}

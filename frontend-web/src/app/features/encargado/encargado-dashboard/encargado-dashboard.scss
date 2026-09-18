@@ -66,15 +66,15 @@
       flex-shrink: 0;
 
       &.icon-primary {
-        background: rgba(179, 113, 79, 0.15);
+        background: rgba(124, 38, 53, 0.15);
         color: var(--primary);
       }
       &.icon-warning {
-        background: rgba(245, 158, 11, 0.15);
+        background: rgba(179, 132, 63, 0.15);
         color: var(--warning);
       }
       &.icon-danger {
-        background: rgba(239, 68, 68, 0.15);
+        background: rgba(163, 64, 47, 0.15);
         color: var(--danger);
       }
       &.icon-muted {

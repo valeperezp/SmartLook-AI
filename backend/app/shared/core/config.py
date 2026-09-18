@@ -16,7 +16,17 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
 
     stripe_secret_key: str = ""
-    ai_api_key: str = ""
+    ai_api_key: str = ""  # (sin uso actualmente) reservado por si se vuelve a un proveedor de IA en la nube
+
+    # Chatbot (CU21) — modelo local vía Ollama, corriendo en la máquina host (no en Docker).
+    ollama_base_url: str = "http://host.docker.internal:11434"
+    ollama_model: str = "llama3.2:1b"
+
+    # Supabase Storage — subida de imágenes de productos. La service_role key SOLO se usa
+    # en el backend (bypassa RLS); nunca debe exponerse al frontend.
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
+    supabase_storage_bucket: str = "productos"
 
     # Orígenes permitidos por CORS, separados por coma. En local alcanza con el
     # frontend de Docker/ng serve; en producción se agrega la URL de Vercel.

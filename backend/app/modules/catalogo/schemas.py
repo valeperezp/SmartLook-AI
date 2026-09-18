@@ -104,6 +104,7 @@ class ProductoBase(BaseModel):
     coleccion_id: int | None = None
     proveedor_id: int | None = None
     modelo_ar_url: str | None = None
+    imagen_url: str | None = None
 
 
 class ProductoCreate(ProductoBase):
@@ -119,6 +120,7 @@ class ProductoUpdate(BaseModel):
     coleccion_id: int | None = None
     proveedor_id: int | None = None
     modelo_ar_url: str | None = None
+    imagen_url: str | None = None
     activo: bool | None = None
 
 
@@ -133,6 +135,7 @@ class ProductoOut(BaseModel):
     coleccion_id: int | None
     proveedor_id: int | None
     modelo_ar_url: str | None
+    imagen_url: str | None
     activo: bool
     categoria: CategoriaOut
     temporada: TemporadaOut | None = None

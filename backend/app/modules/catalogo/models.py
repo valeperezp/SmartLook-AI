@@ -61,6 +61,7 @@ class Producto(Base):
     coleccion_id = Column(Integer, ForeignKey("colecciones.id"), nullable=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
     modelo_ar_url = Column(String(500), nullable=True)
+    imagen_url = Column(String(500), nullable=True)
     activo = Column(Boolean, default=True)
 
     categoria = relationship("Categoria")

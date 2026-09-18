@@ -18,7 +18,7 @@ import { AlertaStock, MovimientoInventario, ResumenInventario } from '../../../c
   imports: [CommonModule, RouterLink, IconComponent],
   template: `
     <div class="dash-header">
-      <h1>{{ saludo() }}, <span class="gradient-text">{{ nombre() }}</span></h1>
+      <h1>{{ saludo() }}, <span class="text-accent">{{ nombre() }}</span></h1>
       <p>Resumen general de la plataforma</p>
     </div>
 

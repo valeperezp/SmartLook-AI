@@ -1,0 +1,313 @@
+.vestidor-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.75rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel-producto {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .selector-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  select {
+    background: var(--overlay-1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    outline: none;
+
+    &:focus {
+      border-color: var(--border-glow);
+    }
+  }
+
+  .producto-preview {
+    display: flex;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.85rem;
+    background: var(--overlay-1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+    img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    .producto-preview-placeholder {
+      width: 64px;
+      height: 64px;
+      border-radius: var(--radius-sm);
+      background: var(--overlay-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .producto-preview-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      strong {
+        font-size: 0.92rem;
+        color: var(--text-primary);
+      }
+
+      span {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+
+      .precio {
+        font-weight: 700;
+        color: var(--primary);
+        margin-top: 0.2rem;
+      }
+    }
+  }
+
+  .hint {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+
+    app-icon {
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+  }
+}
+
+.panel-camara {
+  padding: 1.5rem;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.camara-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem;
+
+  p {
+    font-size: 0.9rem;
+    max-width: 320px;
+  }
+
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--overlay-2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: vestidor-spin 0.8s linear infinite;
+  }
+}
+
+@keyframes vestidor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.camara-error {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.9rem 1.1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  width: 100%;
+
+  p {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+}
+
+.camara-viewport {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #000;
+
+  &.oculto {
+    display: none;
+  }
+
+  video,
+  img,
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* video/canvas comparten SIEMPRE el mismo object-fit que la imagen/video de fondo —
+       si no, la silueta (dibujada en las coordenadas del canvas) queda desalineada de
+       lo que se ve en pantalla. */
+    object-fit: cover;
+  }
+
+  video {
+    z-index: 1;
+  }
+
+  img {
+    z-index: 1;
+  }
+
+  canvas {
+    z-index: 2;
+  }
+
+  /* Efecto espejo solo en cámara en vivo — una foto subida no debe invertirse. */
+  &.espejo video,
+  &.espejo canvas {
+    transform: scaleX(-1);
+  }
+
+  /* Modo foto: nada de recorte forzado a 4:3 — muchas fotos de una persona son verticales,
+     y recortarlas a un cuadro horizontal tapa justo la parte de abajo (hombros/torso), que
+     es donde se calcula y dibuja la silueta. Se ve la foto entera, con su proporción real. */
+  &.foto {
+    aspect-ratio: auto;
+    max-height: 70vh;
+
+    img,
+    canvas {
+      position: static;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      margin: 0 auto;
+      display: block;
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+.btn-detener {
+  align-self: center;
+}
+
+.modo-toggle {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--overlay-1);
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  padding: 0.3rem;
+  margin-bottom: 0.25rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.95rem;
+    border: none;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &.activo {
+      background: var(--accent-gradient);
+      color: #ffffff;
+    }
+  }
+}
+
+.btn-file {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.foto-overlay-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+
+  p {
+    font-size: 0.85rem;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: vestidor-spin 0.8s linear infinite;
+  }
+}
+
+.foto-aviso {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--warning);
+  text-align: center;
+}
+
+.foto-acciones {
+  display: flex;
+  gap: 0.75rem;
+}

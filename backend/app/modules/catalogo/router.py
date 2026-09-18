@@ -1,5 +1,5 @@
 """Endpoints HTTP del módulo Catálogo. Lectura abierta, escritura admin."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
@@ -207,6 +207,15 @@ def eliminar_producto(producto_id: int, db: Session = Depends(get_db)):
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
+
+
+@router.post("/productos/{producto_id}/imagen", response_model=schemas.ProductoOut, dependencies=[Depends(admin_only)])
+async def subir_imagen_producto(producto_id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Sube una imagen a Supabase Storage y la asocia al producto."""
+    contenido = await archivo.read()
+    return service.subir_imagen_producto(
+        db, producto_id, contenido, archivo.filename or "imagen.jpg", archivo.content_type or "image/jpeg"
+    )
 
 
 # ---------- Productos del Proveedor (CU18) ----------

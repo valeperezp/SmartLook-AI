@@ -113,21 +113,21 @@
   letter-spacing: 0.02em;
 
   &.badge-warning {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: rgba(179, 132, 63, 0.15);
+    color: #b3843f;
+    border: 1px solid rgba(179, 132, 63, 0.3);
   }
 
   &.badge-success {
-    background: rgba(16, 185, 129, 0.15);
-    color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: rgba(76, 122, 90, 0.15);
+    color: #4c7a5a;
+    border: 1px solid rgba(76, 122, 90, 0.3);
   }
 
   &.badge-danger {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(163, 64, 47, 0.15);
+    color: #a3402f;
+    border: 1px solid rgba(163, 64, 47, 0.3);
   }
 
   &.badge-muted {
@@ -162,7 +162,7 @@
 
 .btn-primary {
   background: var(--primary);
-  color: #fff;
+  color: #fdf3e7;
   border-color: var(--primary);
 
   &:hover:not(:disabled) {
@@ -182,13 +182,13 @@
 }
 
 .btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(163, 64, 47, 0.15);
+  color: #c07a6a;
+  border-color: rgba(163, 64, 47, 0.3);
 
   &:hover:not(:disabled) {
-    background: #ef4444;
-    color: #fff;
+    background: #a3402f;
+    color: #fdf3e7;
   }
 }
 
@@ -249,18 +249,18 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.85rem 1.25rem;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(76, 122, 90, 0.15);
+  border: 1px solid rgba(76, 122, 90, 0.4);
   border-radius: var(--radius-sm);
-  color: #86efac;
+  color: #a9c49c;
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
   animation: fadeIn 0.3s ease;
 
   &.toast-error {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #fca5a5;
+    background: rgba(163, 64, 47, 0.15);
+    border-color: rgba(163, 64, 47, 0.4);
+    color: #d19d90;
   }
 }
 
@@ -304,17 +304,10 @@
     flex-direction: column;
     gap: 0.2rem;
 
-    .eyebrow {
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--primary);
-      font-weight: 600;
-    }
-
     .modal-title {
       font-family: var(--font-heading);
-      font-size: 1.35rem;
+      font-size: 1.4rem;
+      font-weight: 600;
       color: var(--text-primary);
     }
 

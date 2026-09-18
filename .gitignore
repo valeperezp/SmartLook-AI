@@ -32,3 +32,5 @@ mobile-app/.packages
 .agents/
 .claude/skills/
 skills-lock.json
+.impeccable/
+graphify-out/
