@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
 
     stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
     ai_api_key: str = ""  # (sin uso actualmente) reservado por si se vuelve a un proveedor de IA en la nube
+    uploads_base_url: str = "http://localhost:8000"
+    uploads_dir: str = "/app/uploads"
 
     # Chatbot (CU21) — modelo local vía Ollama, corriendo en la máquina host (no en Docker).
     ollama_base_url: str = "http://host.docker.internal:11434"

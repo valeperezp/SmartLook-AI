@@ -1,0 +1,256 @@
+<div class="pagos-pendientes-container">
+  <!-- Toast flotante -->
+  @if (toast()) {
+    <div class="toast-notification" [class.toast-error]="toastIsError()">
+      <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="20" />
+      <span>{{ toast() }}</span>
+      <button type="button" class="toast-close" (click)="toast.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-info">
+      <h1>Pagos por verificar</h1>
+      <p class="subtitle">Comprobantes QR subidos por clientes pendientes de validación</p>
+    </div>
+    <div class="header-actions">
+      <button
+        type="button"
+        id="btn-actualizar-pagos"
+        class="btn-secondary btn-refresh"
+        (click)="cargar()"
+        [disabled]="cargando()"
+        title="Actualizar listado"
+      >
+        <app-icon name="sparkles" [size]="16" />
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Fila de KPIs -->
+  <div class="kpis-row">
+    <div class="kpi-card">
+      <div class="kpi-icon icon-pending">
+        <app-icon name="credit-card" [size]="22" />
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Pendientes</span>
+        <strong class="kpi-value">{{ totalPendientes() }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-icon icon-monto">
+        <app-icon name="tag" [size]="22" />
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Monto total</span>
+        <strong class="kpi-value">{{ montoTotalPendiente() | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenido principal -->
+  <main class="content-area">
+    <!-- Estado: Cargando inicial -->
+    @if (cargando() && pagos().length === 0) {
+      <div class="card loading-state">
+        <div class="spinner"></div>
+        <p>Cargando pagos pendientes...</p>
+      </div>
+    }
+
+    <!-- Estado: Error de carga -->
+    @else if (errorCarga() && pagos().length === 0) {
+      <div class="card error-state">
+        <div class="error-icon-wrapper">
+          <app-icon name="alert-circle" [size]="40" />
+        </div>
+        <h2>Error al cargar los pagos</h2>
+        <p>No se pudo conectar con el servidor para consultar los pagos pendientes.</p>
+        <button type="button" class="btn-primary" (click)="cargar()">
+          Reintentar
+        </button>
+      </div>
+    }
+
+    <!-- Estado: Vacío (Todo al día) -->
+    @else if (pagos().length === 0) {
+      <div class="card empty-state">
+        <div class="empty-icon-wrapper">
+          <app-icon name="check-circle" [size]="46" />
+        </div>
+        <h2>¡Todo al día!</h2>
+        <p>No hay pagos pendientes de verificación en este momento.</p>
+      </div>
+    }
+
+    <!-- Estado: Con pagos pendientes -->
+    @else {
+      <div class="pagos-list">
+        @for (pago of pagos(); track pago.id) {
+          <article class="card pago-card" (click)="abrirDetalle(pago)">
+            <div class="pago-card-header">
+              <div class="pago-id-group">
+                <span class="pago-id">Pago #{{ pago.id }}</span>
+                <span class="badge badge-pendiente">PENDIENTE</span>
+              </div>
+              <div class="pago-monto">
+                {{ pago.monto_formateado || (pago.monto | currency: 'USD' : 'symbol' : '1.2-2') }}
+              </div>
+            </div>
+
+            <div class="pago-card-body">
+              <div class="pago-details">
+                <div class="detail-row">
+                  <span class="detail-label">Venta:</span>
+                  <span class="detail-value">#{{ pago.venta_id }} {{ pago.nombre_venta ? '— ' + pago.nombre_venta : '' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Fecha:</span>
+                  <span class="detail-value">{{ pago.procesado_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">Método:</span>
+                  <span class="detail-value uppercase">{{ pago.metodo }}</span>
+                </div>
+              </div>
+
+              <!-- Thumbnail del comprobante -->
+              <div class="comprobante-preview-wrap">
+                @if (pago.comprobante_url) {
+                  <div class="thumb-frame" title="Click para ver detalle completo">
+                    <img [src]="pago.comprobante_url" alt="Comprobante #{{ pago.id }}" class="thumb-img" />
+                    <span class="thumb-overlay">
+                      <app-icon name="search" [size]="16" />
+                    </span>
+                  </div>
+                } @else {
+                  <div class="no-thumb">
+                    <span>Sin comprobante</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="pago-card-footer" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="btn-link-action"
+                (click)="verComprobante(pago, $event)"
+                [disabled]="!pago.comprobante_url"
+                title="Abrir comprobante en pestaña nueva"
+              >
+                <app-icon name="focus" [size]="15" />
+                <span>Ver comprobante</span>
+              </button>
+
+              <div class="action-buttons">
+                <button
+                  type="button"
+                  class="btn-danger-action"
+                  (click)="rechazarPago(pago, $event)"
+                  [disabled]="procesando()"
+                >
+                  <app-icon name="alert-circle" [size]="16" />
+                  <span>Rechazar</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="btn-success-action"
+                  (click)="confirmarPago(pago, $event)"
+                  [disabled]="procesando()"
+                >
+                  <app-icon name="check-circle" [size]="16" />
+                  <span>Confirmar pago</span>
+                </button>
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+  <!-- Modal de Detalle -->
+  @if (modalDetalleAbierto() && pagoSeleccionado()) {
+    <div class="modal-backdrop" (click)="cerrarDetalle()">
+      <div class="modal-container" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="eyebrow">Verificación de Comprobante</span>
+            <h3 class="modal-title">Pago #{{ pagoSeleccionado()!.id }}</h3>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="cerrarDetalle()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Venta</span>
+              <strong>#{{ pagoSeleccionado()!.venta_id }}</strong>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Monto</span>
+              <strong class="meta-monto">{{ pagoSeleccionado()!.monto_formateado || (pagoSeleccionado()!.monto | currency: 'USD' : 'symbol' : '1.2-2') }}</strong>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Fecha</span>
+              <span>{{ pagoSeleccionado()!.procesado_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Estado</span>
+              <span class="badge badge-pendiente">PENDIENTE</span>
+            </div>
+          </div>
+
+          <div class="modal-image-wrapper">
+            @if (pagoSeleccionado()!.comprobante_url) {
+              <div class="image-frame">
+                <img
+                  [src]="pagoSeleccionado()!.comprobante_url"
+                  alt="Comprobante de pago #{{ pagoSeleccionado()!.id }}"
+                  class="modal-comprobante-img"
+                />
+              </div>
+            } @else {
+              <div class="modal-no-img">
+                <app-icon name="alert-circle" [size]="32" />
+                <p>No se subió archivo de comprobante para este pago.</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" (click)="cerrarDetalle()">
+            Cerrar
+          </button>
+
+          <button
+            type="button"
+            class="btn-danger"
+            (click)="rechazarPago(pagoSeleccionado()!)"
+            [disabled]="procesando()"
+          >
+            <app-icon name="alert-circle" [size]="16" />
+            <span>Rechazar</span>
+          </button>
+
+          <button
+            type="button"
+            class="btn-success"
+            (click)="confirmarPago(pagoSeleccionado()!)"
+            [disabled]="procesando()"
+          >
+            <app-icon name="check-circle" [size]="16" />
+            <span>Confirmar pago</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

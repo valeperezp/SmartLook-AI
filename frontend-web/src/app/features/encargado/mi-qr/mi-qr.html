@@ -1,0 +1,143 @@
+<div class="mi-qr-container">
+  <!-- Toast flotante -->
+  @if (toast()) {
+    <div class="toast-notification" [class.toast-error]="toastIsError()">
+      <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="20" />
+      <span>{{ toast() }}</span>
+      <button type="button" class="toast-close" (click)="toast.set(null)">✕</button>
+    </div>
+  }
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-title">
+      <h1>Mi QR de Sucursal</h1>
+      <p class="subtitle">
+        {{ user()?.sucursal_nombre || ('Sucursal #' + (user()?.sucursal_id || '1')) }}
+      </p>
+    </div>
+  </header>
+
+  <!-- Input file oculto -->
+  <input
+    #fileInput
+    type="file"
+    accept="image/png,image/jpeg,image/jpg,image/webp"
+    style="display: none"
+    (change)="onFileSelected($event)"
+  />
+
+  @if (cargando()) {
+    <div class="loading-card card">
+      <div class="spinner"></div>
+      <p>Cargando información del QR...</p>
+    </div>
+  } @else if (qr()) {
+    <!-- Card principal: Si hay QR -->
+    <div class="card qr-card">
+      <div class="qr-header">
+        <div class="title-with-badge">
+          <h2>QR actual</h2>
+          <span class="badge" [class.badge-success]="qr()?.activo" [class.badge-danger]="!qr()?.activo">
+            {{ qr()?.activo ? 'Activo' : 'Inactivo' }}
+          </span>
+        </div>
+        <span class="qr-date">
+          Configurado: {{ qr()?.creado_en | date: 'dd/MM/yyyy HH:mm' }}
+        </span>
+      </div>
+
+      <div class="qr-preview-container">
+        <div class="qr-frame">
+          <img [src]="qr()?.imagen_url" alt="Código QR de la Sucursal" class="qr-image" />
+        </div>
+        <p class="qr-hint">Este es el código que verán los clientes al pagar por QR en tu sucursal.</p>
+      </div>
+
+      <div class="qr-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          (click)="confirmacionDesactivar.set(true)"
+          [disabled]="subiendo()"
+        >
+          <app-icon name="alert-circle" [size]="18" />
+          <span>Desactivar QR</span>
+        </button>
+
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="abrirFileDialog(fileInput)"
+          [disabled]="subiendo()"
+        >
+          <app-icon name="sparkles" [size]="18" />
+          <span>{{ subiendo() ? 'Subiendo...' : 'Reemplazar QR' }}</span>
+        </button>
+      </div>
+    </div>
+  } @else {
+    <!-- Card informativa: Si no hay QR -->
+    <div class="card empty-card">
+      <div class="empty-icon-wrapper">
+        <app-icon name="qr" [size]="48" />
+      </div>
+      <h2>Tu sucursal no tiene un QR configurado</h2>
+      <p class="empty-desc">
+        Subí el QR de tu sucursal (Yape, banco, etc.) para que los clientes puedan pagar mediante transferencia o QR bancario.
+      </p>
+
+      <button
+        type="button"
+        class="btn-primary btn-upload"
+        (click)="abrirFileDialog(fileInput)"
+        [disabled]="subiendo()"
+      >
+        <app-icon name="sparkles" [size]="20" />
+        <span>{{ subiendo() ? 'Subiendo...' : 'Subir QR' }}</span>
+      </button>
+
+      <div class="upload-tips">
+        <span>Formatos admitidos: PNG, JPG, WEBP &bull; Máx: 5 MB</span>
+      </div>
+    </div>
+  }
+
+  <!-- Modal de confirmación al desactivar -->
+  @if (confirmacionDesactivar()) {
+    <div class="modal-backdrop" (click)="confirmacionDesactivar.set(false)">
+      <div class="modal-container" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="eyebrow">Confirmación</span>
+            <h3 class="modal-title">¿Desactivar código QR?</h3>
+          </div>
+          <button type="button" class="modal-close-btn" (click)="confirmacionDesactivar.set(false)">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <p>
+            ¿Estás seguro de desactivar el QR actual? Los clientes ya no podrán verlo al momento de pagar en tu sucursal.
+          </p>
+        </div>
+
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="confirmacionDesactivar.set(false)"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn-danger"
+            (click)="desactivarQR()"
+          >
+            Sí, desactivar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

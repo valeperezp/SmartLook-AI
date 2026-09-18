@@ -1,0 +1,148 @@
+<div class="modal-backdrop" (click)="cancelar()">
+  <div class="modal-card qr-modal-card" (click)="$event.stopPropagation()">
+    <!-- Toast flotante dentro del modal -->
+    @if (toast()) {
+      <div class="modal-toast" [class.toast-error]="toastIsError()">
+        <app-icon [name]="toastIsError() ? 'alert-circle' : 'check-circle'" [size]="18" />
+        <span>{{ toast() }}</span>
+      </div>
+    }
+
+    <!-- Header Fijo -->
+    <header class="modal-header">
+      <div class="header-main">
+        <div class="badge-title">
+          <app-icon name="qr" [size]="20" />
+          <h2>Cobrar con QR</h2>
+        </div>
+        <div class="amount-badge">
+          <span class="currency">$</span>
+          <span class="val">{{ monto | number:'1.2-2' }}</span>
+        </div>
+      </div>
+      <button type="button" class="btn-close" (click)="cancelar()" aria-label="Cerrar">✕</button>
+    </header>
+
+    <!-- Body con Scroll -->
+    <div class="modal-body">
+      @if (cargando()) {
+        <div class="loading-box">
+          <div class="spinner"></div>
+          <p>Inicializando pago por código QR...</p>
+        </div>
+      } @else if (errorMensaje()) {
+        <div class="error-box">
+          <app-icon name="alert-circle" [size]="36" />
+          <p><strong>Error al iniciar el cobro por QR</strong></p>
+          <p class="sub">{{ errorMensaje() }}</p>
+          <button type="button" class="btn-retry" (click)="iniciarCobroQR()">Reintentar</button>
+        </div>
+      } @else {
+        <!-- Grid de 2 Columnas para los QRs -->
+        <div class="qr-columns-grid">
+          <!-- Columna 1: QR de Sucursal (Para Pagar) -->
+          <div class="qr-col">
+            <div class="step-badge">1. El cliente paga</div>
+            <div class="qr-box">
+              @if (qrSucursal()?.activo) {
+                <div class="qr-image-wrapper">
+                  <img [src]="qrSucursal()?.imagen_url" alt="QR Sucursal" class="qr-img-large" />
+                </div>
+              } @else {
+                <div class="qr-missing-warning">
+                  <app-icon name="alert-circle" [size]="32" />
+                  <p><strong>Sin QR configurado</strong></p>
+                  <span>Esta sucursal no tiene un QR activo. Pedile al encargado que lo suba desde su panel.</span>
+                </div>
+              }
+            </div>
+            <p class="qr-instructions">
+              Mostrale este QR al cliente para que pague desde su app (Yape, banca móvil, QR Simple).
+            </p>
+          </div>
+
+          <!-- Columna 2: QR de Comprobante (Para Subir Foto) -->
+          <div class="qr-col">
+            <div class="step-badge">2. El cliente sube comprobante</div>
+            <div class="qr-box">
+              @if (qrComprobanteDataUrl()) {
+                <div class="qr-image-wrapper">
+                  <img [src]="qrComprobanteDataUrl()" alt="QR para comprobante" class="qr-img-medium" />
+                </div>
+              } @else {
+                <div class="qr-placeholder">
+                  <div class="spinner"></div>
+                </div>
+              }
+            </div>
+            <p class="qr-instructions">
+              El cliente escanea este QR con su celular y sube la foto del comprobante.
+            </p>
+            <div class="url-hint">
+              <span>{{ publicUrl() }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Estado de Espera / Comprobante Recibido -->
+        <div class="status-panel">
+          @if (!comprobanteRecibido()) {
+            <div class="waiting-panel">
+              <div class="spinner-sm"></div>
+              <div class="waiting-texts">
+                <strong>Esperando comprobante del cliente...</strong>
+                <span>Se actualizará automáticamente apenas el cliente suba la foto desde su celular.</span>
+              </div>
+            </div>
+          } @else {
+            <div class="received-panel">
+              <div class="received-header">
+                <div class="received-badge">
+                  <app-icon name="check-circle" [size]="20" />
+                  <strong>Comprobante recibido</strong>
+                </div>
+                <button type="button" class="btn-view-voucher" (click)="verComprobante()">
+                  <app-icon name="sparkles" [size]="16" />
+                  <span>Ver comprobante</span>
+                </button>
+              </div>
+
+              <p class="received-hint">
+                Verificá que el monto (${{ monto | number:'1.2-2' }}) y el comprobante coincidan antes de confirmar.
+              </p>
+
+              <div class="received-actions">
+                <button
+                  type="button"
+                  class="btn-reject"
+                  (click)="rechazarPago()"
+                  [disabled]="procesando()"
+                >
+                  <app-icon name="alert-circle" [size]="16" />
+                  <span>Rechazar</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="btn-confirm"
+                  (click)="confirmarPago()"
+                  [disabled]="procesando()"
+                >
+                  <app-icon name="check-circle" [size]="18" />
+                  <span>{{ procesando() ? 'Confirmando...' : 'Confirmar pago' }}</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Footer Fijo -->
+    <footer class="modal-footer">
+      <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="procesando()">
+        Cancelar cobro
+      </button>
+    </footer>
+  </div>
+</div>

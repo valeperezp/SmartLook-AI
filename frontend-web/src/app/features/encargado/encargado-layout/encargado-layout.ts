@@ -52,6 +52,15 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           <a routerLink="/encargado/reportes" routerLinkActive="active">
             <app-icon name="bar-chart" [size]="18" /> <span>Reportes</span>
           </a>
+          <a routerLink="/encargado/mi-qr" routerLinkActive="active">
+            <app-icon name="qr" [size]="18" /> <span>Mi QR</span>
+          </a>
+          <a routerLink="/encargado/ventas" routerLinkActive="active">
+            <app-icon name="receipt" [size]="18" /> <span>Ventas</span>
+          </a>
+          <a routerLink="/encargado/pagos-pendientes" routerLinkActive="active">
+            <app-icon name="credit-card" [size]="18" /> <span>Pagos por verificar</span>
+          </a>
         </nav>
       </aside>
 

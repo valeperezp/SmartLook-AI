@@ -1,0 +1,129 @@
+<div class="qr-payment-card">
+  @if (cargando()) {
+    <div class="qr-loading-box">
+      <div class="spinner-sm"></div>
+      <span>Generando código QR para tu orden...</span>
+    </div>
+  } @else if (errorMensaje() && !pago()) {
+    <div class="qr-error-box">
+      <app-icon name="alert-circle" [size]="24" />
+      <p>{{ errorMensaje() }}</p>
+      <button type="button" class="btn-retry" (click)="iniciarPagoQR()">Reintentar</button>
+    </div>
+  } @else {
+    <!-- Encabezado de orden y monto -->
+    <div class="qr-info-header">
+      <div class="info-badges">
+        <span class="badge-order">Venta Online #{{ ventaId }}</span>
+        @if (pago()) {
+          <span class="badge-payment">Pago QR #{{ pago()?.id }}</span>
+        }
+      </div>
+      <div class="total-to-pay">
+        <span class="label">Total a pagar:</span>
+        <strong class="amount">${{ monto | number:'1.2-2' }}</strong>
+      </div>
+    </div>
+
+    <!-- Instrucciones y Visualización del QR -->
+    <div class="qr-display-section">
+      <div class="qr-code-frame">
+        @if (qrDataUrl()) {
+          <img [src]="qrDataUrl()" alt="Código QR para comprobante" class="qr-image" />
+        } @else {
+          <div class="qr-placeholder">
+            <app-icon name="qr" [size]="48" />
+          </div>
+        }
+      </div>
+
+      <div class="qr-guide-steps">
+        <h3 class="guide-title">¿Cómo pagar con QR?</h3>
+        <ol class="steps-list">
+          <li>
+            <strong>1. Escanear o transferir:</strong>
+            <span>Escaneá este código QR o transferí exactamente <strong>${{ monto | number:'1.2-2' }}</strong> desde tu app móvil bancaria.</span>
+          </li>
+          <li>
+            <strong>2. Guardar comprobante:</strong>
+            <span>Capturá la pantalla o guardá el comprobante emitido por tu banco/billetera digital.</span>
+          </li>
+          <li>
+            <strong>3. Subir aquí abajo:</strong>
+            <span>Adjuntá la foto del comprobante para que el personal de la sucursal lo verifique.</span>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- Sección de carga de comprobante -->
+    <div class="receipt-upload-section">
+      <h4 class="upload-section-title">
+        <app-icon name="receipt" [size]="18" />
+        <span>Subir Comprobante de Transferencia</span>
+      </h4>
+
+      @if (errorMensaje()) {
+        <div class="upload-error-inline">
+          <app-icon name="alert-circle" [size]="16" />
+          <span>{{ errorMensaje() }}</span>
+        </div>
+      }
+
+      <input
+        #fileInput
+        type="file"
+        class="file-input-hidden"
+        accept="image/png, image/jpeg, image/jpg, image/webp"
+        (change)="onFileSelected($event)"
+      />
+
+      @if (!archivoSeleccionado()) {
+        <div class="upload-dropzone" (click)="fileInput.click()">
+          <div class="dropzone-icon-box">
+            <app-icon name="receipt" [size]="28" />
+          </div>
+          <span class="dropzone-label">Hacé clic para seleccionar una foto del comprobante</span>
+          <span class="dropzone-hint">Formatos soportados: PNG, JPG, WEBP (máx. 10 MB)</span>
+          <button type="button" class="btn-select-file">
+            <app-icon name="plus" [size]="16" />
+            <span>Subir comprobante</span>
+          </button>
+        </div>
+      } @else {
+        <div class="preview-card">
+          @if (previewUrl()) {
+            <img [src]="previewUrl()" alt="Vista previa del comprobante" class="receipt-preview-img" />
+          }
+          <div class="preview-info">
+            <span class="file-name">{{ archivoSeleccionado()?.name }}</span>
+            <span class="file-size">{{ ((archivoSeleccionado()?.size || 0) / 1024) | number:'1.0-1' }} KB</span>
+            <button
+              type="button"
+              class="btn-remove-file"
+              [disabled]="subiendoComprobante()"
+              (click)="removerArchivo(fileInput)"
+            >
+              Cambiar archivo
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="btn-submit-receipt"
+          [disabled]="subiendoComprobante()"
+          (click)="subirComprobante()"
+        >
+          @if (subiendoComprobante()) {
+            <div class="spinner-sm"></div>
+            <span>Enviando comprobante a la sucursal...</span>
+          } @else {
+            <app-icon name="check-circle" [size]="18" />
+            <span>Confirmar y Enviar Comprobante</span>
+          }
+        </button>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,194 @@
+<div class="historial-container">
+  <div class="historial-header">
+    <div>
+      <h1 class="page-title">Historial de Ventas</h1>
+      <p class="page-subtitle">Ventas registradas en {{ user()?.sucursal_nombre || 'Sucursal Centro' }}</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="cargarVentas()">
+        <app-icon name="sparkles" [size]="16" />
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">
+        <app-icon name="calendar" [size]="22" />
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Total Transacciones</span>
+        <strong class="kpi-val">{{ totalVentasCantidad() }}</strong>
+      </div>
+    </div>
+
+    <div class="kpi-card accent">
+      <div class="kpi-icon">
+        <app-icon name="store" [size]="22" />
+      </div>
+      <div class="kpi-data">
+        <span class="kpi-label">Monto Total Facturado</span>
+        <strong class="kpi-val">${{ totalVentasMonto() | number:'1.2-2' }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filter-bar">
+    <div class="search-input">
+      <app-icon name="search" [size]="18" />
+      <input
+        type="text"
+        placeholder="Buscar por Ticket #, cliente, cajero..."
+        [ngModel]="busqueda()"
+        (ngModelChange)="busqueda.set($event)"
+      />
+    </div>
+
+    <div class="status-filters">
+      <button
+        class="filter-pill"
+        [class.active]="filtroEstado() === 'todas'"
+        (click)="filtroEstado.set('todas')"
+      >
+        Todas
+      </button>
+      <button
+        class="filter-pill"
+        [class.active]="filtroEstado() === 'completada'"
+        (click)="filtroEstado.set('completada')"
+      >
+        Completadas
+      </button>
+      <button
+        class="filter-pill"
+        [class.active]="filtroEstado() === 'cancelada'"
+        (click)="filtroEstado.set('cancelada')"
+      >
+        Canceladas
+      </button>
+    </div>
+  </div>
+
+  <!-- TABLA DE VENTAS -->
+  <div class="table-card">
+    @if (cargando()) {
+      <div class="state-container">
+        <app-icon name="sparkles" [size]="32" />
+        <p>Cargando registro de ventas...</p>
+      </div>
+    } @else if (ventasFiltradas().length === 0) {
+      <div class="state-container">
+        <app-icon name="package" [size]="36" />
+        <h3>No hay ventas registradas</h3>
+        <p>No se encontraron transacciones con los filtros actuales.</p>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Ticket #</th>
+              <th>Fecha y Hora</th>
+              <th>Cliente</th>
+              <th>Cajero</th>
+              <th>Items / Unidades</th>
+              <th>Total</th>
+              <th>Canal</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (v of ventasFiltradas(); track v.id) {
+              <tr class="clickable-row" (click)="verDetalle(v)">
+                <td><span class="ticket-badge">#{{ v.id }}</span></td>
+                <td>{{ v.creada_en | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ v.nombre_cliente || 'Cliente Presencial' }}</td>
+                <td>{{ v.nombre_cajero || '-' }}</td>
+                <td>
+                  <span class="units-badge">{{ v.total_unidades }} un.</span>
+                </td>
+                <td><strong class="price-val">${{ v.total | number:'1.2-2' }}</strong></td>
+                <td><span class="canal-badge">{{ v.canal }}</span></td>
+                <td>
+                  <span class="status-badge" [class]="'status-' + v.estado">
+                    {{ v.estado }}
+                  </span>
+                </td>
+                <td>
+                  <button type="button" class="btn-detail" (click)="verDetalle(v); $event.stopPropagation()">
+                    Ver Detalle
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- MODAL DE DETALLE DE VENTA -->
+@if (ventaSeleccionada()) {
+  <div class="modal-backdrop" (click)="cerrarDetalle()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3>Detalle de Venta #{{ ventaSeleccionada()?.id }}</h3>
+          <span class="modal-date">{{ ventaSeleccionada()?.creada_en | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+        </div>
+        <button class="btn-close" (click)="cerrarDetalle()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="info-grid">
+          <div><span>Sucursal:</span> <strong>{{ ventaSeleccionada()?.nombre_sucursal }}</strong></div>
+          <div><span>Cajero:</span> <strong>{{ ventaSeleccionada()?.nombre_cajero }}</strong></div>
+          <div><span>Cliente:</span> <strong>{{ ventaSeleccionada()?.nombre_cliente }}</strong></div>
+          <div><span>Canal:</span> <strong>{{ ventaSeleccionada()?.canal }}</strong></div>
+          <div><span>Estado:</span> <span class="status-badge" [class]="'status-' + ventaSeleccionada()?.estado">{{ ventaSeleccionada()?.estado }}</span></div>
+          <div><span>Total Unidades:</span> <strong>{{ ventaSeleccionada()?.total_unidades }}</strong></div>
+        </div>
+
+        <h4 class="section-title">Productos Vendidos</h4>
+        <div class="items-table-wrapper">
+          <table class="sub-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Variante</th>
+                <th>Cant.</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of ventaSeleccionada()?.items; track item.id) {
+                <tr>
+                  <td><strong>{{ item.nombre_producto }}</strong></td>
+                  <td>{{ item.nombre_talla || '-' }} / {{ item.nombre_color || '-' }}</td>
+                  <td>{{ item.cantidad }}</td>
+                  <td>${{ item.precio_unitario | number:'1.2-2' }}</td>
+                  <td><strong>${{ item.subtotal | number:'1.2-2' }}</strong></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="modal-total-bar">
+          <span>TOTAL:</span>
+          <span class="total-big">${{ ventaSeleccionada()?.total | number:'1.2-2' }}</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}
