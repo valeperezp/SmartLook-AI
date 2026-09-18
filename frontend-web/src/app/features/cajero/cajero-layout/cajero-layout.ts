@@ -39,6 +39,9 @@ import { AuthService } from '../../../core/services/auth.service';
           <a routerLink="/cajero/ventas-hoy" routerLinkActive="active">
             <app-icon name="calendar" [size]="18" /> <span>Mis Ventas</span>
           </a>
+          <a routerLink="/cajero/pagos-pendientes" routerLinkActive="active">
+            <app-icon name="credit-card" [size]="18" /> <span>Pagos QR Pendientes</span>
+          </a>
         </nav>
 
         <div class="sidebar-footer">

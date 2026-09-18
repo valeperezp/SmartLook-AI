@@ -29,7 +29,19 @@
       >
         <app-icon [name]="preferencias.tema() === 'dark' ? 'moon' : 'sun'" [size]="18" />
       </button>
+
+      <a routerLink="/carrito" class="cart-nav-link" title="Ver carrito de compras">
+        <app-icon name="shopping-cart" [size]="18" />
+        <span class="cart-label">Carrito</span>
+        @if (carritoService.cantidadTotal() > 0) {
+          <span class="cart-badge">{{ carritoService.cantidadTotal() }}</span>
+        }
+      </a>
+
       @if (auth.isLoggedIn()) {
+        <a routerLink="/mis-compras" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+          <app-icon name="receipt" [size]="16" /> Mis Compras
+        </a>
         <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
           <app-icon name="package" [size]="16" /> Mis Reservas
         </a>

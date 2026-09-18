@@ -1,0 +1,314 @@
+<div class="checkout-page-container">
+  @if (pagoCompletado()) {
+    <!-- PANTALLA DE ÉXITO TRAS PAGO CONFIRMADO -->
+    <div class="checkout-success-card">
+      <div class="success-icon-badge">
+        <app-icon name="check-circle" [size]="48" />
+      </div>
+
+      <span class="success-eyebrow">¡Compra Realizada con Éxito!</span>
+      <h1 class="success-title">Orden de Venta Online #{{ ordenFinalizadaId() }}</h1>
+
+      <p class="success-description">
+        Tu pago ha sido confirmado correctamente por la pasarela de Stripe y el stock de las prendas ha sido reservado.
+      </p>
+
+      @if (sucursalSeleccionada(); as suc) {
+        <div class="pickup-branch-card">
+          <div class="branch-icon-box">
+            <app-icon name="store" [size]="24" />
+          </div>
+          <div class="branch-details">
+            <span class="pickup-label">Sucursal de Retiro:</span>
+            <strong class="branch-name">{{ suc.nombre }}</strong>
+            <span class="branch-address">{{ suc.direccion }} - {{ suc.ciudad }}</span>
+          </div>
+        </div>
+      }
+
+      <div class="success-notice">
+        <app-icon name="sparkles" [size]="18" />
+        <span>Te esperamos en la sucursal para la entrega presentando tu documento o número de orden.</span>
+      </div>
+
+      <div class="success-actions">
+        <a routerLink="/" class="btn-primary btn-back-home">
+          <app-icon name="shirt" [size]="18" />
+          <span>Volver al Catálogo</span>
+        </a>
+      </div>
+    </div>
+  } @else if (pagoQREnviado()) {
+    <!-- PANTALLA DE PAGO EN REVISIÓN TRAS ENVIAR COMPROBANTE QR -->
+    <div class="checkout-success-card qr-pending-card">
+      <div class="pending-icon-badge">
+        <app-icon name="clock" [size]="48" />
+      </div>
+
+      <span class="pending-eyebrow">Pago en Revisión</span>
+      <h1 class="success-title">Orden #{{ ordenFinalizadaId() }}</h1>
+
+      <p class="success-description">
+        Tu comprobante fue enviado. Será verificado por la sucursal.
+      </p>
+
+      @if (sucursalSeleccionada(); as suc) {
+        <div class="pickup-branch-card">
+          <div class="branch-icon-box">
+            <app-icon name="store" [size]="24" />
+          </div>
+          <div class="branch-details">
+            <span class="pickup-label">Sucursal de Retiro:</span>
+            <strong class="branch-name">{{ suc.nombre }}</strong>
+            <span class="branch-address">{{ suc.direccion }} - {{ suc.ciudad }}</span>
+          </div>
+        </div>
+      }
+
+      <div class="success-notice">
+        <app-icon name="sparkles" [size]="18" />
+        <span>El equipo de la sucursal verificará la acreditación de tu pago para dejar tus prendas listas para el retiro.</span>
+      </div>
+
+      <div class="success-actions">
+        <a routerLink="/" class="btn-primary btn-back-home">
+          <app-icon name="shirt" [size]="18" />
+          <span>Volver al Catálogo</span>
+        </a>
+      </div>
+    </div>
+  } @else {
+    <!-- PROCESO DE CHECKOUT (4 PASOS) -->
+    <div class="checkout-header">
+      <div class="header-titles">
+        <span class="eyebrow">Proceso de Pago Seguro</span>
+        <h1 class="checkout-title">Finalizar Compra</h1>
+      </div>
+      <a routerLink="/carrito" class="btn-back-cart">
+        ← Volver al carrito
+      </a>
+    </div>
+
+    @if (errorCheckout()) {
+      <div class="checkout-error-banner">
+        <app-icon name="alert-circle" [size]="18" />
+        <span>{{ errorCheckout() }}</span>
+      </div>
+    }
+
+    <div class="checkout-layout">
+      <!-- COLUMNA IZQUIERDA: PASO 1 (SUCURSAL) Y PASO 3/4 (PAGO CON STRIPE) -->
+      <div class="checkout-main-column">
+        <!-- PASO 1: DROPDOWN DE SUCURSAL -->
+        <section class="checkout-step-card">
+          <div class="step-card-header">
+            <div class="step-number">1</div>
+            <div class="step-title-group">
+              <h2 class="step-title">Sucursal de Retiro</h2>
+              <p class="step-subtitle">Seleccioná la sucursal donde retirarás tus prendas</p>
+            </div>
+          </div>
+
+          <div class="step-card-body">
+            @if (cargandoSucursales()) {
+              <div class="loading-inline">
+                <div class="spinner-sm"></div>
+                <span>Cargando sucursales activas...</span>
+              </div>
+            } @else if (sucursales().length === 0) {
+              <p class="empty-warning">No hay sucursales disponibles en este momento.</p>
+            } @else {
+              <div class="form-group">
+                <label for="checkout-sucursal-select" class="form-label">Sucursal</label>
+                <select
+                  id="checkout-sucursal-select"
+                  class="form-select"
+                  [disabled]="creandoVenta() || ventaId() !== null"
+                  [ngModel]="sucursalId()"
+                  (ngModelChange)="sucursalId.set($event)"
+                >
+                  @for (s of sucursales(); track s.id) {
+                    <option [ngValue]="s.id">
+                      {{ s.nombre }} — {{ s.direccion }} ({{ s.ciudad }})
+                    </option>
+                  }
+                </select>
+              </div>
+
+              @if (ventaId() !== null) {
+                <div class="branch-locked-notice">
+                  <span>Orden iniciada para esta sucursal.</span>
+                  <button type="button" class="btn-change-branch" (click)="cambiarSucursal()">
+                    Cambiar sucursal
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        </section>
+
+        <!-- PASO 2: MÉTODO DE PAGO Y PASARELA (TARJETA / QR) -->
+        <section class="checkout-step-card">
+          <div class="step-card-header">
+            <div class="step-number">2</div>
+            <div class="step-title-group">
+              <h2 class="step-title">Método de Pago</h2>
+              <p class="step-subtitle">Elegí tu forma de pago preferida</p>
+            </div>
+          </div>
+
+          <div class="step-card-body">
+            <!-- SELECTOR DE MÉTODO DE PAGO: [💳 Tarjeta]  [📱 QR] -->
+            <div class="payment-tabs-selector">
+              <button
+                type="button"
+                class="payment-tab-btn"
+                [class.active]="metodoPago() === 'tarjeta'"
+                (click)="seleccionarMetodoPago('tarjeta')"
+              >
+                <app-icon name="credit-card" [size]="18" />
+                <span class="tab-text">💳 Tarjeta</span>
+              </button>
+
+              <button
+                type="button"
+                class="payment-tab-btn"
+                [class.active]="metodoPago() === 'qr'"
+                (click)="seleccionarMetodoPago('qr')"
+              >
+                <app-icon name="qr" [size]="18" />
+                <span class="tab-text">📱 QR</span>
+              </button>
+            </div>
+
+            @if (!ventaId()) {
+              <!-- BOTÓN INICIAL PARA CREAR VENTA ONLINE -->
+              <div class="create-order-prompt">
+                <div class="prompt-info">
+                  <app-icon [name]="metodoPago() === 'tarjeta' ? 'credit-card' : 'qr'" [size]="24" />
+                  <div>
+                    <strong>
+                      {{ metodoPago() === 'tarjeta' ? 'Confirmar pedido y habilitar pasarela' : 'Confirmar pedido y habilitar código QR' }}
+                    </strong>
+                    <p>
+                      @if (metodoPago() === 'tarjeta') {
+                        Al hacer clic se registrará tu orden como pendiente y se desplegará el formulario de tarjeta seguro de Stripe.
+                      } @else {
+                        Al hacer clic se registrará tu orden como pendiente y se generará el código QR para transferir y subir tu comprobante.
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  class="btn-primary btn-generate-order"
+                  [disabled]="creandoVenta() || !sucursalId() || cargandoSucursales()"
+                  (click)="iniciarPago()"
+                >
+                  @if (creandoVenta()) {
+                    <div class="spinner-sm"></div>
+                    <span>Creando orden...</span>
+                  } @else {
+                    <app-icon [name]="metodoPago() === 'tarjeta' ? 'credit-card' : 'qr'" [size]="18" />
+                    <span>
+                      @if (metodoPago() === 'tarjeta') {
+                        Pagar con tarjeta (${{ carritoService.total() | number:'1.2-2' }})
+                      } @else {
+                        Pagar con QR (${{ carritoService.total() | number:'1.2-2' }})
+                      }
+                    </span>
+                  }
+                </button>
+              </div>
+            } @else {
+              <!-- COMPONENTES DE PAGO TRAS GENERAR VENTA -->
+              <div class="order-ready-banner">
+                <app-icon name="check-circle" [size]="16" />
+                <span>Orden <strong>#{{ ventaId() }}</strong> generada en estado pendiente. Completá tu pago a continuación:</span>
+              </div>
+
+              @if (metodoPago() === 'tarjeta') {
+                <div class="stripe-card-wrapper">
+                  <app-stripe-card
+                    [ventaId]="ventaId()!"
+                    [monto]="montoVenta()"
+                    (pagoExitoso)="onPagoExitoso()"
+                    (errorPago)="onErrorPago($event)"
+                  />
+                </div>
+              } @else {
+                <div class="qr-payment-wrapper">
+                  <app-qr-payment
+                    [ventaId]="ventaId()!"
+                    [monto]="montoVenta()"
+                    (pagoEnviado)="onPagoQREnviado()"
+                  />
+                </div>
+              }
+            }
+          </div>
+        </section>
+      </div>
+
+      <!-- COLUMNA DERECHA: PASO 2 (RESUMEN DEL CARRITO + TOTAL) -->
+      <div class="checkout-sidebar-column">
+        <div class="order-summary-card">
+          <h2 class="summary-title">Resumen de tu Pedido</h2>
+
+          <!-- LISTA DE PRENDAS DEL CARRITO -->
+          <div class="summary-items-list">
+            @for (item of carritoService.items(); track $index) {
+              <div class="summary-item-row">
+                <div class="item-visual-box">
+                  <app-icon name="shirt" [size]="20" />
+                </div>
+                <div class="item-info">
+                  <span class="item-name">{{ item.nombreProducto }}</span>
+                  <div class="item-tags">
+                    @if (item.nombreTalla) {
+                      <span class="tag">Talla: {{ item.nombreTalla }}</span>
+                    }
+                    @if (item.nombreColor) {
+                      <span class="tag">Color: {{ item.nombreColor }}</span>
+                    }
+                  </div>
+                  <span class="item-qty">Cant: {{ item.cantidad }} &times; ${{ item.precio | number:'1.2-2' }}</span>
+                </div>
+                <div class="item-total-price">
+                  ${{ (item.precio * item.cantidad) | number:'1.2-2' }}
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- DESGLOSE DE TOTALES -->
+          <div class="summary-totals-breakdown">
+            <div class="total-line">
+              <span class="label">Prendas (unidades)</span>
+              <span class="val">{{ carritoService.cantidadTotal() }}</span>
+            </div>
+            <div class="total-line">
+              <span class="label">Subtotal estimado</span>
+              <span class="val">${{ carritoService.total() | number:'1.2-2' }}</span>
+            </div>
+            <div class="total-line">
+              <span class="label">Costo de retiro</span>
+              <span class="val free-badge">Gratis</span>
+            </div>
+            <div class="total-divider"></div>
+            <div class="total-line final-total">
+              <span class="label">Total a pagar</span>
+              <span class="val">${{ carritoService.total() | number:'1.2-2' }}</span>
+            </div>
+          </div>
+
+          <div class="security-guarantee">
+            <app-icon name="sparkles" [size]="16" />
+            <span>Transacción 100% protegida y cifrada con Stripe.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

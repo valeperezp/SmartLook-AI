@@ -1,7 +1,13 @@
 """Lógica de negocio del módulo Sucursales."""
+import os
+import uuid
+from datetime import datetime, timezone
+from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.sucursales import models, schemas
+from app.modules.sucursales.models import Sucursal, SucursalQR
+from app.shared.core.config import settings
 
 
 def listar_sucursales(db: Session) -> list[models.Sucursal]:
@@ -41,14 +47,6 @@ def eliminar_sucursal(db: Session, sucursal_id: int) -> models.Sucursal | None:
     return sucursal
 
 
-import os
-import uuid
-from datetime import datetime, timezone
-from fastapi import UploadFile, HTTPException
-
-from app.shared.core.config import settings
-
-
 ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 MAX_QR_SIZE = 5 * 1024 * 1024  # 5 MB
 
@@ -65,7 +63,6 @@ async def subir_qr_sucursal(db: Session, sucursal_id: int, archivo: UploadFile) 
         raise HTTPException(status_code=400, detail="El archivo supera los 5 MB")
     
     # Verificar que la sucursal existe
-    from app.modules.sucursales.models import Sucursal, SucursalQR
     sucursal = db.query(Sucursal).filter(Sucursal.id == sucursal_id).first()
     if not sucursal:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
@@ -113,7 +110,6 @@ async def subir_qr_sucursal(db: Session, sucursal_id: int, archivo: UploadFile) 
 
 def obtener_qr_activo(db: Session, sucursal_id: int) -> dict | None:
     """Obtiene el QR activo de una sucursal."""
-    from app.modules.sucursales.models import SucursalQR
     qr = db.query(SucursalQR).filter(
         SucursalQR.sucursal_id == sucursal_id,
         SucursalQR.activo.is_(True)
@@ -135,7 +131,6 @@ def obtener_qr_activo(db: Session, sucursal_id: int) -> dict | None:
 
 def desactivar_qr(db: Session, sucursal_id: int) -> bool:
     """Desactiva el QR activo de la sucursal."""
-    from app.modules.sucursales.models import SucursalQR
     qr = db.query(SucursalQR).filter(
         SucursalQR.sucursal_id == sucursal_id,
         SucursalQR.activo.is_(True)

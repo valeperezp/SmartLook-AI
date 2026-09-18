@@ -40,3 +40,8 @@ export interface VentaPresencialCreate {
   cliente_id?: number | null;
   items: VentaItemCreate[];
 }
+
+export interface VentaOnlineCreate {
+  sucursal_id: number;
+  items: VentaItemCreate[];
+}

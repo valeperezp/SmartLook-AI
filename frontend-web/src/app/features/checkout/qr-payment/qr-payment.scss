@@ -1,0 +1,331 @@
+.qr-payment-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: var(--bg-card);
+}
+
+.qr-loading-box,
+.qr-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  gap: 1rem;
+  color: var(--text-secondary);
+}
+
+.qr-error-box {
+  color: #ef4444;
+
+  .btn-retry {
+    padding: 0.5rem 1.25rem;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+.qr-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: var(--overlay-1);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+
+  .info-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .badge-order {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--accent, #d4a55c);
+      background: var(--overlay-2);
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--radius-sm);
+    }
+
+    .badge-payment {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+  }
+
+  .total-to-pay {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+
+    .label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .amount {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+  }
+}
+
+.qr-display-section {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1.25rem;
+  background: var(--overlay-1);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  @media (max-width: 680px) {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .qr-code-frame {
+    width: 240px;
+    height: 240px;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .qr-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .qr-placeholder {
+      color: #94a3b8;
+    }
+  }
+
+  .qr-guide-steps {
+    .guide-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 0.85rem 0;
+    }
+
+    .steps-list {
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      li {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+
+        strong {
+          color: var(--text-primary);
+          font-weight: 600;
+        }
+      }
+    }
+  }
+}
+
+.receipt-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.5rem;
+
+  .upload-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+
+    app-icon {
+      color: var(--accent);
+    }
+  }
+
+  .file-input-hidden {
+    display: none;
+  }
+
+  .upload-error-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: var(--radius-sm);
+    color: #ef4444;
+    font-size: 0.85rem;
+  }
+
+  .upload-dropzone {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    cursor: pointer;
+    background: var(--overlay-1);
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--accent);
+      background: var(--overlay-2);
+    }
+
+    .dropzone-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--overlay-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+    }
+
+    .dropzone-label {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: center;
+    }
+
+    .dropzone-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .btn-select-file {
+      margin-top: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius-sm);
+      background: var(--overlay-2);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      pointer-events: none;
+    }
+  }
+
+  .preview-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--overlay-1);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+    .receipt-preview-img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    .preview-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1;
+
+      .file-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        word-break: break-all;
+      }
+
+      .file-size {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      .btn-remove-file {
+        background: transparent;
+        border: none;
+        color: var(--accent);
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0;
+        cursor: pointer;
+        text-align: left;
+        margin-top: 0.25rem;
+
+        &:hover {
+          text-decoration: underline;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  .btn-submit-receipt {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.95rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+    transition: filter 0.2s ease;
+
+    &:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}

@@ -5,8 +5,14 @@ Arquitectura modular: cada dominio de negocio vive en app/modules/<dominio>/
 con su propio models.py, schemas.py, service.py y router.py.
 Este archivo solo ensambla los routers — no debe crecer con lógica de negocio.
 """
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from app.shared.core.config import settings
+from app.shared.db.session import engine, Base
 
 from app.modules.catalogo.router import router as catalogo_router
 from app.modules.reservas.router import router as reservas_router
@@ -21,8 +27,6 @@ from app.modules.ia.router import router as ia_router
 from app.modules.reportes.router import router as reportes_router
 from app.modules.promociones.router import router as promociones_router
 
-from contextlib import asynccontextmanager
-from app.shared.db.session import engine, Base
 import app.modules.usuarios.models
 import app.modules.sucursales.models
 import app.modules.proveedores.models
@@ -47,11 +51,6 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
-
-from fastapi.staticfiles import StaticFiles
-import os
-
-from app.shared.core.config import settings
 
 app.add_middleware(
     CORSMiddleware,

@@ -6,6 +6,7 @@ import { filter, map } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { AdminUiService } from './core/services/admin-ui.service';
 import { PreferenciasService } from './core/services/preferencias.service';
+import { CarritoService } from './core/services/carrito.service';
 import { IconComponent } from './core/components/icon/icon';
 
 @Component({
@@ -19,6 +20,7 @@ export class App {
   auth = inject(AuthService);
   adminUi = inject(AdminUiService);
   preferencias = inject(PreferenciasService);
+  carritoService = inject(CarritoService);
   private router = inject(Router);
 
   private currentUrl = toSignal(

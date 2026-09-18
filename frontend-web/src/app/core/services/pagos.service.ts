@@ -24,6 +24,16 @@ export class PagosService {
     return this.http.post<Pago>(`${this.base}/qr`, { venta_id: ventaId });
   }
 
+  subirComprobante(pagoId: number, file: File) {
+    const formData = new FormData();
+    formData.append('archivo', file);
+    return this.http.post<Pago>(`${this.base}/${pagoId}/comprobante`, formData);
+  }
+
+  obtenerPagoDeVenta(ventaId: number) {
+    return this.http.get<Pago[]>(`${this.base}/venta/${ventaId}`);
+  }
+
   obtenerPago(pagoId: number) {
     return this.http.get<Pago>(`${this.base}/${pagoId}`);
   }
