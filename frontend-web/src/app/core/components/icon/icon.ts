@@ -27,7 +27,12 @@ export type IconName =
   | 'type'
   | 'search'
   | 'logout'
-  | 'bar-chart';
+  | 'bar-chart'
+  | 'message-circle'
+  | 'send'
+  | 'x'
+  | 'camera'
+  | 'mic';
 
 @Component({
   selector: 'app-icon',
@@ -176,6 +181,25 @@ export type IconName =
         }
         @case ('bar-chart') {
           <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+        }
+        @case ('message-circle') {
+          <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.5-.75L3 21l1.9-5.1A8.5 8.5 0 1 1 21 11.5Z" />
+        }
+        @case ('send') {
+          <path d="M22 2 11 13" />
+          <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+        }
+        @case ('x') {
+          <path d="M18 6 6 18M6 6l12 12" />
+        }
+        @case ('camera') {
+          <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
+          <circle cx="12" cy="13.5" r="3.5" />
+        }
+        @case ('mic') {
+          <rect x="9" y="2.5" width="6" height="11" rx="3" />
+          <path d="M5.5 11v1a6.5 6.5 0 0 0 13 0v-1" />
+          <path d="M12 18.5v3M8.5 21.5h7" />
         }
       }
     </svg>

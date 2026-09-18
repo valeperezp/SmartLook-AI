@@ -18,7 +18,7 @@
   flex: 0 0 240px; // shorthand explícito (flex-grow, flex-shrink, flex-basis) — evita ambigüedad de flex-basis:auto derivado de `width`
   min-width: 0; // los flex items tienen min-width:auto por defecto; sin esto no pueden achicarse a 0
   background: var(--bg-card);
-  border-right: 1px solid var(--border-color);
+  border-right: 2px solid var(--brass);
   padding: 1.75rem 1.25rem;
   overflow: hidden;
   transition: opacity 0.2s ease;
@@ -33,8 +33,9 @@
   }
 
   h3 {
-    font-size: 1rem;
-    font-weight: 700;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 600;
     margin-bottom: 1.25rem;
     color: var(--text-primary);
     white-space: nowrap;
@@ -68,16 +69,18 @@
       }
 
       &.active {
-        background: var(--overlay-2);
-        color: var(--primary);
+        background: var(--primary);
+        color: #fdf3e7;
+        box-shadow: inset 0 1px 0 rgba(255, 214, 158, 0.25);
       }
     }
 
     .nav-group {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      color: var(--brass-dark);
       margin: 1rem 0 0.25rem 0.75rem;
       white-space: nowrap;
     }
@@ -117,7 +120,7 @@
     flex: none;
     overflow-y: auto;
     z-index: 40;
-    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-card);
     opacity: 1;
     transform: translateX(0);
     transition: transform 0.25s ease;

@@ -17,7 +17,6 @@ import { IconComponent } from '../../../core/components/icon/icon';
             <span class="logo-icon"><app-icon name="sparkles" [size]="18" /></span>
             <span>SmartLook<b>.AI</b></span>
           </a>
-          <span class="eyebrow eyebrow-light">Nueva cuenta</span>
           <h2>Sumate a la moda inteligente</h2>
           <p>Creá tu cuenta y descubrí el catálogo, el vestidor virtual y recomendaciones hechas para vos.</p>
           <ul class="showcase-features">

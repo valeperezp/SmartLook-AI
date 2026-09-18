@@ -1,0 +1,153 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Vestidor virtual</h1>
+    <p>Probate prendas del catálogo con tu cámara en vivo, o subiendo una foto tuya.</p>
+  </div>
+
+  <div class="vestidor-layout">
+    <!-- Selector de producto + foto real -->
+    <div class="card panel-producto">
+      <label class="selector-label" for="producto-select">Prenda a probar</label>
+      <select
+        id="producto-select"
+        [ngModel]="productoSeleccionadoId()"
+        (ngModelChange)="onProductoChange($event)"
+      >
+        @for (p of productos(); track p.id) {
+          <option [ngValue]="p.id">{{ p.nombre }} — {{ p.categoria.nombre }}</option>
+        }
+      </select>
+
+      @if (productoSeleccionado(); as prod) {
+        <div class="producto-preview">
+          @if (prod.imagen_url) {
+            <img [src]="prod.imagen_url" [alt]="prod.nombre" />
+          } @else {
+            <div class="producto-preview-placeholder">
+              <app-icon name="shirt" [size]="40" />
+            </div>
+          }
+          <div class="producto-preview-info">
+            <strong>{{ prod.nombre }}</strong>
+            <span>{{ prod.categoria.nombre }}</span>
+            <span class="precio">${{ prod.precio | number:'1.2-2' }}</span>
+          </div>
+        </div>
+      }
+
+      <p class="hint">
+        <app-icon name="alert-circle" [size]="14" />
+        La silueta que ves sobre el cuerpo representa la prenda (no es la foto real superpuesta) —
+        se calcula con detección de pose en el navegador.
+      </p>
+    </div>
+
+    <!-- Cámara / Foto + overlay AR -->
+    <div class="card panel-camara">
+      <div class="modo-toggle">
+        <button
+          type="button"
+          [class.activo]="modo() === 'camara'"
+          (click)="cambiarModo('camara')"
+        >
+          <app-icon name="camera" [size]="15" /> Cámara en vivo
+        </button>
+        <button
+          type="button"
+          [class.activo]="modo() === 'foto'"
+          (click)="cambiarModo('foto')"
+        >
+          <app-icon name="package" [size]="15" /> Subir foto
+        </button>
+      </div>
+
+      @if (error()) {
+        <div class="camara-error">
+          <app-icon name="alert-circle" [size]="18" />
+          <p>{{ error() }}</p>
+        </div>
+      }
+
+      <!-- ---------- Modo cámara ---------- -->
+      @if (modo() === 'camara') {
+        @if (!camaraActiva() && !cargandoModelo()) {
+          <div class="camara-placeholder">
+            <app-icon name="camera" [size]="48" />
+            <p>Activá tu cámara para empezar a probarte prendas en vivo.</p>
+            <button type="button" class="btn-primary" (click)="iniciarCamara()">
+              <app-icon name="camera" [size]="16" /> Iniciar cámara
+            </button>
+          </div>
+        }
+
+        @if (cargandoModelo()) {
+          <div class="camara-placeholder">
+            <div class="spinner"></div>
+            <p>Cargando cámara y modelo de detección de pose...</p>
+          </div>
+        }
+
+        <div class="camara-viewport espejo" [class.oculto]="!camaraActiva()">
+          <video #video playsinline muted></video>
+          <canvas #canvas></canvas>
+        </div>
+
+        @if (camaraActiva()) {
+          <button type="button" class="btn-secondary btn-detener" (click)="detenerCamara()">
+            Detener cámara
+          </button>
+        }
+      }
+
+      <!-- ---------- Modo foto ---------- -->
+      @if (modo() === 'foto') {
+        @if (!fotoUrl()) {
+          <div class="camara-placeholder">
+            <app-icon name="camera" [size]="48" />
+            <p>Subí una foto tuya de cuerpo entero o medio cuerpo, de frente, para ver la prenda superpuesta.</p>
+            <label class="btn-primary btn-file">
+              Elegir foto
+              <input type="file" accept="image/*" style="display:none;" (change)="onFotoSeleccionada($event)" />
+            </label>
+          </div>
+        } @else {
+          <div class="camara-viewport foto">
+            <img #imagenFoto [src]="fotoUrl()" alt="Foto subida" />
+            <canvas #canvas></canvas>
+
+            @if (fotoProcesando()) {
+              <div class="foto-overlay-loading">
+                <div class="spinner"></div>
+                <p>Analizando la foto...</p>
+              </div>
+            }
+          </div>
+
+          @if (fotoSinPersona()) {
+            <p class="foto-aviso">
+              <app-icon name="alert-circle" [size]="14" />
+              No detectamos una persona clara en la foto. Probá con otra donde se vean bien los hombros y el torso.
+            </p>
+          }
+
+          @if (fotoBajaConfianza()) {
+            <p class="foto-aviso">
+              <app-icon name="alert-circle" [size]="14" />
+              Detectamos a la persona, pero no lo suficiente del cuerpo como para calcular bien la silueta
+              (funciona mejor con fotos de medio cuerpo o cuerpo entero, de frente, donde se vean los hombros
+              @if (productoSeleccionado()?.categoria?.nombre === 'Pantalones') { y la cadera }).
+            </p>
+          }
+
+          <div class="foto-acciones">
+            <label class="btn-secondary btn-file">
+              Cambiar foto
+              <input type="file" accept="image/*" style="display:none;" (change)="onFotoSeleccionada($event)" />
+            </label>
+            <button type="button" class="btn-secondary" (click)="limpiarFoto()">Quitar foto</button>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

@@ -1,8 +1,12 @@
 """Lógica de negocio del módulo Catálogo (independiente de FastAPI/HTTP)."""
+import uuid
+
+import httpx
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.catalogo import models, schemas
+from app.shared.core.config import settings
 
 
 def _aplicar_update(instancia, data) -> None:
@@ -239,6 +243,50 @@ def eliminar_producto(db: Session, producto_id: int) -> models.Producto | None:
     return producto
 
 
+def subir_imagen_producto(
+    db: Session, producto_id: int, contenido: bytes, nombre_archivo: str, content_type: str
+) -> models.Producto:
+    """
+    Sube el archivo a Supabase Storage (bucket público) usando la service_role key,
+    y guarda la URL pública resultante en el producto. Lanza HTTPException si algo falla.
+    """
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Supabase Storage no está configurado (faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).",
+        )
+
+    producto = obtener_producto(db, producto_id)
+    if not producto:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+
+    extension = nombre_archivo.rsplit(".", 1)[-1].lower() if "." in nombre_archivo else "jpg"
+    ruta_archivo = f"producto-{producto_id}-{uuid.uuid4().hex}.{extension}"
+    bucket = settings.supabase_storage_bucket
+
+    respuesta = httpx.post(
+        f"{settings.supabase_url}/storage/v1/object/{bucket}/{ruta_archivo}",
+        content=contenido,
+        headers={
+            "Authorization": f"Bearer {settings.supabase_service_role_key}",
+            "apikey": settings.supabase_service_role_key,
+            "Content-Type": content_type or "application/octet-stream",
+        },
+        timeout=30.0,
+    )
+    if respuesta.status_code >= 400:
+        raise HTTPException(
+            status_code=502,
+            detail=f"No se pudo subir la imagen a Supabase Storage: {respuesta.text}",
+        )
+
+    url_publica = f"{settings.supabase_url}/storage/v1/object/public/{bucket}/{ruta_archivo}"
+    producto.imagen_url = url_publica
+    db.commit()
+    db.refresh(producto)
+    return producto
+
+
 def _calcular_estado_disponibilidad(total: int, stock_minimo: int = 5) -> str:
     """Calcula el estado agregado según cantidad total."""
     if total == 0:
@@ -306,7 +354,7 @@ def obtener_disponibilidad_producto(db: Session, producto_id: int) -> dict | Non
         "producto_id": producto.id,
         "nombre_producto": producto.nombre,
         "precio": float(producto.precio),
-        "imagen_url": None,
+        "imagen_url": producto.imagen_url,
         "total_global": total_global,
         "sucursales_con_stock": sucursales_con_stock,
         "disponibilidad": disponibilidad,

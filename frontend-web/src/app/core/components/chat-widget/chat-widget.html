@@ -1,0 +1,76 @@
+<button
+  class="chat-fab"
+  [class.chat-fab-open]="abierto()"
+  (click)="toggle()"
+  [attr.aria-label]="abierto() ? 'Cerrar asistente virtual' : 'Abrir asistente virtual'"
+>
+  <app-icon [name]="abierto() ? 'x' : 'message-circle'" [size]="24" />
+</button>
+
+@if (abierto()) {
+  <div class="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-title">
+        <app-icon name="sparkles" [size]="16" />
+        <span>Asistente SmartLook-AI</span>
+      </div>
+      <button class="chat-close-btn" (click)="cerrar()" aria-label="Cerrar">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+
+    <div class="chat-mensajes" #mensajesBox>
+      @for (m of mensajes(); track $index) {
+        <div class="chat-burbuja" [class.burbuja-usuario]="m.autor === 'usuario'" [class.burbuja-bot]="m.autor === 'bot'">
+          {{ m.texto }}
+        </div>
+      }
+      @if (enviando()) {
+        <div class="chat-burbuja burbuja-bot burbuja-escribiendo">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+      }
+    </div>
+
+    @if (sugerenciasActuales().length > 0) {
+      <div class="chat-sugerencias">
+        @for (s of sugerenciasActuales(); track s) {
+          <button class="chip-sugerencia" (click)="enviarSugerencia(s)" [disabled]="enviando()">{{ s }}</button>
+        }
+      </div>
+    }
+
+    @if (escuchando()) {
+      <div class="chat-escuchando">
+        <span class="pulso"></span> Escuchando... hablá ahora
+      </div>
+    }
+
+    <form class="chat-input-row" (ngSubmit)="enviarDesdeInput()">
+      @if (vozDisponible()) {
+        <button
+          type="button"
+          class="chat-mic-btn"
+          [class.mic-activo]="escuchando()"
+          (click)="alternarEscucha()"
+          [disabled]="enviando()"
+          [attr.aria-label]="escuchando() ? 'Detener grabación' : 'Hablar en vez de escribir'"
+        >
+          <app-icon name="mic" [size]="16" />
+        </button>
+      }
+      <input
+        type="text"
+        placeholder="Escribí o hablá tu mensaje..."
+        [ngModel]="inputTexto()"
+        (ngModelChange)="inputTexto.set($event)"
+        name="mensaje"
+        [disabled]="enviando()"
+        autocomplete="off"
+      />
+      <button type="submit" class="chat-send-btn" [disabled]="enviando() || !inputTexto().trim()" aria-label="Enviar">
+        <app-icon name="send" [size]="16" />
+      </button>
+    </form>
+  </div>
+}

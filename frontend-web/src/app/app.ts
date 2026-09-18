@@ -7,11 +7,12 @@ import { AuthService } from './core/services/auth.service';
 import { AdminUiService } from './core/services/admin-ui.service';
 import { PreferenciasService } from './core/services/preferencias.service';
 import { IconComponent } from './core/components/icon/icon';
+import { ChatWidget } from './core/components/chat-widget/chat-widget';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, IconComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, IconComponent, ChatWidget],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

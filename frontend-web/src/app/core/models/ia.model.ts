@@ -16,6 +16,36 @@ export interface ProductoRecomendado {
   precio: number;
   nombre_categoria: string | null;
   modelo_ar_url: string | null;
+  imagen_url: string | null;
   motivo: string;
   puntaje: number;
+}
+
+export interface ChatHistorialItem {
+  autor: 'usuario' | 'bot';
+  texto: string;
+}
+
+export interface ChatMensajeResponse {
+  respuesta: string;
+  intencion: string;
+  sugerencias: string[];
+}
+
+export interface ConfiguracionIA {
+  base_url: string;
+  modelo: string;
+  api_key_configurada: boolean;
+}
+
+export interface ConfiguracionIAUpdate {
+  base_url: string;
+  modelo: string;
+  api_key?: string | null;
+}
+
+export interface ConfiguracionIAPrueba {
+  ok: boolean;
+  respuesta: string | null;
+  error: string | null;
 }

@@ -90,6 +90,7 @@ import { Proveedor } from '../../../../core/models/proveedor.model';
       <table class="data-table">
         <thead>
           <tr>
+            <th>Imagen</th>
             <th>Nombre</th>
             <th>Categoría</th>
             <th>Temporada</th>
@@ -102,6 +103,29 @@ import { Proveedor } from '../../../../core/models/proveedor.model';
         <tbody>
           @for (p of items(); track p.id) {
             <tr>
+              <td>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                  @if (p.imagen_url) {
+                    <img [src]="p.imagen_url" [alt]="p.nombre" style="width:36px; height:36px; object-fit:cover; border-radius:6px; border:1px solid var(--border-color);" />
+                  } @else {
+                    <span class="badge badge-muted">Sin imagen</span>
+                  }
+                  <label class="btn-secondary" style="cursor:pointer;">
+                    @if (subiendoImagenId() === p.id) {
+                      Subiendo...
+                    } @else {
+                      {{ p.imagen_url ? 'Cambiar' : 'Subir' }}
+                    }
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style="display:none;"
+                      [disabled]="subiendoImagenId() === p.id"
+                      (change)="onArchivoSeleccionado($event, p)"
+                    />
+                  </label>
+                </div>
+              </td>
               <td>{{ p.nombre }}</td>
               <td>{{ p.categoria.nombre }}</td>
               <td>{{ p.temporada?.nombre || '—' }}</td>
@@ -135,6 +159,8 @@ export class ProductosAdmin implements OnInit {
   proveedores = signal<Proveedor[]>([]);
   guardando = signal(false);
   toast = signal<string | null>(null);
+
+  subiendoImagenId = signal<number | null>(null);
 
   nuevo: {
     nombre: string;
@@ -187,6 +213,27 @@ export class ProductosAdmin implements OnInit {
     this.catalogoService.eliminarProducto(p.id).subscribe(() => {
       this.mostrarToast(`${p.nombre} desactivado`);
       this.cargar();
+    });
+  }
+
+  onArchivoSeleccionado(event: Event, p: Producto) {
+    const input = event.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    if (!archivo) return;
+
+    this.subiendoImagenId.set(p.id);
+    this.catalogoService.subirImagenProducto(p.id, archivo).subscribe({
+      next: () => {
+        this.mostrarToast('Imagen subida');
+        this.subiendoImagenId.set(null);
+        input.value = '';
+        this.cargar();
+      },
+      error: (err) => {
+        this.mostrarToast(err.error?.detail || 'Error al subir la imagen');
+        this.subiendoImagenId.set(null);
+        input.value = '';
+      },
     });
   }
 

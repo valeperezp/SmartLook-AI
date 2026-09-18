@@ -1,0 +1,106 @@
+<div class="dash-header">
+  <h1>Configuración del asistente IA</h1>
+  <p>Conectá el chatbot (CU21) a un modelo local o en la nube, usando el estándar de la API de OpenAI.</p>
+</div>
+
+@if (cargando()) {
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Cargando configuración...</p>
+  </div>
+} @else {
+  <div class="card ia-config-card">
+    <h3>Proveedores rápidos</h3>
+    <p class="hint">Un clic completa Base URL y Modelo con valores típicos — revisalos antes de guardar.</p>
+    <div class="presets-grid">
+      @for (p of presets; track p.nombre) {
+        <button type="button" class="preset-btn" (click)="aplicarPreset(p)">
+          <strong>{{ p.nombre }}</strong>
+          <span>{{ p.ayuda }}</span>
+        </button>
+      }
+    </div>
+
+    <form class="ia-form" (ngSubmit)="guardar()">
+      <div class="form-group">
+        <label for="base_url">Base URL</label>
+        <input
+          id="base_url"
+          type="text"
+          [(ngModel)]="form.base_url"
+          name="base_url"
+          placeholder="http://host.docker.internal:11434/v1"
+          required
+        />
+        <span class="field-hint">La URL raíz de la API, sin la parte final "/chat/completions".</span>
+      </div>
+
+      <div class="form-group">
+        <label for="modelo">Modelo</label>
+        <input
+          id="modelo"
+          type="text"
+          [(ngModel)]="form.modelo"
+          name="modelo"
+          placeholder="llama3.2:1b"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="api_key">
+          API Key
+          @if (apiKeyConfigurada()) {
+            <span class="badge badge-success">Ya configurada</span>
+          } @else {
+            <span class="badge badge-muted">No configurada</span>
+          }
+        </label>
+        <input
+          id="api_key"
+          type="password"
+          [(ngModel)]="form.api_key"
+          name="api_key"
+          placeholder="Dejar vacío para no cambiarla (no requerida para Ollama local)"
+          autocomplete="new-password"
+        />
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" (click)="probarConexion()" [disabled]="probando() || guardando()">
+          @if (probando()) {
+            Probando...
+          } @else {
+            <app-icon name="message-circle" [size]="16" /> Probar conexión
+          }
+        </button>
+        <button type="submit" class="btn-primary" [disabled]="guardando() || !form.base_url.trim() || !form.modelo.trim()">
+          @if (guardando()) {
+            Guardando...
+          } @else {
+            Guardar configuración
+          }
+        </button>
+      </div>
+    </form>
+
+    @if (resultadoPrueba(); as res) {
+      <div class="resultado-prueba" [class.resultado-ok]="res.ok" [class.resultado-error]="!res.ok">
+        <app-icon [name]="res.ok ? 'check-circle' : 'alert-circle'" [size]="18" />
+        <div>
+          <strong>{{ res.ok ? 'Conexión exitosa' : 'Falló la conexión' }}</strong>
+          <p>{{ res.mensaje }}</p>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="card ia-config-card info-card">
+    <h3><app-icon name="alert-circle" [size]="16" /> Cómo funciona</h3>
+    <ul>
+      <li>El chatbot primero busca datos reales (productos, reservas, sucursales) y se los pasa al modelo para que redacte la respuesta — nunca deja que la IA invente datos por su cuenta.</li>
+      <li>Si el proveedor configurado no responde (apagado, sin API key, error de red), el chatbot sigue funcionando con respuestas basadas en reglas, sin cortarse.</li>
+      <li>Para usar un modelo local (Ollama), tiene que estar corriendo en tu máquina — este proyecto no lo instala ni lo inicia por vos.</li>
+    </ul>
+  </div>
+}

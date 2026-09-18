@@ -37,23 +37,23 @@
   flex-shrink: 0;
 
   &.icon-disponibles {
-    background: rgba(16, 185, 129, 0.12);
+    background: rgba(76, 122, 90, 0.12);
     color: var(--success);
   }
   &.icon-reservados {
-    background: rgba(99, 102, 241, 0.12);
-    color: #818cf8;
+    background: rgba(91, 112, 137, 0.12);
+    color: #5b7089;
   }
   &.icon-vendidos {
-    background: rgba(179, 113, 79, 0.12);
+    background: rgba(124, 38, 53, 0.12);
     color: var(--primary);
   }
   &.icon-bajo {
-    background: rgba(245, 158, 11, 0.12);
+    background: rgba(179, 132, 63, 0.12);
     color: var(--warning);
   }
   &.icon-agotados {
-    background: rgba(239, 68, 68, 0.12);
+    background: rgba(163, 64, 47, 0.12);
     color: var(--danger);
   }
   &.icon-sucursales {
@@ -84,8 +84,8 @@
 
 /* Alertas Section */
 .alertas-section {
-  background: rgba(245, 158, 11, 0.06);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(179, 132, 63, 0.06);
+  border: 1px solid rgba(179, 132, 63, 0.25);
   border-radius: var(--radius-md);
   margin-bottom: 1.5rem;
   overflow: hidden;
@@ -98,10 +98,10 @@
   padding: 0.85rem 1.25rem;
   cursor: pointer;
   user-select: none;
-  background: rgba(245, 158, 11, 0.08);
+  background: rgba(179, 132, 63, 0.08);
 
   &:hover {
-    background: rgba(245, 158, 11, 0.12);
+    background: rgba(179, 132, 63, 0.12);
   }
 }
 
@@ -145,14 +145,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.55rem 0.85rem;
-  background: var(--surface-solid);
+  background: rgba(179, 132, 63, 0.08);
+  border: 1px solid rgba(179, 132, 63, 0.25);
   border-radius: var(--radius-sm);
-  border-left: 3px solid var(--warning);
   font-size: 0.88rem;
   gap: 1rem;
 
   &.alerta-agotado {
-    border-left-color: var(--danger);
+    background: rgba(163, 64, 47, 0.08);
+    border-color: rgba(163, 64, 47, 0.25);
   }
 }
 
@@ -258,15 +259,15 @@
 
 /* Badges adicionales */
 .badge-warning {
-  background: rgba(245, 158, 11, 0.15);
-  color: #d97706;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(179, 132, 63, 0.15);
+  color: #8a6530;
+  border: 1px solid rgba(179, 132, 63, 0.3);
 }
 
 .badge-danger {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(163, 64, 47, 0.15);
   color: var(--danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(163, 64, 47, 0.3);
 }
 
 .meta-tag {

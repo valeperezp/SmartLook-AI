@@ -29,6 +29,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'vestidor',
+    loadComponent: () =>
+      import('./features/vestidor/vestidor-virtual').then((m) => m.VestidorVirtual),
+    canActivate: [authGuard],
+  },
+  {
     path: 'admin',
     loadComponent: () =>
       import('./features/admin/admin-layout/admin-layout').then((m) => m.AdminLayout),
@@ -108,6 +114,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/reportes/reportes-page/reportes-page').then(
             (m) => m.ReportesPage
+          ),
+      },
+      {
+        path: 'ia-config',
+        loadComponent: () =>
+          import('./features/admin/ia-config/ia-config-admin').then(
+            (m) => m.IaConfigAdmin
           ),
       },
     ],

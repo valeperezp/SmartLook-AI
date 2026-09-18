@@ -16,7 +16,7 @@
           <app-icon name="sparkles" [size]="20" />
         </div>
         <div class="brand-text">
-          <h2>SmartLook<span class="gradient-text">.AI</span></h2>
+          <h2>SmartLook<span class="text-accent">.AI</span></h2>
         </div>
       </a>
     </div>
@@ -31,6 +31,9 @@
       </button>
       @if (auth.isLoggedIn()) {
         @if (auth.isCliente()) {
+          <a routerLink="/vestidor" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+            <app-icon name="camera" [size]="16" /> Vestidor Virtual
+          </a>
           <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
             <app-icon name="package" [size]="16" /> Mis Reservas
           </a>
@@ -49,4 +52,8 @@
   }
 
   <router-outlet></router-outlet>
+
+  @if (auth.isCliente()) {
+    <app-chat-widget />
+  }
 </div>

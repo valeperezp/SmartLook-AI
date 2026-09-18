@@ -13,7 +13,7 @@ import { Producto } from '../../../core/models/catalogo.model';
   template: `
     <div class="dash-header">
       <div>
-        <h1>{{ saludo() }}, <span class="gradient-text">{{ nombre() }}</span></h1>
+        <h1>{{ saludo() }}, <span class="text-accent-success">{{ nombre() }}</span></h1>
         <p>Panel de gestión de tus productos y catálogo.</p>
       </div>
       @if (proveedorNombre()) {
