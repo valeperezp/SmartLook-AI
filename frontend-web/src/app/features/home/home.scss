@@ -310,6 +310,41 @@
     .product-footer {
       border-top: 1px solid var(--border-color);
       padding-top: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+
+      .product-card-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+
+        .btn-add-cart {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.45rem 0.75rem;
+          background: var(--primary, #6366f1);
+          color: #fff;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+
+          &:hover:not(:disabled) {
+            opacity: 0.9;
+            transform: translateY(-1px);
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
+      }
 
       .price-container {
         display: flex;
@@ -890,10 +925,38 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ===== BOTÓN "RESERVAR" EN CADA CHIP ===== */
-.btn-reservar-chip {
+/* ===== BOTÓN "RESERVAR" Y "AÑADIR" EN CADA CHIP ===== */
+.chip-action-btns {
   margin-left: auto;
-  padding: 0.35rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-cart-chip {
+  padding: 0.3rem 0.65rem;
+  background: var(--overlay-2);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+}
+
+.btn-reservar-chip {
+  padding: 0.3rem 0.75rem;
   background: var(--primary);
   color: #fdf3e7;
   border: none;

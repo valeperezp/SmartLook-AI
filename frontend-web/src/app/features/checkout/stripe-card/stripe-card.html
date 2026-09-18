@@ -1,0 +1,41 @@
+<div class="stripe-card-container">
+  @if (errorMensaje()) {
+    <div class="stripe-error-banner">
+      <app-icon name="alert-circle" [size]="18" />
+      <span>{{ errorMensaje() }}</span>
+    </div>
+  }
+
+  <div class="stripe-element-wrapper">
+    @if (cargandoStripe()) {
+      <div class="stripe-loading-state">
+        <app-icon name="sparkles" [size]="28" />
+        <p>Iniciando formulario seguro de Stripe...</p>
+      </div>
+    }
+
+    <div id="payment-element" [class.hidden]="cargandoStripe()"></div>
+  </div>
+
+  <div class="stripe-actions">
+    <button
+      type="button"
+      class="btn-pay-confirm"
+      [disabled]="cargandoStripe() || procesandoPago() || !stripeListo()"
+      (click)="procesarPago()"
+    >
+      @if (procesandoPago()) {
+        <app-icon name="sparkles" [size]="18" />
+        <span>Procesando pago seguro...</span>
+      } @else {
+        <app-icon name="credit-card" [size]="18" />
+        <span>Pagar ${{ monto | number:'1.2-2' }}</span>
+      }
+    </button>
+  </div>
+
+  <div class="stripe-security-badge">
+    <app-icon name="check-circle" [size]="14" />
+    <span>Pagos encriptados con seguridad SSL de 256 bits a través de Stripe Elements.</span>
+  </div>
+</div>

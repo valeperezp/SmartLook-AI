@@ -5,8 +5,14 @@ Arquitectura modular: cada dominio de negocio vive en app/modules/<dominio>/
 con su propio models.py, schemas.py, service.py y router.py.
 Este archivo solo ensambla los routers — no debe crecer con lógica de negocio.
 """
+import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from app.shared.core.config import settings
+from app.shared.db.session import engine, Base
 
 from app.modules.catalogo.router import router as catalogo_router
 from app.modules.reservas.router import router as reservas_router
@@ -19,10 +25,8 @@ from app.modules.ventas.router import router as ventas_router
 from app.modules.pagos.router import router as pagos_router
 from app.modules.ia.router import router as ia_router
 from app.modules.reportes.router import router as reportes_router
+from app.modules.promociones.router import router as promociones_router
 
-from contextlib import asynccontextmanager
-from app.shared.core.config import settings
-from app.shared.db.session import engine, Base
 import app.modules.usuarios.models
 import app.modules.sucursales.models
 import app.modules.proveedores.models
@@ -30,6 +34,9 @@ import app.modules.catalogo.models
 import app.modules.reservas.models
 import app.modules.inventario.models
 import app.modules.ia.models
+import app.modules.ventas.models
+import app.modules.pagos.models
+import app.modules.promociones.models
 
 
 @asynccontextmanager
@@ -54,6 +61,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+os.makedirs(f"{settings.uploads_dir}/qr", exist_ok=True)
+os.makedirs(f"{settings.uploads_dir}/comprobantes", exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
+
 # Registro de routers — un dominio, un router, un prefijo
 app.include_router(auth_router)
 app.include_router(usuarios_router)
@@ -66,6 +78,7 @@ app.include_router(ventas_router)
 app.include_router(pagos_router)
 app.include_router(ia_router)
 app.include_router(reportes_router)
+app.include_router(promociones_router)
 
 
 @app.get("/", tags=["health"])

@@ -379,28 +379,70 @@ a {
 
 .toast-notification {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  left: 2rem;
-  max-width: 420px;
-  margin-left: auto;
-  background: rgba(76, 122, 90, 0.94);
-  color: #fff9f0;
-  padding: 0.85rem 1.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
-  z-index: 1000;
+  top: 1.25rem;
+  right: 1.25rem;
+  bottom: auto;
+  left: auto;
+  width: 340px;
+  max-width: calc(100vw - 2.5rem);
+  min-height: 60px;
+  max-height: 80px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(16, 185, 129, 0.96);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  z-index: 1500;
+  animation: slideInRight 0.3s ease-out;
 
   &.toast-error {
-    background: rgba(163, 64, 47, 0.94);
+    background: rgba(239, 68, 68, 0.96);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+
+  .toast-close {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-left: auto;
+    opacity: 0.8;
+    padding: 0.2rem;
+    line-height: 1;
+
+    &:hover {
+      opacity: 1;
+    }
   }
 
   @media (max-width: 640px) {
-    left: 1rem;
+    top: auto;
+    bottom: 1.25rem;
     right: 1rem;
-    bottom: 1rem;
+    left: 1rem;
+    width: auto;
     max-width: none;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -428,3 +470,17 @@ a {
     font-size: 0.95rem;
   }
 }
+
+/* Ocultar badge o widget flotante inyectado por Stripe Testing Assistant */
+[class*='stripe-assistant'],
+[id*='stripe-assistant'],
+[data-stripe-assistant],
+iframe[name*='assistant'],
+iframe[title*='assistant' i] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  clip-path: inset(100%) !important;
+}
+

@@ -1,0 +1,284 @@
+<div class="mis-compras-page">
+  <!-- Header de la Página -->
+  <header class="page-header">
+    <div class="header-content">
+      <span class="eyebrow">Tu Historial de Pedidos</span>
+      <h1 class="page-title">Mis Compras Online</h1>
+      <p class="page-subtitle">Consultá el estado de tus compras y la validación de tus pagos por QR</p>
+    </div>
+    <div class="header-actions">
+      <button
+        type="button"
+        class="btn-secondary btn-refresh"
+        (click)="cargarCompras()"
+        [disabled]="cargando()"
+        title="Actualizar listado"
+      >
+        <app-icon name="sparkles" [size]="16" />
+        <span>Actualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="compras-container">
+    @if (cargando()) {
+      <div class="loading-state card">
+        <div class="spinner-sm"></div>
+        <span>Cargando tus compras online...</span>
+      </div>
+    } @else if (errorCarga()) {
+      <div class="error-state card">
+        <app-icon name="alert-circle" [size]="36" />
+        <h2>Error al consultar tus compras</h2>
+        <p>{{ errorCarga() }}</p>
+        <button type="button" class="btn-primary" (click)="cargarCompras()">
+          Reintentar
+        </button>
+      </div>
+    } @else if (compras().length === 0) {
+      <div class="empty-state card">
+        <div class="empty-icon-box">
+          <app-icon name="shopping-cart" [size]="42" />
+        </div>
+        <h2>Aún no tenés compras online</h2>
+        <p>Explorá nuestras colecciones de prendas y realizá tu primer pedido.</p>
+        <a routerLink="/" class="btn-primary">
+          <app-icon name="shirt" [size]="18" />
+          <span>Ir al Catálogo</span>
+        </a>
+      </div>
+    } @else {
+      <!-- Listado de Compras -->
+      <div class="compras-grid">
+        @for (item of compras(); track item.venta.id) {
+          <article class="compra-card card" (click)="abrirDetalle(item)">
+            <!-- Encabezado de la Tarjeta -->
+            <div class="compra-header">
+              <div class="compra-id-group">
+                <span class="compra-id">Orden #{{ item.venta.id }}</span>
+                <span class="canal-badge uppercase">{{ item.venta.canal }}</span>
+                
+                @switch (item.venta.estado) {
+                  @case ('completada') {
+                    <span class="status-pill status-completed">Completada</span>
+                  }
+                  @case ('pendiente') {
+                    <span class="status-pill status-pending">Pendiente</span>
+                  }
+                  @case ('cancelada') {
+                    <span class="status-pill status-cancelled">Cancelada</span>
+                  }
+                }
+              </div>
+
+              <div class="compra-total">
+                <span class="total-label">Total:</span>
+                <strong class="total-val">${{ item.venta.total | number:'1.2-2' }}</strong>
+              </div>
+            </div>
+
+            <!-- Cuerpo de la Tarjeta -->
+            <div class="compra-body">
+              <div class="info-row">
+                <span class="info-label">Fecha:</span>
+                <span class="info-value">{{ item.venta.creada_en | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+
+              @if (item.venta.nombre_sucursal) {
+                <div class="info-row">
+                  <span class="info-label">Retiro en:</span>
+                  <span class="info-value">
+                    <app-icon name="store" [size]="14" />
+                    <strong>{{ item.venta.nombre_sucursal }}</strong>
+                  </span>
+                </div>
+              }
+
+              <!-- Estado Específico del Pago (QR / Tarjeta) -->
+              <div class="pago-status-box">
+                <div class="pago-method-tag">
+                  <app-icon [name]="item.pago?.metodo === 'qr' ? 'qr' : 'credit-card'" [size]="16" />
+                  <span>Método: <strong>{{ (item.pago?.metodo || 'Pendiente') | uppercase }}</strong></span>
+                </div>
+
+                @if (item.cargandoPago) {
+                  <span class="status-text-loading">Consultando estado del pago...</span>
+                } @else if (item.pago?.metodo === 'qr') {
+                  @switch (item.pago?.estado) {
+                    @case ('pendiente') {
+                      <div class="status-badge-container badge-qr-pending">
+                        <app-icon name="clock" [size]="15" />
+                        <span>En revisión por la sucursal</span>
+                      </div>
+                    }
+                    @case ('completado') {
+                      <div class="status-badge-container badge-qr-approved">
+                        <app-icon name="check-circle" [size]="15" />
+                        <span>Aprobado ✓</span>
+                      </div>
+                    }
+                    @case ('fallido') {
+                      <div class="status-badge-container badge-qr-rejected">
+                        <app-icon name="alert-circle" [size]="15" />
+                        <span>
+                          Rechazado ✗
+                          @if (obtenerMotivoRechazo(item.pago); as motivo) {
+                            — <em>{{ motivo }}</em>
+                          }
+                        </span>
+                      </div>
+                    }
+                  }
+                } @else if (item.pago?.metodo === 'tarjeta') {
+                  @if (item.pago?.estado === 'completado') {
+                    <div class="status-badge-container badge-qr-approved">
+                      <app-icon name="check-circle" [size]="15" />
+                      <span>Aprobado ✓ (Stripe)</span>
+                    </div>
+                  } @else {
+                    <div class="status-badge-container badge-qr-rejected">
+                      <app-icon name="alert-circle" [size]="15" />
+                      <span>Pago no completado</span>
+                    </div>
+                  }
+                } @else {
+                  <span class="status-text-muted">Sin registro de pago</span>
+                }
+              </div>
+            </div>
+
+            <!-- Footer de la Tarjeta -->
+            <div class="compra-footer">
+              <span class="items-count">{{ item.venta.total_items }} prendas</span>
+              <button type="button" class="btn-detail" (click)="abrirDetalle(item); $event.stopPropagation()">
+                <span>Ver detalle</span>
+                <app-icon name="chevron-left" [size]="14" style="transform: rotate(180deg);" />
+              </button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </main>
+
+  <!-- MODAL DE DETALLE DE LA COMPRA -->
+  @if (modalDetalleAbierto() && compraSeleccionada(); as sel) {
+    <div class="modal-backdrop" (click)="cerrarDetalle()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <!-- Header del Modal -->
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-eyebrow">Detalle de Compra Online</span>
+            <h2 class="modal-title">Orden #{{ sel.venta.id }}</h2>
+          </div>
+          <button type="button" class="btn-close" (click)="cerrarDetalle()" aria-label="Cerrar">✕</button>
+        </div>
+
+        <!-- Body del Modal -->
+        <div class="modal-body">
+          <!-- Banner de Sucursal -->
+          @if (sel.venta.nombre_sucursal) {
+            <div class="modal-branch-info">
+              <app-icon name="store" [size]="20" />
+              <div>
+                <strong>Sucursal de Retiro: {{ sel.venta.nombre_sucursal }}</strong>
+                <p>Presentá el número de tu orden al momento de retirar tus prendas.</p>
+              </div>
+            </div>
+          }
+
+          <!-- Estado del Pago Detallado -->
+          <div class="modal-payment-detail">
+            <h3>Estado del Pago</h3>
+            <div class="payment-detail-card">
+              <div class="detail-row">
+                <span class="label">Método:</span>
+                <strong class="val uppercase">{{ sel.pago?.metodo || 'No registrado' }}</strong>
+              </div>
+              <div class="detail-row">
+                <span class="label">Estado del Pago:</span>
+                <span class="val">
+                  @if (sel.pago?.metodo === 'qr') {
+                    @switch (sel.pago?.estado) {
+                      @case ('pendiente') {
+                        <strong class="color-warning">En revisión por la sucursal</strong>
+                      }
+                      @case ('completado') {
+                        <strong class="color-success">Aprobado ✓</strong>
+                      }
+                      @case ('fallido') {
+                        <strong class="color-danger">Rechazado ✗</strong>
+                      }
+                    }
+                  } @else {
+                    {{ sel.pago?.estado || 'Pendiente' }}
+                  }
+                </span>
+              </div>
+
+              @if (obtenerMotivoRechazo(sel.pago); as motivo) {
+                <div class="detail-row reject-box">
+                  <span class="label">Motivo del rechazo:</span>
+                  <span class="val">{{ motivo }}</span>
+                </div>
+              }
+
+              @if (sel.pago?.comprobante_url) {
+                <div class="detail-row comprobante-link-row">
+                  <span class="label">Comprobante subido:</span>
+                  <button type="button" class="btn-view-receipt" (click)="verComprobante(sel.pago, $event)">
+                    <app-icon name="receipt" [size]="16" />
+                    <span>Ver imagen de comprobante</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Lista de Prendas -->
+          <div class="modal-items-section">
+            <h3>Prendas en este pedido</h3>
+            <div class="modal-items-list">
+              @for (it of sel.venta.items; track it.id) {
+                <div class="modal-item-row">
+                  <div class="item-icon-box">
+                    <app-icon name="shirt" [size]="20" />
+                  </div>
+                  <div class="item-main-info">
+                    <span class="item-name">{{ it.nombre_producto }}</span>
+                    <div class="item-variants">
+                      @if (it.nombre_talla) {
+                        <span class="variant-tag">Talla: {{ it.nombre_talla }}</span>
+                      }
+                      @if (it.nombre_color) {
+                        <span class="variant-tag">Color: {{ it.nombre_color }}</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="item-pricing">
+                    <span class="qty">{{ it.cantidad }} &times; ${{ it.precio_unitario | number:'1.2-2' }}</span>
+                    <strong class="subtotal">${{ it.subtotal | number:'1.2-2' }}</strong>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Total de la Orden -->
+          <div class="modal-total-summary">
+            <span class="total-label">Total abonado:</span>
+            <strong class="total-amount">${{ sel.venta.total | number:'1.2-2' }}</strong>
+          </div>
+        </div>
+
+        <!-- Footer del Modal -->
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" (click)="cerrarDetalle()">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -90,6 +90,41 @@
     gap: 0.5rem;
   }
 
+  .cart-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-sm);
+    background: var(--overlay-1);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--overlay-2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .cart-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 19px;
+      height: 19px;
+      padding: 0 5px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--accent);
+      border-radius: 9999px;
+    }
+  }
+
   .user-chip {
     display: inline-flex;
     align-items: center;

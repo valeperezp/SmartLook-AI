@@ -6,6 +6,7 @@ import { filter, map } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { AdminUiService } from './core/services/admin-ui.service';
 import { PreferenciasService } from './core/services/preferencias.service';
+import { CarritoService } from './core/services/carrito.service';
 import { IconComponent } from './core/components/icon/icon';
 import { ChatWidget } from './core/components/chat-widget/chat-widget';
 
@@ -20,6 +21,7 @@ export class App {
   auth = inject(AuthService);
   adminUi = inject(AdminUiService);
   preferencias = inject(PreferenciasService);
+  carritoService = inject(CarritoService);
   private router = inject(Router);
 
   private currentUrl = toSignal(
@@ -42,7 +44,23 @@ export class App {
     return url.startsWith('/admin') || url.startsWith('/encargado') || url.startsWith('/proveedor');
   });
 
+  constructor() {
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe(() => {
+        try {
+          const widgets = document.querySelectorAll(
+            '[class*="stripe-assistant"], [id*="stripe-assistant"], iframe[name*="assistant"], iframe[title*="assistant" i]'
+          );
+          widgets.forEach((el) => el.remove());
+        } catch {
+          // ignore
+        }
+      });
+  }
+
   logout() {
     this.auth.logout();
   }
 }
+
