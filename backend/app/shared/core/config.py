@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_storage_bucket: str = "productos"
 
+    # Vestidor virtual (CU05) — Gemini 2.5 Flash Image ("Nano Banana"), tier gratis de
+    # Google AI Studio. Clave server-side only, nunca se expone al frontend.
+    gemini_api_key: str = ""
+    gemini_image_model: str = "gemini-2.5-flash-image"
+
     # Orígenes permitidos por CORS, separados por coma. En local alcanza con el
     # frontend de Docker/ng serve; en producción se agrega la URL de Vercel.
     cors_origins: str = "http://localhost:4200"

@@ -62,3 +62,16 @@ class ConfiguracionIAPrueba(BaseModel):
     ok: bool
     respuesta: str | None = None
     error: str | None = None
+
+
+class ChatReportesRequest(BaseModel):
+    mensaje: str
+    historial: list[ChatHistorialItem] = []
+    # Solo tiene efecto para el admin (filtra por sucursal); un encargado siempre
+    # queda acotado a la suya propia sin importar lo que venga acá.
+    sucursal_id: int | None = None
+
+
+class ChatReportesResponse(BaseModel):
+    respuesta: str
+    sugerencias: list[str] = []
