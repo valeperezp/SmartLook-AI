@@ -18,6 +18,13 @@
   }
 }
 
+.reportes-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
 .filtro-sucursal {
   display: flex;
   align-items: center;
@@ -36,6 +43,28 @@
     font-weight: 500;
     outline: none;
     cursor: pointer;
+  }
+}
+
+.exportar-botones {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+
+  .btn-secondary {
+    padding: 0.55rem 0.95rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .btn-reporte-ia {
+    border-color: rgba(91, 112, 137, 0.45);
+    color: #5b7089;
+
+    &:hover {
+      background: rgba(91, 112, 137, 0.12);
+      border-color: #5b7089;
+    }
   }
 }
 

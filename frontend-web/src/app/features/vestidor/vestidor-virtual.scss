@@ -310,4 +310,51 @@
 .foto-acciones {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.resultado-ia {
+  width: 100%;
+  max-width: 640px;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: var(--overlay-1);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  text-align: center;
+
+  h4 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+  }
+
+  img {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+  }
+
+  &.resultado-ia-cargando {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text-muted);
+
+    p {
+      font-size: 0.85rem;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--overlay-2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: vestidor-spin 0.8s linear infinite;
+    }
+  }
 }

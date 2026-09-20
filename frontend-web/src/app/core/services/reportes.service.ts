@@ -42,6 +42,20 @@ export class ReportesService {
     return this.http.get<ReservasPorDia[]>(`${this.base}/reservas-por-dia`, { params });
   }
 
+  exportarPdf(sucursalId?: number) {
+    return this.http.get(`${this.base}/exportar/pdf`, {
+      params: this.paramsSucursal(sucursalId),
+      responseType: 'blob',
+    });
+  }
+
+  exportarExcel(sucursalId?: number) {
+    return this.http.get(`${this.base}/exportar/excel`, {
+      params: this.paramsSucursal(sucursalId),
+      responseType: 'blob',
+    });
+  }
+
   private paramsSucursal(sucursalId?: number): HttpParams {
     let params = new HttpParams();
     if (sucursalId) params = params.set('sucursal_id', sucursalId);
