@@ -6,9 +6,11 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_state.dart';
 import '../providers/reportes_provider.dart';
+import '../services/exportar_service.dart';
 import '../widgets/grafico_barras.dart';
 import '../widgets/grafico_torta.dart';
 import '../widgets/kpi_card.dart';
+import '../widgets/reportes_chat_widget.dart';
 
 class ReportesScreen extends StatefulWidget {
   const ReportesScreen({super.key});
@@ -20,6 +22,8 @@ class ReportesScreen extends StatefulWidget {
 class _ReportesScreenState extends State<ReportesScreen> {
   List<Map<String, dynamic>> _sucursales = [];
   bool _cargandoSucursales = false;
+  bool _exportando = false;
+  final ExportarService _exportarService = ExportarService();
 
   @override
   void initState() {
@@ -48,6 +52,111 @@ class _ReportesScreenState extends State<ReportesScreen> {
     }
   }
 
+  Future<void> _exportar(String tipo, int? sucursalId) async {
+    setState(() => _exportando = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Text('Exportando reporte a ${tipo.toUpperCase()}...'),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    try {
+      final msg = await _exportarService.exportarReporte(
+        tipo: tipo,
+        sucursalId: sucursalId,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al exportar: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _exportando = false);
+      }
+    }
+  }
+
+  void _mostrarDialogoExportar(int? sucursalId) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Exportar Reportes',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Seleccione el formato para descargar el informe consolidado:',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFFFEBEE),
+                  child: Icon(Icons.picture_as_pdf, color: Colors.red),
+                ),
+                title: const Text('Exportar a PDF'),
+                subtitle: const Text('Documento con diseño y tablas formateadas'),
+                trailing: const Icon(Icons.download),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportar('pdf', sucursalId);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Color(0xFFE8F5E9),
+                  child: Icon(Icons.table_chart, color: Colors.green),
+                ),
+                title: const Text('Exportar a Excel'),
+                subtitle: const Text('Hoja de cálculo .xlsx con datos tabulares'),
+                trailing: const Icon(Icons.download),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _exportar('excel', sucursalId);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<ReportesProvider>();
@@ -66,11 +175,42 @@ class _ReportesScreenState extends State<ReportesScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.auto_awesome, color: Colors.amber),
+            tooltip: 'Consultar IA',
+            onPressed: () => ReportesChatModal.mostrar(
+              context,
+              sucursalId: prov.sucursalSeleccionadaId,
+            ),
+          ),
+          IconButton(
+            icon: _exportando
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.file_download_outlined, color: Colors.white),
+            tooltip: 'Exportar Reporte',
+            onPressed: _exportando
+                ? null
+                : () => _mostrarDialogoExportar(prov.sucursalSeleccionadaId),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             tooltip: 'Recargar datos',
             onPressed: prov.isLoading ? null : () => prov.cargarReportes(),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.indigo.shade800,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.auto_awesome, color: Colors.amber),
+        label: const Text('Consultar IA', style: TextStyle(fontWeight: FontWeight.bold)),
+        onPressed: () => ReportesChatModal.mostrar(
+          context,
+          sucursalId: prov.sucursalSeleccionadaId,
+        ),
       ),
       body: prov.isLoading && resumen == null
           ? const LoadingState(mensaje: 'Cargando métricas y reportes...')

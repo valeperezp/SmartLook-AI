@@ -311,7 +311,26 @@ class _TarjetaFormState extends State<TarjetaForm> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                context.read<CheckoutProvider>().resetearCheckout();
+                setState(() {
+                  _errorMensaje = null;
+                });
+              },
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Reintentar con orden nueva'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade700,
+                side: BorderSide(color: Colors.red.shade300),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
 
         // Resumen de importe

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../features/admin/screens/admin_dashboard_screen.dart';
 import '../../features/admin/screens/admin_inventario_screen.dart';
 import '../../features/admin/screens/admin_productos_screen.dart';
@@ -211,8 +212,29 @@ class ProveedorPlaceholderScreen extends StatelessWidget {
   }
 }
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Temporizador de seguridad: tras máximo 4 segundos forzar que el router avance
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) {
+          final auth = context.read<AuthProvider>();
+          if (!auth.isInitialized) {
+            auth.forzarInicializacion();
+          }
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
