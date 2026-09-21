@@ -52,6 +52,16 @@ def crear_pago_qr(
     return service.crear_pago_qr(db, data.venta_id)
 
 
+@router.post("/efectivo", response_model=schemas.PagoOut, status_code=201)
+def crear_pago_efectivo(
+    data: schemas.PagoQRCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(cliente_or_admin),
+):
+    """Registra que la venta se pagará en efectivo al retirar en la sucursal."""
+    return service.crear_pago_efectivo(db, data.venta_id)
+
+
 @router.post("/{pago_id}/comprobante", response_model=schemas.PagoOut)
 async def subir_comprobante(
     pago_id: int,
