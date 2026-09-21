@@ -724,8 +724,10 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                onPressed: () =>
-                                    _mostrarAvisoVestidorAR(context),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  context.push('/vestidor?productoId=${widget.producto.id}');
+                                },
                                 icon: const Icon(Icons.view_in_ar, size: 20),
                                 label: const Text(
                                   'Probar en Vestidor Virtual AR',
@@ -739,81 +741,6 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                       ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _mostrarAvisoVestidorAR(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        contentPadding:
-            const EdgeInsets.fromLTRB(24, 28, 24, 16),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.view_in_ar,
-                size: 54,
-                color: Colors.indigo.shade700,
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Vestidor con Realidad Aumentada',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Próximamente en desarrollo.\n\nEstamos trabajando para que puedas probarte las prendas con la cámara de tu celular.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade700,
-                height: 1.4,
-              ),
-            ),
-          ],
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actionsPadding:
-            const EdgeInsets.only(bottom: 20, left: 24, right: 24),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo.shade700,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text(
-                'Entendido',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

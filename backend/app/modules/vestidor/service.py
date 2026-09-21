@@ -89,7 +89,14 @@ async def generar_prueba_virtual(
                 "category": "upper_body",
             },
         )
-        return output if isinstance(output, str) else output[0]
+        if hasattr(output, "url"):
+            return str(output.url)
+        if isinstance(output, str):
+            return output
+        if isinstance(output, list) and output:
+            first = output[0]
+            return str(getattr(first, "url", first))
+        return str(output)
 
     try:
         result_url = await run_in_threadpool(_llamar_replicate)

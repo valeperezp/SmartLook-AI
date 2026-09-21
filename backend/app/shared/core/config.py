@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # Vestidor virtual móvil (CU05) — Replicate (IDM-VTON), pago por uso. Presupuesto
     # acotado ($4 ≈ 80 generaciones): cache 24h + límite diario por usuario obligatorios.
     replicate_api_token: str = ""
-    vestidor_max_por_usuario_dia: int = 5
+    vestidor_max_por_usuario_dia: int = 15
 
     # Orígenes permitidos por CORS, separados por coma. En local alcanza con el
     # frontend de Docker/ng serve; en producción se agrega la URL de Vercel.
