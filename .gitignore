@@ -42,3 +42,10 @@ backend/uploads/*
 !backend/uploads/qr/.gitkeep
 !backend/uploads/comprobantes/
 !backend/uploads/comprobantes/.gitkeep
+
+# Backups temporales (NO subir)
+*.bak
+*.bak.*
+.env.bak
+.env.local
+.env.*.local

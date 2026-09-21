@@ -425,7 +425,7 @@ class _VestidorScreenState extends State<VestidorScreen> {
             child: Column(
               children: [
                 Text(
-                  'Generando tu imagen con IA...',
+                  _mensajeEstado(provider.estadoJob),
                   style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
                 const SizedBox(height: 4),
@@ -462,24 +462,6 @@ class _VestidorScreenState extends State<VestidorScreen> {
             ),
             Row(
               children: [
-                if (resultado.desdeCache) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Desde caché',
-                      style: TextStyle(
-                        color: Colors.blue.shade900,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -617,5 +599,20 @@ class _VestidorScreenState extends State<VestidorScreen> {
         ),
       ),
     );
+  }
+
+  String _mensajeEstado(String? estado) {
+    switch (estado) {
+      case 'pendiente':
+        return 'Preparando la generación...';
+      case 'procesando':
+        return 'Generando tu imagen con IA...';
+      case 'completado':
+        return '¡Listo!';
+      case 'fallido':
+        return 'La generación falló';
+      default:
+        return 'Generando tu imagen con IA...';
+    }
   }
 }

@@ -15,6 +15,7 @@ class VestidorProvider extends ChangeNotifier {
   bool _procesandoFoto = false;
   String? _errorMessage;
   String? _infoMessage;
+  String? _estadoJob;
 
   Uint8List? _fotoUsuarioBytes;
   String? _nombreArchivoFoto;
@@ -26,6 +27,7 @@ class VestidorProvider extends ChangeNotifier {
   bool get procesandoFoto => _procesandoFoto;
   String? get errorMessage => _errorMessage;
   String? get infoMessage => _infoMessage;
+  String? get estadoJob => _estadoJob;
   Uint8List? get fotoUsuarioBytes => _fotoUsuarioBytes;
   VestidorPrueba? get resultadoPrueba => _resultadoPrueba;
 
@@ -34,6 +36,7 @@ class VestidorProvider extends ChangeNotifier {
     _resultadoPrueba = null;
     _errorMessage = null;
     _infoMessage = null;
+    _estadoJob = null;
     notifyListeners();
   }
 
@@ -43,6 +46,7 @@ class VestidorProvider extends ChangeNotifier {
     _resultadoPrueba = null;
     _errorMessage = null;
     _infoMessage = null;
+    _estadoJob = null;
     notifyListeners();
   }
 
@@ -86,6 +90,7 @@ class VestidorProvider extends ChangeNotifier {
     _procesandoFoto = true;
     _errorMessage = null;
     _infoMessage = null;
+    _estadoJob = 'pendiente';
     notifyListeners();
 
     try {
@@ -93,6 +98,10 @@ class VestidorProvider extends ChangeNotifier {
         productoId: _productoActual!.productoId,
         fotoBytes: _fotoUsuarioBytes!,
         nombreArchivo: _nombreArchivoFoto ?? 'persona.jpg',
+        onEstado: (estado) {
+          _estadoJob = estado;
+          notifyListeners();
+        },
       );
 
       _resultadoPrueba = resultado;
@@ -103,24 +112,24 @@ class VestidorProvider extends ChangeNotifier {
       if (data is Map && data.containsKey('detail')) {
         detail = data['detail']?.toString();
       }
-      if (dioErr.type == DioExceptionType.receiveTimeout ||
-          dioErr.type == DioExceptionType.connectionTimeout) {
-        _errorMessage =
-            'La generación tardó más de lo esperado. Puede estar procesándose, reintentá en unos segundos.';
-      } else if (dioErr.response?.statusCode == 503) {
+      if (dioErr.response?.statusCode == 503) {
         _errorMessage = detail ??
-            'El vestidor con IA está en preparación en el servidor. Puedes visualizar la prenda y reservarla.';
+            'El vestidor con IA está en preparación en el servidor.';
       } else if (dioErr.response?.statusCode == 429) {
-        _errorMessage = detail ?? 'Límite diario de pruebas virtuales alcanzado. Volvé a intentar mañana.';
+        _errorMessage = detail ??
+            'Límite diario de pruebas virtuales alcanzado. Volvé mañana.';
       } else if (dioErr.response?.statusCode == 502) {
-        _errorMessage = detail ?? 'Error al procesar la imagen con el servicio de IA. Intentá de nuevo.';
+        _errorMessage = detail ??
+            'Error al procesar la imagen con el servicio de IA.';
       } else {
-        _errorMessage = detail ?? 'Error al procesar la imagen: ${dioErr.message ?? "desconocido"}';
+        _errorMessage = detail ??
+            'Error al procesar la imagen: ${dioErr.message ?? "desconocido"}';
       }
     } catch (e) {
       _errorMessage = 'Error inesperado al generar la prueba virtual: $e';
     } finally {
       _procesandoFoto = false;
+      _estadoJob = null;
       notifyListeners();
     }
   }
