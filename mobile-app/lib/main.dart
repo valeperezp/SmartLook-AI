@@ -31,8 +31,12 @@ import 'features/vestidor/providers/vestidor_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (!kIsWeb) {
-    Stripe.publishableKey = Env.stripePublishableKey;
-    await Stripe.instance.applySettings();
+    try {
+      Stripe.publishableKey = Env.stripePublishableKey;
+      await Stripe.instance.applySettings();
+    } catch (e) {
+      debugPrint('Error al inicializar Stripe: $e');
+    }
   }
   runApp(const SmartLookApp());
 }

@@ -1,31 +1,120 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/producto_ar.dart';
+import '../models/vestidor_prueba.dart';
 import '../services/vestidor_service.dart';
 
 class VestidorProvider extends ChangeNotifier {
   final VestidorService _service = VestidorService();
+  final ImagePicker _picker = ImagePicker();
 
   ProductoAr? _productoActual;
   List<ProductoAr> _productos = [];
   bool _cargando = false;
+  bool _procesandoFoto = false;
   String? _errorMessage;
-  int _modoVisor = 0; // 0: 3D Model / Silueta, 1: Vestidor Web
+  String? _infoMessage;
+
+  Uint8List? _fotoUsuarioBytes;
+  String? _nombreArchivoFoto;
+  VestidorPrueba? _resultadoPrueba;
 
   ProductoAr? get productoActual => _productoActual;
   List<ProductoAr> get productos => _productos;
   bool get cargando => _cargando;
+  bool get procesandoFoto => _procesandoFoto;
   String? get errorMessage => _errorMessage;
-  int get modoVisor => _modoVisor;
-
-  void setModoVisor(int modo) {
-    _modoVisor = modo;
-    notifyListeners();
-  }
+  String? get infoMessage => _infoMessage;
+  Uint8List? get fotoUsuarioBytes => _fotoUsuarioBytes;
+  VestidorPrueba? get resultadoPrueba => _resultadoPrueba;
 
   void seleccionarProducto(ProductoAr prod) {
     _productoActual = prod;
+    _resultadoPrueba = null;
     _errorMessage = null;
+    _infoMessage = null;
     notifyListeners();
+  }
+
+  void limpiarFoto() {
+    _fotoUsuarioBytes = null;
+    _nombreArchivoFoto = null;
+    _resultadoPrueba = null;
+    _errorMessage = null;
+    _infoMessage = null;
+    notifyListeners();
+  }
+
+  Future<void> capturarFoto(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        _fotoUsuarioBytes = bytes;
+        _nombreArchivoFoto = picked.name;
+        _resultadoPrueba = null;
+        _errorMessage = null;
+        _infoMessage = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = 'No se pudo acceder a la cámara o galería: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> generarPruebaVirtual() async {
+    if (_productoActual == null) {
+      _errorMessage = 'Por favor selecciona una prenda primero.';
+      notifyListeners();
+      return;
+    }
+
+    if (_fotoUsuarioBytes == null) {
+      _errorMessage = 'Por favor sube o toma una foto tuya primero.';
+      notifyListeners();
+      return;
+    }
+
+    _procesandoFoto = true;
+    _errorMessage = null;
+    _infoMessage = null;
+    notifyListeners();
+
+    try {
+      final resultado = await _service.generarPruebaVirtual(
+        productoId: _productoActual!.productoId,
+        fotoBytes: _fotoUsuarioBytes!,
+        nombreArchivo: _nombreArchivoFoto ?? 'persona.jpg',
+      );
+
+      _resultadoPrueba = resultado;
+      _infoMessage = '¡Prueba virtual generada con éxito!';
+    } on DioException catch (dioErr) {
+      final data = dioErr.response?.data;
+      String? detail;
+      if (data is Map && data.containsKey('detail')) {
+        detail = data['detail']?.toString();
+      }
+      if (dioErr.response?.statusCode == 503) {
+        _errorMessage = detail ??
+            'El vestidor con IA está en preparación en el servidor. Puedes visualizar la prenda y reservarla.';
+      } else {
+        _errorMessage = detail ?? 'Error al procesar la imagen: ${dioErr.message}';
+      }
+    } catch (e) {
+      _errorMessage = 'Error inesperado al generar la prueba virtual: $e';
+    } finally {
+      _procesandoFoto = false;
+      notifyListeners();
+    }
   }
 
   Future<void> cargarProductosCatalogo({int? seleccionarId}) async {
@@ -42,13 +131,10 @@ class VestidorProvider extends ChangeNotifier {
         if (match.isNotEmpty) {
           _productoActual = match.first;
         } else {
-          // Si no está en el listado general, consultar el detalle individual
           await cargarProducto(seleccionarId);
         }
       } else if (_productoActual == null && list.isNotEmpty) {
-        // Seleccionar preferentemente el primero que tenga modelo AR, o el primero de la lista
-        final conAr = list.where((p) => p.tieneAr);
-        _productoActual = conAr.isNotEmpty ? conAr.first : list.first;
+        _productoActual = list.first;
       }
     } catch (e) {
       _errorMessage = 'Error al cargar productos para el vestidor: $e';
@@ -66,25 +152,14 @@ class VestidorProvider extends ChangeNotifier {
     try {
       final prod = await _service.obtenerProductoAR(id);
       _productoActual = prod;
-      // Si no estaba en la lista, agregarlo
       if (!_productos.any((p) => p.productoId == prod.productoId)) {
         _productos.insert(0, prod);
       }
     } catch (e) {
-      _errorMessage = 'No se pudo obtener el detalle del producto para el vestidor';
+      _errorMessage = 'No se pudo obtener el detalle de la prenda para el vestidor';
     } finally {
       _cargando = false;
       notifyListeners();
-    }
-  }
-
-  void seleccionarPorId(int id) {
-    final match = _productos.where((p) => p.productoId == id);
-    if (match.isNotEmpty) {
-      _productoActual = match.first;
-      notifyListeners();
-    } else {
-      cargarProducto(id);
     }
   }
 }

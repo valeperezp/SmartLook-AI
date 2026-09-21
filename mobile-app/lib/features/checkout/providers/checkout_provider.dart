@@ -248,6 +248,17 @@ class CheckoutProvider extends ChangeNotifier {
     }
   }
 
+  /// Reinicia solo el estado del pago para permitir crear una venta NUEVA
+  /// al reintentar. No toca la sucursal seleccionada ni el método de pago.
+  void resetearCheckout() {
+    _ventaId = null;
+    _pagoId = null;
+    _pagoActual = null;
+    _estado = EstadoCheckout.idle;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void reset() {
     _estado = EstadoCheckout.idle;
     _ventaId = null;

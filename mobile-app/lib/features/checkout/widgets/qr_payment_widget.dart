@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../../../core/config/env.dart';
 import '../models/pago.dart';
 import '../providers/checkout_provider.dart';
 
@@ -54,7 +55,7 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
     if (pago != null) {
       setState(() {
         _pago = pago;
-        _qrData = 'https://smartlook.dev/pago/${pago.id}/comprobante?monto=${widget.monto}&venta=${widget.ventaId}';
+        _qrData = '${Env.webUrl}/pago/${pago.id}/comprobante?monto=${widget.monto}&venta=${widget.ventaId}';
         _cargando = false;
       });
     } else {
@@ -159,7 +160,10 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
-              onPressed: _iniciarPagoQR,
+              onPressed: () {
+                context.read<CheckoutProvider>().resetearCheckout();
+                _iniciarPagoQR();
+              },
               icon: const Icon(Icons.refresh),
               label: const Text('Reintentar'),
             ),

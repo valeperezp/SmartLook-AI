@@ -229,6 +229,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           )
                         else
                           DropdownButtonFormField<int>(
+                            isExpanded: true,
                             initialValue: checkout.sucursalId,
                             decoration: InputDecoration(
                               labelText: 'Seleccioná la sucursal',
@@ -242,6 +243,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 child: Text(
                                   '${suc.nombre}${suc.ciudad != null && suc.ciudad!.isNotEmpty ? ' (${suc.ciudad})' : ''}',
                                   style: const TextStyle(fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               );
                             }).toList(),
@@ -518,7 +520,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       label: Text(
                         checkout.estado == EstadoCheckout.creando
                             ? 'Creando orden online...'
-                            : 'Continuar al pago (\$${carrito.total.toStringAsFixed(2)})',
+                            : 'Continuar al pago (\$${(checkout.ventaId != null ? checkout.montoVenta : carrito.total).toStringAsFixed(2)})',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),

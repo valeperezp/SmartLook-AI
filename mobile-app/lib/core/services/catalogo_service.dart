@@ -38,6 +38,11 @@ class CatalogoService {
     return [];
   }
 
+  Future<Producto> obtenerProducto(int productoId) async {
+    final response = await _dioClient.get('/catalogo/productos/$productoId');
+    return Producto.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<ProductoDisponibilidad> obtenerDisponibilidad(int productoId) async {
     final response =
         await _dioClient.get('/catalogo/productos/$productoId/disponibilidad');

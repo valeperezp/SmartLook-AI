@@ -32,6 +32,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      await Future.any([
+        _verificarSesionBackend(),
+        Future.delayed(const Duration(seconds: 4)),
+      ]);
+    } catch (e) {
+      await TokenStorage.clearToken();
+      _usuario = null;
+    } finally {
+      _isLoading = false;
+      _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _verificarSesionBackend() async {
+    try {
       final hasToken = await TokenStorage.hasToken();
       if (hasToken) {
         final response = await _dioClient.get('/auth/me');
@@ -44,10 +60,14 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _usuario = null;
       }
-    } catch (e) {
+    } catch (_) {
       await TokenStorage.clearToken();
       _usuario = null;
-    } finally {
+    }
+  }
+
+  void forzarInicializacion() {
+    if (!_isInitialized) {
       _isLoading = false;
       _isInitialized = true;
       notifyListeners();
