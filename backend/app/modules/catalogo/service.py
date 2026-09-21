@@ -345,9 +345,13 @@ def obtener_disponibilidad_producto(db: Session, producto_id: int) -> dict | Non
                     "color_id": item.color_id,
                     "nombre_color": item.nombre_color,
                     "cantidad_disponible": item.cantidad_disponible,
+                    "cantidad_reservada": item.cantidad_reservada,
+                    "cantidad_vendida": item.cantidad_vendida,
                 }
                 for item in items
             ],
+            "total_reservada": sum(item.cantidad_reservada for item in items),
+            "total_vendida": sum(item.cantidad_vendida for item in items),
         })
 
     return {

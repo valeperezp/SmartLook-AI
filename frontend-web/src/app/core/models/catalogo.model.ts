@@ -70,6 +70,8 @@ export interface DisponibilidadTallaColor {
   color_id: number | null;
   nombre_color: string | null;
   cantidad_disponible: number;
+  cantidad_reservada: number;
+  cantidad_vendida: number;
 }
 
 export interface DisponibilidadSucursal {
@@ -79,6 +81,8 @@ export interface DisponibilidadSucursal {
   total_disponible: number;
   estado: 'disponible' | 'bajo' | 'agotado';
   items: DisponibilidadTallaColor[];
+  total_reservada: number;
+  total_vendida: number;
 }
 
 export interface ProductoDisponibilidad {

@@ -149,6 +149,8 @@ class DisponibilidadTallaColor(BaseModel):
     color_id: int | None = None
     nombre_color: str | None = None
     cantidad_disponible: int
+    cantidad_reservada: int = 0
+    cantidad_vendida: int = 0
 
 
 class DisponibilidadSucursal(BaseModel):
@@ -158,6 +160,8 @@ class DisponibilidadSucursal(BaseModel):
     total_disponible: int
     estado: str  # "disponible", "bajo", "agotado"
     items: list[DisponibilidadTallaColor] = []
+    total_reservada: int = 0
+    total_vendida: int = 0
 
 
 class ProductoDisponibilidadOut(BaseModel):

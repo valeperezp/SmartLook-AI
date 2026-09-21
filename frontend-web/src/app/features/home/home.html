@@ -302,6 +302,18 @@
                       Agotado
                     }
                   </span>
+                  @if (suc.total_reservada > 0) {
+                    <span class="stock-badge badge-reservada">
+                      <span class="stock-dot"></span>
+                      {{ suc.total_reservada }} Reservadas
+                    </span>
+                  }
+                  @if (suc.total_vendida > 0) {
+                    <span class="stock-badge badge-vendida">
+                      <span class="stock-dot"></span>
+                      {{ suc.total_vendida }} Vendidas
+                    </span>
+                  }
                 </div>
 
                 @if (suc.items.length > 0) {
@@ -314,6 +326,18 @@
                             Talla <strong>{{ item.nombre_talla || 'N/A' }}</strong> / {{ item.nombre_color || 'N/A' }}
                           </span>
                           <span class="tc-qty">{{ item.cantidad_disponible }} un.</span>
+                          @if (item.cantidad_reservada > 0) {
+                            <span class="stock-badge badge-reservada">
+                              <span class="stock-dot"></span>
+                              {{ item.cantidad_reservada }} Reservadas
+                            </span>
+                          }
+                          @if (item.cantidad_vendida > 0) {
+                            <span class="stock-badge badge-vendida">
+                              <span class="stock-dot"></span>
+                              {{ item.cantidad_vendida }} Vendidas
+                            </span>
+                          }
                           @if (item.cantidad_disponible > 0) {
                             <div class="chip-action-btns">
                               <button
