@@ -40,7 +40,7 @@
       <div class="section-header">
         <div>
           <h2 class="section-title">Recomendado para vos</h2>
-          <p class="section-subtitle">Basado en tus reservas anteriores y en lo más popular entre otros clientes</p>
+          <p class="section-subtitle">Basado en tus reservas y compras anteriores, tu talla habitual y en lo más popular entre otros clientes</p>
         </div>
       </div>
 
@@ -66,7 +66,12 @@
               <div class="recomendacion-body">
                 <h3 class="recomendacion-name">{{ rec.nombre_producto }}</h3>
                 <p class="recomendacion-motivo">{{ rec.motivo }}</p>
-                <span class="recomendacion-precio">${{ rec.precio | number:'1.2-2' }}</span>
+                <div class="recomendacion-footer">
+                  <span class="recomendacion-precio">${{ rec.precio | number:'1.2-2' }}</span>
+                  @if (rec.talla_sugerida) {
+                    <span class="recomendacion-talla">Talla {{ rec.talla_sugerida }}</span>
+                  }
+                </div>
               </div>
             </div>
           }

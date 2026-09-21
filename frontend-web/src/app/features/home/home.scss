@@ -452,11 +452,29 @@
       overflow: hidden;
     }
 
+    .recomendacion-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
     .recomendacion-precio {
       font-family: var(--font-heading);
       font-size: 1.05rem;
       font-weight: 600;
       color: var(--text-primary);
+    }
+
+    .recomendacion-talla {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: var(--overlay-1);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      white-space: nowrap;
     }
   }
 }

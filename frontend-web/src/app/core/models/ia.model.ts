@@ -1,5 +1,5 @@
 export interface PreferenciaDetectada {
-  tipo: 'categoria' | 'temporada' | 'coleccion';
+  tipo: 'categoria' | 'temporada' | 'coleccion' | 'talla';
   nombre: string;
   peso: number;
 }
@@ -18,6 +18,7 @@ export interface ProductoRecomendado {
   modelo_ar_url: string | null;
   imagen_url: string | null;
   motivo: string;
+  talla_sugerida: string | null;
   puntaje: number;
 }
 

@@ -23,6 +23,7 @@ class ProductoRecomendado(BaseModel):
     modelo_ar_url: str | None = None
     imagen_url: str | None = None
     motivo: str
+    talla_sugerida: str | None = None
     puntaje: int
 
 

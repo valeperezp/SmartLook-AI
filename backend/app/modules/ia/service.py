@@ -1,7 +1,8 @@
 """Lógica de negocio del módulo ia (CU20 — analizar preferencias, CU06 — generar recomendaciones).
 
-Motor basado en reglas: analiza el historial de reservas del cliente (categoría,
-temporada, colección de los productos que reservó) y puntúa el catálogo activo
+Motor basado en reglas: analiza el historial de reservas Y compras del cliente
+(categoría, temporada, colección y talla de los productos que reservó o compró) y
+puntúa el catálogo activo, filtrado siempre por disponibilidad real en inventario,
 según esas coincidencias. Si el cliente no tiene historial, recomienda lo más
 popular entre todos los clientes. Pensado para poder swappearse más adelante por
 una llamada a un LLM externo sin tocar el router (ver `ai_api_key` en config).
@@ -14,30 +15,43 @@ import httpx
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.modules.catalogo.models import Categoria, Coleccion, Producto, Temporada
+from app.modules.catalogo.models import Categoria, Coleccion, Producto, Talla, Temporada
 from app.modules.ia.models import ConfiguracionIA
 from app.modules.inventario.models import Inventario
 from app.modules.reportes import service as reportes_service
 from app.modules.reservas.models import Reserva, ReservaItem
 from app.modules.sucursales.models import Sucursal
 from app.modules.usuarios.models import Usuario
+from app.modules.ventas.models import Venta, VentaItem
 from app.shared.core.config import settings
 from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
 
 
-def _historial_cliente(db: Session, cliente_id: int) -> list[ReservaItem]:
-    """Items reservados por el cliente (incluye canceladas: igual reflejan interés)."""
-    return (
+def _historial_cliente(db: Session, cliente_id: int) -> list[ReservaItem | VentaItem]:
+    """Items reservados o comprados por el cliente: se combinan ambas fuentes porque
+    tanto una reserva (probador/apartado) como una compra (checkout online o en caja)
+    reflejan por igual el interés y los gustos reales del cliente. Se incluyen las
+    reservas canceladas (igual reflejan interés) pero no las ventas canceladas."""
+    reservas = (
         db.query(ReservaItem)
         .join(Reserva, Reserva.id == ReservaItem.reserva_id)
         .options(joinedload(ReservaItem.producto))
         .filter(Reserva.cliente_id == cliente_id)
         .all()
     )
+    ventas = (
+        db.query(VentaItem)
+        .join(Venta, Venta.id == VentaItem.venta_id)
+        .options(joinedload(VentaItem.producto))
+        .filter(Venta.cliente_id == cliente_id, Venta.estado != "cancelada")
+        .all()
+    )
+    return reservas + ventas
 
 
 def analizar_preferencias(db: Session, cliente_id: int) -> dict:
-    """CU20: deriva el perfil de preferencias del cliente a partir de su historial de reservas."""
+    """CU20: deriva el perfil de preferencias del cliente a partir de su historial de
+    reservas y compras (categoría, temporada, colección y talla)."""
     historial = _historial_cliente(db, cliente_id)
 
     if not historial:
@@ -46,6 +60,7 @@ def analizar_preferencias(db: Session, cliente_id: int) -> dict:
     categoria_peso: Counter = Counter()
     temporada_peso: Counter = Counter()
     coleccion_peso: Counter = Counter()
+    talla_peso: Counter = Counter()
 
     for item in historial:
         producto = item.producto
@@ -57,6 +72,8 @@ def analizar_preferencias(db: Session, cliente_id: int) -> dict:
             temporada_peso[producto.temporada_id] += item.cantidad
         if producto.coleccion_id:
             coleccion_peso[producto.coleccion_id] += item.cantidad
+        if item.talla_id:
+            talla_peso[item.talla_id] += item.cantidad
 
     preferencias = []
     for categoria_id, peso in categoria_peso.most_common(3):
@@ -71,6 +88,10 @@ def analizar_preferencias(db: Session, cliente_id: int) -> dict:
         nombre = db.query(Coleccion.nombre).filter(Coleccion.id == coleccion_id).scalar()
         if nombre:
             preferencias.append({"tipo": "coleccion", "nombre": nombre, "peso": peso})
+    for talla_id, peso in talla_peso.most_common(2):
+        nombre = db.query(Talla.nombre).filter(Talla.id == talla_id).scalar()
+        if nombre:
+            preferencias.append({"tipo": "talla", "nombre": nombre, "peso": peso})
 
     preferencias.sort(key=lambda p: p["peso"], reverse=True)
 
@@ -94,25 +115,30 @@ def _popularidad_global(db: Session) -> Counter:
 
 
 def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8) -> list[dict]:
-    """CU06: genera hasta `limit` recomendaciones de productos para el cliente."""
+    """CU06: genera hasta `limit` recomendaciones de productos para el cliente, puntuando
+    el catálogo activo por categoría, temporada, colección y talla habitual (a partir de
+    su historial de reservas y compras), y filtrando siempre por disponibilidad real."""
     historial = _historial_cliente(db, cliente_id)
 
     categoria_peso: Counter = Counter()
     temporada_peso: Counter = Counter()
     coleccion_peso: Counter = Counter()
-    ya_reservados: set[int] = set()
+    talla_peso: Counter = Counter()
+    ya_adquiridos: set[int] = set()
 
     for item in historial:
         producto = item.producto
         if not producto:
             continue
-        ya_reservados.add(producto.id)
+        ya_adquiridos.add(producto.id)
         if producto.categoria_id:
             categoria_peso[producto.categoria_id] += item.cantidad
         if producto.temporada_id:
             temporada_peso[producto.temporada_id] += item.cantidad
         if producto.coleccion_id:
             coleccion_peso[producto.coleccion_id] += item.cantidad
+        if item.talla_id:
+            talla_peso[item.talla_id] += item.cantidad
 
     # Solo se recomiendan productos activos con stock disponible en alguna sucursal.
     productos_con_stock = {
@@ -132,9 +158,27 @@ def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8) -> lis
 
     popularidad = _popularidad_global(db)
 
+    # Tallas con stock disponible por producto, para poder puntuar y avisar cuando
+    # el producto está disponible justo en la talla que el cliente suele usar.
+    tallas_por_producto: dict[int, dict[int, str]] = {}
+    if talla_peso:
+        filas_tallas = (
+            db.query(Inventario.producto_id, Inventario.talla_id, Talla.nombre)
+            .join(Talla, Talla.id == Inventario.talla_id)
+            .filter(
+                Inventario.activo.is_(True),
+                Inventario.cantidad_disponible > 0,
+                Inventario.producto_id.in_(productos_con_stock),
+            )
+            .distinct()
+            .all()
+        )
+        for producto_id, talla_id, nombre_talla in filas_tallas:
+            tallas_por_producto.setdefault(producto_id, {})[talla_id] = nombre_talla
+
     resultados = []
     for producto in candidatos:
-        if producto.id in ya_reservados:
+        if producto.id in ya_adquiridos:
             continue
 
         puntaje = 0
@@ -148,6 +192,18 @@ def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8) -> lis
         if producto.coleccion_id in coleccion_peso:
             puntaje += coleccion_peso[producto.coleccion_id] * 2
             motivo = motivo or "De una colección que ya reservaste antes"
+
+        # Talla habitual del cliente disponible en stock para este producto: aporta
+        # puntaje propio y, si nada más generó un motivo, explica la recomendación por sí sola.
+        talla_sugerida = None
+        tallas_disponibles = tallas_por_producto.get(producto.id, {})
+        for talla_id, peso_talla in talla_peso.most_common():
+            if talla_id in tallas_disponibles:
+                puntaje += peso_talla * 2
+                talla_sugerida = tallas_disponibles[talla_id]
+                break
+        if talla_sugerida and not motivo:
+            motivo = f"Disponible en tu talla habitual ({talla_sugerida})"
 
         # Pequeño empuje por popularidad general (no domina el puntaje de afinidad personal).
         puntaje += min(popularidad.get(producto.id, 0), 5)
@@ -163,6 +219,7 @@ def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8) -> lis
             "modelo_ar_url": producto.modelo_ar_url,
             "imagen_url": producto.imagen_url,
             "motivo": motivo,
+            "talla_sugerida": talla_sugerida,
             "puntaje": puntaje,
         })
 
