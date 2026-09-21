@@ -146,6 +146,8 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
           categorias: proveedor.categorias,
           temporadas: proveedor.temporadas,
           colecciones: proveedor.colecciones,
+          tallas: proveedor.tallas,
+          colores: proveedor.colores,
         ),
       ),
     );
@@ -385,7 +387,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                               Row(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
-                                                  // Icono de prenda
+                                                  // Icono o Imagen de prenda
                                                   Container(
                                                     width: 48,
                                                     height: 48,
@@ -393,10 +395,32 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                                       color: Colors.teal.shade50,
                                                       borderRadius: BorderRadius.circular(10),
                                                     ),
-                                                    child: Icon(
-                                                      Icons.checkroom,
-                                                      color: Colors.teal.shade800,
-                                                      size: 26,
+                                                    child: ClipRRect(
+                                                      borderRadius: BorderRadius.circular(10),
+                                                      child: (item['imagen_url'] != null &&
+                                                              item['imagen_url'].toString().isNotEmpty)
+                                                          ? Image.network(
+                                                              item['imagen_url'].toString(),
+                                                              width: 48,
+                                                              height: 48,
+                                                              fit: BoxFit.cover,
+                                                              errorBuilder:
+                                                                  (context,
+                                                                          error,
+                                                                          stackTrace) =>
+                                                                      Icon(
+                                                                Icons.checkroom,
+                                                                color: Colors
+                                                                    .teal
+                                                                    .shade800,
+                                                                size: 26,
+                                                              ),
+                                                            )
+                                                          : Icon(
+                                                              Icons.checkroom,
+                                                              color: Colors.teal.shade800,
+                                                              size: 26,
+                                                            ),
                                                     ),
                                                   ),
                                                   const SizedBox(width: 12),

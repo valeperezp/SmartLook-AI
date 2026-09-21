@@ -297,6 +297,58 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      backgroundColor: Colors.indigo.shade600,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.point_of_sale),
+                                    label: const Text('Ventas'),
+                                    onPressed: () => context.go('/encargado/ventas'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      backgroundColor: Colors.amber.shade800,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.qr_code_scanner),
+                                    label: const Text('Pagos QR'),
+                                    onPressed: () => context.go('/encargado/pagos-pendientes'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      backgroundColor: Colors.blueGrey.shade700,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.qr_code_2),
+                                    label: const Text('Mi QR'),
+                                    onPressed: () => context.go('/encargado/mi-qr'),
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 28),
 
                             // Sección: Alertas de reposición

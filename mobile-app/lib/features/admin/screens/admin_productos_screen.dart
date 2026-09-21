@@ -226,20 +226,42 @@ class _AdminProductosScreenState extends State<AdminProductosScreen> {
                                             padding: const EdgeInsets.all(12.0),
                                           child: Row(
                                             children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.all(10),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.teal.shade50,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Icon(
-                                                  Icons.checkroom,
-                                                  size: 32,
-                                                  color: Colors.teal.shade700,
-                                                ),
-                                              ),
+                                               Container(
+                                                 width: 52,
+                                                 height: 52,
+                                                 decoration: BoxDecoration(
+                                                   color: Colors.teal.shade50,
+                                                   borderRadius:
+                                                       BorderRadius.circular(8),
+                                                 ),
+                                                 child: ClipRRect(
+                                                   borderRadius:
+                                                       BorderRadius.circular(8),
+                                                   child: (p['imagen_url'] != null &&
+                                                           p['imagen_url'].toString().isNotEmpty)
+                                                       ? Image.network(
+                                                           p['imagen_url'].toString(),
+                                                           width: 52,
+                                                           height: 52,
+                                                           fit: BoxFit.cover,
+                                                           errorBuilder:
+                                                               (context, error,
+                                                                       stackTrace) =>
+                                                                   Icon(
+                                                                 Icons.checkroom,
+                                                                 size: 32,
+                                                                 color: Colors
+                                                                     .teal
+                                                                     .shade700,
+                                                               ),
+                                                         )
+                                                       : Icon(
+                                                           Icons.checkroom,
+                                                           size: 32,
+                                                           color: Colors.teal.shade700,
+                                                         ),
+                                                 ),
+                                               ),
                                               const SizedBox(width: 14),
                                               Expanded(
                                                 child: Column(

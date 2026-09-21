@@ -8,6 +8,8 @@ class ModalProductoForm extends StatefulWidget {
   final List<dynamic> categorias;
   final List<dynamic> temporadas;
   final List<dynamic> colecciones;
+  final List<dynamic> tallas;
+  final List<dynamic> colores;
 
   const ModalProductoForm({
     super.key,
@@ -15,6 +17,8 @@ class ModalProductoForm extends StatefulWidget {
     required this.categorias,
     required this.temporadas,
     required this.colecciones,
+    this.tallas = const [],
+    this.colores = const [],
   });
 
   @override
@@ -28,10 +32,13 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
   late final TextEditingController _descripcionController;
   late final TextEditingController _precioController;
   late final TextEditingController _modeloArUrlController;
+  late final TextEditingController _imagenUrlController;
 
   int? _selectedCategoriaId;
   int? _selectedTemporadaId;
   int? _selectedColeccionId;
+  int? _selectedTallaId;
+  int? _selectedColorId;
 
   bool _isSubmitting = false;
 
@@ -42,13 +49,18 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
     super.initState();
     final prod = widget.producto;
 
-    _nombreController = TextEditingController(text: prod?['nombre']?.toString() ?? '');
-    _descripcionController = TextEditingController(text: prod?['descripcion']?.toString() ?? '');
+    _nombreController =
+        TextEditingController(text: prod?['nombre']?.toString() ?? '');
+    _descripcionController =
+        TextEditingController(text: prod?['descripcion']?.toString() ?? '');
     _precioController = TextEditingController(
       text: prod?['precio'] != null ? prod!['precio'].toString() : '',
     );
     _modeloArUrlController = TextEditingController(
       text: prod?['modelo_ar_url']?.toString() ?? '',
+    );
+    _imagenUrlController = TextEditingController(
+      text: prod?['imagen_url']?.toString() ?? '',
     );
 
     // Resolver selección inicial de categoría
@@ -73,6 +85,20 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
         widget.colecciones.any((c) => c['id'] == initialColId)) {
       _selectedColeccionId = initialColId as int;
     }
+
+    // Resolver selección inicial de talla (si está presente en inventario o atributos)
+    final initialTallaId = prod?['talla_id'];
+    if (initialTallaId != null &&
+        widget.tallas.any((t) => t['id'] == initialTallaId)) {
+      _selectedTallaId = initialTallaId as int;
+    }
+
+    // Resolver selección inicial de color
+    final initialColorId = prod?['color_id'];
+    if (initialColorId != null &&
+        widget.colores.any((c) => c['id'] == initialColorId)) {
+      _selectedColorId = initialColorId as int;
+    }
   }
 
   @override
@@ -81,6 +107,7 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
     _descripcionController.dispose();
     _precioController.dispose();
     _modeloArUrlController.dispose();
+    _imagenUrlController.dispose();
     super.dispose();
   }
 
@@ -92,9 +119,13 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
       return;
     }
 
-    final precio = double.tryParse(_precioController.text.trim().replaceAll(',', '.'));
+    final precio =
+        double.tryParse(_precioController.text.trim().replaceAll(',', '.'));
     if (precio == null || precio < 0) {
-      AppNotifications.warning(context, 'Ingrese un precio válido mayor o igual a 0');
+      AppNotifications.warning(
+        context,
+        'Ingrese un precio válido mayor o igual a 0',
+      );
       return;
     }
 
@@ -114,6 +145,9 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
       'modelo_ar_url': _modeloArUrlController.text.trim().isEmpty
           ? null
           : _modeloArUrlController.text.trim(),
+      'imagen_url': _imagenUrlController.text.trim().isEmpty
+          ? null
+          : _imagenUrlController.text.trim(),
     };
 
     final provider = context.read<ProveedorProvider>();
@@ -142,7 +176,9 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
       AppNotifications.error(
         context,
         provider.errorMessage ??
-            (_isEdicion ? 'Error al actualizar producto' : 'Error al crear producto'),
+            (_isEdicion
+                ? 'Error al actualizar producto'
+                : 'Error al crear producto'),
       );
     }
   }
@@ -194,7 +230,8 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
                   labelText: 'Nombre *',
                   hintText: 'Ej. Camisa de Lino Manga Larga',
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -209,12 +246,13 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
               TextFormField(
                 controller: _descripcionController,
                 maxLength: 500,
-                maxLines: 3,
+                maxLines: 2,
                 decoration: const InputDecoration(
                   labelText: 'Descripción (opcional)',
                   hintText: 'Detalles del material, corte, cuidados...',
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
               const SizedBox(height: 10),
@@ -222,19 +260,22 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
               // 4. Campo Precio (required, min 0)
               TextFormField(
                 controller: _precioController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Precio *',
                   hintText: '0.00',
                   prefixText: '\$ ',
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'El precio es obligatorio';
                   }
-                  final val = double.tryParse(value.trim().replaceAll(',', '.'));
+                  final val =
+                      double.tryParse(value.trim().replaceAll(',', '.'));
                   if (val == null || val < 0) {
                     return 'Ingrese un número válido mayor o igual a 0';
                   }
@@ -249,12 +290,14 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
                 decoration: const InputDecoration(
                   labelText: 'Categoría *',
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
                 items: widget.categorias.map<DropdownMenuItem<int>>((cat) {
                   return DropdownMenuItem<int>(
                     value: cat['id'] as int,
-                    child: Text(cat['nombre']?.toString() ?? 'Cat ${cat['id']}'),
+                    child:
+                        Text(cat['nombre']?.toString() ?? 'Cat ${cat['id']}'),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -262,67 +305,177 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
                     _selectedCategoriaId = val;
                   });
                 },
-                validator: (val) => val == null ? 'Seleccione una categoría' : null,
+                validator: (val) =>
+                    val == null ? 'Seleccione una categoría' : null,
               ),
               const SizedBox(height: 16),
 
-              // 6. Dropdown Temporada (opcional)
-              DropdownButtonFormField<int?>(
-                initialValue: _selectedTemporadaId,
-                decoration: const InputDecoration(
-                  labelText: 'Temporada (opcional)',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                ),
-                items: [
-                  const DropdownMenuItem<int?>(
-                    value: null,
-                    child: Text('Ninguna'),
+              // 6. Fila Talla y Color (opcional)
+              Row(
+                children: [
+                  // Talla
+                  Expanded(
+                    child: DropdownButtonFormField<int?>(
+                      initialValue: _selectedTallaId,
+                      decoration: const InputDecoration(
+                        labelText: 'Talla inicial',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Ninguna'),
+                        ),
+                        ...widget.tallas.map<DropdownMenuItem<int?>>((t) {
+                          return DropdownMenuItem<int?>(
+                            value: t['id'] as int,
+                            child: Text(t['nombre']?.toString() ?? '${t['id']}'),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) =>
+                          setState(() => _selectedTallaId = val),
+                    ),
                   ),
-                  ...widget.temporadas.map<DropdownMenuItem<int?>>((temp) {
-                    return DropdownMenuItem<int?>(
-                      value: temp['id'] as int,
-                      child: Text(temp['nombre']?.toString() ?? 'Temporada ${temp['id']}'),
-                    );
-                  }),
-                ],
-                onChanged: (val) {
-                  setState(() {
-                    _selectedTemporadaId = val;
-                  });
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // 7. Dropdown Colección (opcional)
-              DropdownButtonFormField<int?>(
-                initialValue: _selectedColeccionId,
-                decoration: const InputDecoration(
-                  labelText: 'Colección (opcional)',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                ),
-                items: [
-                  const DropdownMenuItem<int?>(
-                    value: null,
-                    child: Text('Ninguna'),
+                  const SizedBox(width: 12),
+                  // Color
+                  Expanded(
+                    child: DropdownButtonFormField<int?>(
+                      initialValue: _selectedColorId,
+                      decoration: const InputDecoration(
+                        labelText: 'Color inicial',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Ninguno'),
+                        ),
+                        ...widget.colores.map<DropdownMenuItem<int?>>((c) {
+                          return DropdownMenuItem<int?>(
+                            value: c['id'] as int,
+                            child: Text(c['nombre']?.toString() ?? '${c['id']}'),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) =>
+                          setState(() => _selectedColorId = val),
+                    ),
                   ),
-                  ...widget.colecciones.map<DropdownMenuItem<int?>>((col) {
-                    return DropdownMenuItem<int?>(
-                      value: col['id'] as int,
-                      child: Text(col['nombre']?.toString() ?? 'Colección ${col['id']}'),
-                    );
-                  }),
                 ],
-                onChanged: (val) {
-                  setState(() {
-                    _selectedColeccionId = val;
-                  });
-                },
               ),
               const SizedBox(height: 16),
 
-              // 8. Campo Modelo AR URL (opcional)
+              // 7. Fila Temporada y Colección (opcional)
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int?>(
+                      initialValue: _selectedTemporadaId,
+                      decoration: const InputDecoration(
+                        labelText: 'Temporada (opcional)',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Ninguna'),
+                        ),
+                        ...widget.temporadas.map<DropdownMenuItem<int?>>((temp) {
+                          return DropdownMenuItem<int?>(
+                            value: temp['id'] as int,
+                            child: Text(
+                              temp['nombre']?.toString() ??
+                                  'Temporada ${temp['id']}',
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedTemporadaId = val;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<int?>(
+                      initialValue: _selectedColeccionId,
+                      decoration: const InputDecoration(
+                        labelText: 'Colección (opcional)',
+                        border: OutlineInputBorder(),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Ninguna'),
+                        ),
+                        ...widget.colecciones.map<DropdownMenuItem<int?>>((col) {
+                          return DropdownMenuItem<int?>(
+                            value: col['id'] as int,
+                            child: Text(
+                              col['nombre']?.toString() ??
+                                  'Colección ${col['id']}',
+                            ),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedColeccionId = val;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // 8. Campo Imagen URL
+              TextFormField(
+                controller: _imagenUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'URL de Imagen (opcional)',
+                  hintText: 'https://ejemplo.com/prenda.jpg',
+                  prefixIcon: Icon(Icons.image_outlined),
+                  border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              if (_imagenUrlController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      _imagenUrlController.text.trim(),
+                      height: 80,
+                      width: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 80,
+                        width: 80,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+
+              // 9. Campo Modelo AR URL (opcional)
               TextFormField(
                 controller: _modeloArUrlController,
                 decoration: const InputDecoration(
@@ -330,17 +483,20 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
                   hintText: 'https://...',
                   prefixIcon: Icon(Icons.view_in_ar_outlined),
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // 9. Botones Cancelar y Guardar / Crear
+              // 10. Botones Cancelar y Guardar / Crear
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(false),
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.of(context).pop(false),
                     child: const Text('Cancelar'),
                   ),
                   const SizedBox(width: 12),
@@ -348,7 +504,10 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal.shade800,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),

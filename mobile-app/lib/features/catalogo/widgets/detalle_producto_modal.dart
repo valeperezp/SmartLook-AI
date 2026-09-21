@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../../core/models/disponibilidad.dart';
 import '../../../core/models/producto.dart';
 import '../../../core/services/catalogo_service.dart';
+import '../../carrito/models/carrito_item.dart';
+import '../../carrito/providers/carrito_provider.dart';
 import '../../reservas/widgets/mini_modal_reserva.dart';
 
 class DetalleProductoModal extends StatefulWidget {
@@ -150,17 +154,44 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  width: 72,
+                                  height: 72,
                                   decoration: BoxDecoration(
                                     color: Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Hero(
                                     tag: 'producto_${widget.producto.id}',
-                                    child: Icon(
-                                      Icons.checkroom,
-                                      size: 48,
-                                      color: primaryColor,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: (widget.producto.imagenUrl != null &&
+                                              widget.producto.imagenUrl!.isNotEmpty)
+                                          ? Image.network(
+                                              widget.producto.imagenUrl!,
+                                              width: 72,
+                                              height: 72,
+                                              fit: BoxFit.cover,
+                                              loadingBuilder:
+                                                  (ctx, child, progress) =>
+                                                      progress == null
+                                                          ? child
+                                                          : const Center(
+                                                              child: CircularProgressIndicator(
+                                                                  strokeWidth: 2),
+                                                            ),
+                                              errorBuilder:
+                                                  (context, error, stackTrace) =>
+                                                      Icon(
+                                                Icons.checkroom,
+                                                size: 48,
+                                                color: primaryColor,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.checkroom,
+                                              size: 48,
+                                              color: primaryColor,
+                                            ),
                                     ),
                                   ),
                                 ),
@@ -503,6 +534,119 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                                           ),
                                                         ),
                                                       ),
+                                                      const SizedBox(width: 6),
+                                                      InkWell(
+                                                        onTap: () {
+                                                          context
+                                                              .read<
+                                                                  CarritoProvider>()
+                                                              .agregar(
+                                                                CarritoItem(
+                                                                  productoId:
+                                                                      widget
+                                                                          .producto
+                                                                          .id,
+                                                                  nombreProducto:
+                                                                      widget
+                                                                          .producto
+                                                                          .nombre,
+                                                                  precio: widget
+                                                                      .producto
+                                                                      .precio,
+                                                                  imagenUrl: widget
+                                                                      .producto
+                                                                      .imagenUrl,
+                                                                  tallaId: item
+                                                                      .tallaId,
+                                                                  nombreTalla:
+                                                                      item.nombreTalla,
+                                                                  colorId: item
+                                                                      .colorId,
+                                                                  nombreColor:
+                                                                      item.nombreColor,
+                                                                  cantidad: 1,
+                                                                  maxDisponible:
+                                                                      item.cantidadDisponible,
+                                                                ),
+                                                              );
+                                                          final messenger =
+                                                              ScaffoldMessenger
+                                                                  .of(context);
+                                                          final router =
+                                                              GoRouter.of(
+                                                                  context);
+                                                          messenger
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(
+                                                                'Añadido: ${widget.producto.nombre} (${item.nombreTalla ?? "-"} / ${item.nombreColor ?? "-"})',
+                                                              ),
+                                                              backgroundColor:
+                                                                  Colors
+                                                                      .green
+                                                                      .shade700,
+                                                              action:
+                                                                  SnackBarAction(
+                                                                label:
+                                                                    'Ver carrito',
+                                                                textColor:
+                                                                    Colors
+                                                                        .white,
+                                                                onPressed:
+                                                                    () =>
+                                                                        router
+                                                                            .push(
+                                                                                '/carrito'),
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal: 8,
+                                                                  vertical: 3),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors
+                                                                .green.shade700,
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        12),
+                                                          ),
+                                                          child: const Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              Icon(
+                                                                Icons
+                                                                    .add_shopping_cart,
+                                                                color: Colors
+                                                                    .white,
+                                                                size: 11,
+                                                              ),
+                                                              SizedBox(
+                                                                  width: 3),
+                                                              Text(
+                                                                'Carrito',
+                                                                style:
+                                                                    TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
                                                     ],
                                                   ],
                                                 ),
@@ -517,21 +661,76 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
 
                             const SizedBox(height: 16),
 
-                            // 4. BOTÓN CERRAR
+                            // 4. BOTONES DE ACCIÓN: Cerrar + Añadir al carrito
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Cerrar',
+                                      style: TextStyle(fontSize: 15),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  flex: 2,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () =>
+                                        _abrirModalVariante(context),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green.shade700,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.add_shopping_cart,
+                                        size: 20),
+                                    label: const Text(
+                                      'Añadir al carrito',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: ElevatedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.indigo.shade800,
+                                  side: BorderSide(
+                                      color: Colors.indigo.shade300),
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 12),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
-                                child: const Text(
-                                  'Cerrar',
-                                  style: TextStyle(fontSize: 16),
+                                onPressed: () =>
+                                    _mostrarAvisoVestidorAR(context),
+                                icon: const Icon(Icons.view_in_ar, size: 20),
+                                label: const Text(
+                                  'Probar en Vestidor Virtual AR',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ),
@@ -541,6 +740,321 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
           ),
         ),
       ),
+    );
+  }
+
+  void _mostrarAvisoVestidorAR(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        contentPadding:
+            const EdgeInsets.fromLTRB(24, 28, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.indigo.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.view_in_ar,
+                size: 54,
+                color: Colors.indigo.shade700,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Vestidor con Realidad Aumentada',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Próximamente en desarrollo.\n\nEstamos trabajando para que puedas probarte las prendas con la cámara de tu celular.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actionsPadding:
+            const EdgeInsets.only(bottom: 20, left: 24, right: 24),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo.shade700,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                'Entendido',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _abrirModalVariante(BuildContext context) {
+    final mapVariantes = <String, DisponibilidadTallaColor>{};
+    for (final suc in _disponibilidad?.disponibilidad ?? <DisponibilidadSucursal>[]) {
+      for (final item in suc.items) {
+        if (item.cantidadDisponible > 0) {
+          final key = '${item.tallaId}_${item.colorId}';
+          if (!mapVariantes.containsKey(key) ||
+              item.cantidadDisponible > mapVariantes[key]!.cantidadDisponible) {
+            mapVariantes[key] = item;
+          }
+        }
+      }
+    }
+
+    final variantes = mapVariantes.values.toList();
+    if (variantes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay stock disponible para añadir al carrito.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        var selectedItem = variantes.first;
+        var cantidad = 1;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 500),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  padding: const EdgeInsets.all(20.0),
+                  child: SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Seleccionar Variante',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.producto.nombre,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        Text(
+                          '\$${widget.producto.precio.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        const Text(
+                          'Talla y Color:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<DisponibilidadTallaColor>(
+                          initialValue: selectedItem,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                          items: variantes.map((v) {
+                            return DropdownMenuItem<DisponibilidadTallaColor>(
+                              value: v,
+                              child: Text(
+                                'Talla ${v.nombreTalla ?? "-"} / Color ${v.nombreColor ?? "-"} (${v.cantidadDisponible} disponibles)',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() {
+                                selectedItem = val;
+                                if (cantidad > val.cantidadDisponible) {
+                                  cantidad = val.cantidadDisponible;
+                                }
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Cantidad:',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.grey.shade300),
+                              ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove, size: 18),
+                                    onPressed: cantidad > 1
+                                        ? () {
+                                            setModalState(() => cantidad--);
+                                          }
+                                        : null,
+                                  ),
+                                  Text(
+                                    '$cantidad',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.add, size: 18),
+                                    onPressed: cantidad <
+                                            selectedItem.cantidadDisponible
+                                        ? () {
+                                            setModalState(() => cantidad++);
+                                          }
+                                        : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.shade700,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () {
+                              final itemCarrito = CarritoItem(
+                                productoId: widget.producto.id,
+                                nombreProducto: widget.producto.nombre,
+                                precio: widget.producto.precio,
+                                imagenUrl: widget.producto.imagenUrl,
+                                tallaId: selectedItem.tallaId,
+                                nombreTalla: selectedItem.nombreTalla,
+                                colorId: selectedItem.colorId,
+                                nombreColor: selectedItem.nombreColor,
+                                cantidad: cantidad,
+                                maxDisponible:
+                                    selectedItem.cantidadDisponible,
+                              );
+                              final messenger = ScaffoldMessenger.of(context);
+                              final router = GoRouter.of(context);
+                              context
+                                  .read<CarritoProvider>()
+                                  .agregar(itemCarrito);
+                              Navigator.pop(ctx);
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    '${cantidad}x "${widget.producto.nombre}" agregado al carrito',
+                                  ),
+                                  backgroundColor: Colors.green.shade700,
+                                  action: SnackBarAction(
+                                    label: 'Ver carrito',
+                                    textColor: Colors.white,
+                                    onPressed: () =>
+                                        router.push('/carrito'),
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.add_shopping_cart),
+                            label: Text(
+                              'Añadir al carrito • \$${(widget.producto.precio * cantidad).toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,5 +1,8 @@
 class Env {
   static const String apiUrl = 'http://localhost:8000';
+  static const String webUrl = 'http://localhost:4200';
+  static const String stripePublishableKey =
+      'pk_test_51UGODfQ61dJbPxVzfUK66ISHzsuSMdEh5ghQ2LPhLXYj3XwYcj4nnf01uXI9ODLXW6uP76KthPxUw93pp8ZNwwHV00URCaL1zK';
   
   // Para emulador Android usa: 'http://10.0.2.2:8000'
   // Para celular físico usa: 'http://192.168.X.X:8000' (tu IP local)

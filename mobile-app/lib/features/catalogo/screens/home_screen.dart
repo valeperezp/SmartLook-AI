@@ -7,6 +7,11 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/estado_badge.dart';
 import '../../../core/widgets/loading_state.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../carrito/providers/carrito_provider.dart';
+import '../../ia/models/recomendacion.dart';
+import '../../ia/providers/ia_provider.dart';
+import '../../ia/widgets/carrusel_recomendaciones.dart';
+import '../../ia/widgets/chatbot_flotante.dart';
 import '../providers/catalogo_provider.dart';
 import '../widgets/detalle_producto_modal.dart';
 
@@ -22,9 +27,43 @@ class _HomeScreenState extends State<HomeScreen> {
   final CatalogoService _catalogoService = CatalogoService();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.isLoggedIn) {
+        context.read<IaProvider>().cargarRecomendaciones();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onVerRecomendacion(Recomendacion rec) {
+    final catalogo = context.read<CatalogoProvider>();
+    final index =
+        catalogo.productos.indexWhere((p) => p.id == rec.productoId);
+    if (index != -1) {
+      _showDetalleModal(context, catalogo.productos[index]);
+    } else {
+      final prod = Producto(
+        id: rec.productoId,
+        nombre: rec.nombre,
+        precio: rec.precio,
+        categoriaId: 0,
+        categoriaNombre: rec.categoria ?? 'Recomendado',
+        activo: true,
+        totalDisponible: 1,
+        sucursalesConStock: 1,
+        estadoGlobal: 'disponible',
+        modeloArUrl: rec.modeloArUrl,
+      );
+      _showDetalleModal(context, prod);
+    }
   }
 
   void _showDetalleModal(BuildContext context, Producto producto) {
@@ -57,6 +96,46 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         backgroundColor: Colors.blue.shade700,
         actions: [
+          Consumer<CarritoProvider>(
+            builder: (context, carrito, _) {
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.shopping_cart_outlined,
+                        color: Colors.white),
+                    tooltip: 'Mi Carrito',
+                    onPressed: () => context.push('/carrito'),
+                  ),
+                  if (carrito.cantidadTotal > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          '${carrito.cantidadTotal}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long, color: Colors.white),
             tooltip: 'Mis Reservas',
@@ -188,6 +267,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const Divider(height: 1),
 
+              // Carrusel de Recomendaciones IA (CU06)
+              CarruselRecomendaciones(
+                onVerProducto: _onVerRecomendacion,
+              ),
+
               // Contenido: Loading, Error, Empty o Grid de Productos
               Expanded(
                 child: catalogo.isLoading
@@ -273,10 +357,39 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         child: Center(
                                                           child: Hero(
                                                             tag: 'producto_${producto.id}',
-                                                            child: Icon(
-                                                              Icons.checkroom_rounded,
-                                                              size: 56,
-                                                              color: Colors.blue.shade400,
+                                                            child: ClipRRect(
+                                                              borderRadius:
+                                                                  BorderRadius.circular(8),
+                                                              child: (producto.imagenUrl != null &&
+                                                                      producto.imagenUrl!.isNotEmpty)
+                                                                  ? Image.network(
+                                                                      producto.imagenUrl!,
+                                                                      width: double.infinity,
+                                                                      height: double.infinity,
+                                                                      fit: BoxFit.cover,
+                                                                      loadingBuilder:
+                                                                          (ctx, child, progress) =>
+                                                                              progress == null
+                                                                                  ? child
+                                                                                  : const Center(
+                                                                                      child: CircularProgressIndicator(
+                                                                                          strokeWidth: 2),
+                                                                                    ),
+                                                                      errorBuilder:
+                                                                          (context,
+                                                                                  error,
+                                                                                  stackTrace) =>
+                                                                              Icon(
+                                                                        Icons.checkroom_rounded,
+                                                                        size: 56,
+                                                                        color: Colors.blue.shade400,
+                                                                      ),
+                                                                    )
+                                                                  : Icon(
+                                                                      Icons.checkroom_rounded,
+                                                                      size: 56,
+                                                                      color: Colors.blue.shade400,
+                                                                    ),
                                                             ),
                                                           ),
                                                         ),
@@ -366,6 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         },
       ),
+      floatingActionButton: auth.isLoggedIn ? const ChatbotFlotante() : null,
     );
   }
 }

@@ -183,6 +183,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+                            // Fila 1 de accesos
                             Row(
                               children: [
                                 Expanded(
@@ -236,6 +237,88 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     label: const Text('Inventario'),
                                     onPressed: () =>
                                         context.go('/admin/inventario'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // Fila 2 de accesos: Reportes y Promociones
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      backgroundColor: Colors.purple.shade700,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.analytics),
+                                    label: const Text('Reportes'),
+                                    onPressed: () =>
+                                        context.go('/admin/reportes'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      backgroundColor: Colors.deepOrange.shade600,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.local_offer),
+                                    label: const Text('Promociones'),
+                                    onPressed: () =>
+                                        context.go('/admin/promociones'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // Fila 3 de accesos: Config IA y Sucursales
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      backgroundColor: Colors.indigo.shade800,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.auto_awesome),
+                                    label: const Text('Config IA'),
+                                    onPressed: () =>
+                                        context.go('/admin/ia-config'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      backgroundColor: Colors.brown.shade600,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.storefront),
+                                    label: const Text('Sucursales'),
+                                    onPressed: () =>
+                                        context.go('/admin/sucursales'),
                                   ),
                                 ),
                               ],
