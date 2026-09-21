@@ -83,12 +83,9 @@ class AuthProvider extends ChangeNotifier {
       final response = await _dioClient.dio.post(
         '/auth/login',
         data: {
-          'username': email.trim(),
+          'email': email.trim(),
           'password': password,
         },
-        options: Options(
-          contentType: Headers.formUrlEncodedContentType,
-        ),
       );
 
       if (response.statusCode == 200 && response.data != null) {

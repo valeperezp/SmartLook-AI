@@ -1,9 +1,19 @@
+import 'package:flutter/foundation.dart';
+
 class Env {
-  // Emulador Android:
-  static const String apiUrl = 'http://10.0.2.2:8000';
-  // Web (Chrome): http://localhost:8000
-  // Producción: https://smartlook-ai-production.up.railway.app
-  // Celular físico: http://192.168.X.X:8000
+  // Detección automática según plataforma:
+  // - Web (Chrome / Edge): http://localhost:8000
+  // - Emulador Android: http://10.0.2.2:8000
+  // - Desktop / Otros: http://localhost:8000
+  static String get apiUrl {
+    if (kIsWeb) {
+      return 'http://localhost:8000';
+    }
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000';
+    }
+    return 'http://localhost:8000';
+  }
 
   static const String webUrl = 'http://localhost:4200';
   static const String stripePublishableKey =
