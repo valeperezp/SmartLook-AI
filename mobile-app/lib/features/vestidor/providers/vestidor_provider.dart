@@ -106,6 +106,10 @@ class VestidorProvider extends ChangeNotifier {
       if (dioErr.response?.statusCode == 503) {
         _errorMessage = detail ??
             'El vestidor con IA está en preparación en el servidor. Puedes visualizar la prenda y reservarla.';
+      } else if (dioErr.response?.statusCode == 429) {
+        _errorMessage = detail ?? 'Límite diario de pruebas virtuales alcanzado. Volvé a intentar mañana.';
+      } else if (dioErr.response?.statusCode == 502) {
+        _errorMessage = detail ?? 'Error al procesar la imagen con el servicio de IA. Intentá de nuevo.';
       } else {
         _errorMessage = detail ?? 'Error al procesar la imagen: ${dioErr.message}';
       }

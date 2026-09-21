@@ -38,6 +38,7 @@ import app.modules.ia.models
 import app.modules.ventas.models
 import app.modules.pagos.models
 import app.modules.promociones.models
+import app.modules.vestidor.models
 
 
 @asynccontextmanager

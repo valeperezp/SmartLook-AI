@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -425,7 +424,7 @@ class _VestidorScreenState extends State<VestidorScreen> {
   }
 
   Widget _buildResultadoIA(VestidorProvider provider) {
-    final imageBytes = base64Decode(provider.resultadoPrueba!.imagenBase64);
+    final resultado = provider.resultadoPrueba!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,20 +443,42 @@ class _VestidorScreenState extends State<VestidorScreen> {
                 ),
               ],
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.green.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'Fotorrealista',
-                style: TextStyle(
-                  color: Colors.green.shade900,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                if (resultado.desdeCache) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Desde caché',
+                      style: TextStyle(
+                        color: Colors.blue.shade900,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Fotorrealista',
+                    style: TextStyle(
+                      color: Colors.green.shade900,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -467,9 +488,16 @@ class _VestidorScreenState extends State<VestidorScreen> {
           child: SizedBox(
             height: 320,
             width: double.infinity,
-            child: Image.memory(
-              imageBytes,
+            child: Image.network(
+              resultado.imagenResultadoUrl,
               fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Center(child: CircularProgressIndicator());
+              },
+              errorBuilder: (context, error, stackTrace) => const Center(
+                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+              ),
             ),
           ),
         ),

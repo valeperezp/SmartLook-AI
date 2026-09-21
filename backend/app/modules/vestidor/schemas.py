@@ -3,5 +3,7 @@ from pydantic import BaseModel
 
 
 class VestidorPruebaOut(BaseModel):
-    imagen_base64: str
-    mime_type: str
+    imagen_resultado_url: str
+    producto_id: int
+    producto_nombre: str
+    desde_cache: bool = False
