@@ -422,10 +422,39 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                                         BorderRadius.circular(8),
                                                   ),
                                                   child: Center(
-                                                    child: Icon(
-                                                      Icons.checkroom,
-                                                      size: 52,
-                                                      color: Colors.teal.shade800,
+                                                    child: ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(8),
+                                                      child: (prod.imagenUrl != null &&
+                                                              prod.imagenUrl!.isNotEmpty)
+                                                          ? Image.network(
+                                                              prod.imagenUrl!,
+                                                              width: double.infinity,
+                                                              height: 110,
+                                                              fit: BoxFit.cover,
+                                                              loadingBuilder:
+                                                                  (ctx, child, progress) =>
+                                                                      progress == null
+                                                                          ? child
+                                                                          : const Center(
+                                                                              child: CircularProgressIndicator(
+                                                                                  strokeWidth: 2),
+                                                                            ),
+                                                              errorBuilder:
+                                                                  (context,
+                                                                          error,
+                                                                          stackTrace) =>
+                                                                      Icon(
+                                                                Icons.checkroom,
+                                                                size: 52,
+                                                                color: Colors.teal.shade800,
+                                                              ),
+                                                            )
+                                                          : Icon(
+                                                              Icons.checkroom,
+                                                              size: 52,
+                                                              color: Colors.teal.shade800,
+                                                            ),
                                                     ),
                                                   ),
                                                 ),

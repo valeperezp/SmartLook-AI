@@ -18,9 +18,24 @@ class EncargadoService {
     return [];
   }
 
-  /// Lista el historial de movimientos de la sucursal.
-  Future<List<dynamic>> listarMovimientos() async {
-    final response = await _dioClient.get('/inventario/movimientos');
+  /// Lista el historial de movimientos de inventario con filtros opcionales.
+  Future<List<dynamic>> listarMovimientos({
+    int? sucursalId,
+    int? inventarioId,
+    String? tipo,
+    int limit = 100,
+  }) async {
+    final query = <String, dynamic>{'limit': limit};
+    if (sucursalId != null) query['sucursal_id'] = sucursalId;
+    if (inventarioId != null) query['inventario_id'] = inventarioId;
+    if (tipo != null && tipo.isNotEmpty && tipo != 'todos') {
+      query['tipo'] = tipo;
+    }
+
+    final response = await _dioClient.get(
+      '/inventario/movimientos',
+      query: query,
+    );
     if (response.data is List) {
       return response.data as List<dynamic>;
     }

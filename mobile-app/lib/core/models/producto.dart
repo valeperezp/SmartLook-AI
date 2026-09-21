@@ -11,6 +11,7 @@ class Producto {
   final String? coleccionNombre;
   final int? proveedorId;
   final String? modeloArUrl;
+  final String? imagenUrl;
   final bool activo;
   final int totalDisponible;
   final int sucursalesConStock;
@@ -29,6 +30,7 @@ class Producto {
     this.coleccionNombre,
     this.proveedorId,
     this.modeloArUrl,
+    this.imagenUrl,
     required this.activo,
     required this.totalDisponible,
     required this.sucursalesConStock,
@@ -63,6 +65,7 @@ class Producto {
       coleccionNombre: colNombre,
       proveedorId: json['proveedor_id'] as int?,
       modeloArUrl: json['modelo_ar_url'] as String?,
+      imagenUrl: json['imagen_url'] as String?,
       activo: json['activo'] as bool? ?? true,
       totalDisponible: json['total_disponible'] as int? ?? 0,
       sucursalesConStock: json['sucursales_con_stock'] as int? ?? 0,
@@ -72,4 +75,5 @@ class Producto {
 
   bool get estaDisponible => totalDisponible > 0 && estadoGlobal != 'agotado';
   bool get tieneAr => modeloArUrl != null && modeloArUrl!.isNotEmpty;
+  bool get tieneImagen => imagenUrl != null && imagenUrl!.isNotEmpty;
 }

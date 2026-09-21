@@ -8,6 +8,8 @@ class ProveedorProvider extends ChangeNotifier {
   List<dynamic> _categorias = [];
   List<dynamic> _temporadas = [];
   List<dynamic> _colecciones = [];
+  List<dynamic> _tallas = [];
+  List<dynamic> _colores = [];
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -20,6 +22,8 @@ class ProveedorProvider extends ChangeNotifier {
   List<dynamic> get categorias => _categorias;
   List<dynamic> get temporadas => _temporadas;
   List<dynamic> get colecciones => _colecciones;
+  List<dynamic> get tallas => _tallas;
+  List<dynamic> get colores => _colores;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -73,12 +77,16 @@ class ProveedorProvider extends ChangeNotifier {
         _service.listarCategorias(),
         _service.listarTemporadas(),
         _service.listarColecciones(),
+        _service.listarTallas(),
+        _service.listarColores(),
       ]);
 
       _misProductos = results[0];
       _categorias = results[1];
       _temporadas = results[2];
       _colecciones = results[3];
+      _tallas = results[4];
+      _colores = results[5];
     } catch (e) {
       _errorMessage = 'Error al cargar datos del proveedor: $e';
     } finally {

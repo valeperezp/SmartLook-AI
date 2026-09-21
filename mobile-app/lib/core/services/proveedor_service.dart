@@ -41,6 +41,24 @@ class ProveedorService {
     return [];
   }
 
+  /// Lista las tallas disponibles.
+  Future<List<dynamic>> listarTallas() async {
+    final response = await _dioClient.get('/catalogo/tallas');
+    if (response.data is List) {
+      return response.data as List<dynamic>;
+    }
+    return [];
+  }
+
+  /// Lista los colores disponibles.
+  Future<List<dynamic>> listarColores() async {
+    final response = await _dioClient.get('/catalogo/colores');
+    if (response.data is List) {
+      return response.data as List<dynamic>;
+    }
+    return [];
+  }
+
   /// Crea un nuevo producto asignado al proveedor autenticado.
   Future<dynamic> crearProducto(Map<String, dynamic> data) async {
     final response = await _dioClient.post('/catalogo/mis-productos', data: data);
