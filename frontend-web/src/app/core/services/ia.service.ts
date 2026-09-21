@@ -4,6 +4,7 @@ import { environment } from '../../../environments/environment';
 import {
   ChatHistorialItem,
   ChatMensajeResponse,
+  ChatReportesResponse,
   ConfiguracionIA,
   ConfiguracionIAPrueba,
   ConfiguracionIAUpdate,
@@ -27,6 +28,14 @@ export class IaService {
 
   chat(mensaje: string, historial: ChatHistorialItem[] = []) {
     return this.http.post<ChatMensajeResponse>(`${this.base}/chat`, { mensaje, historial });
+  }
+
+  chatReportes(mensaje: string, historial: ChatHistorialItem[] = [], sucursalId?: number) {
+    return this.http.post<ChatReportesResponse>(`${this.base}/chat-reportes`, {
+      mensaje,
+      historial,
+      sucursal_id: sucursalId ?? null,
+    });
   }
 
   obtenerConfiguracion() {

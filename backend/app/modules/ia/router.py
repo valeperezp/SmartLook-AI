@@ -12,6 +12,7 @@ router = APIRouter(prefix="/ia", tags=["ia"])
 
 solo_cliente = require_roles("cliente")
 solo_admin = require_roles("administrador")
+admin_o_encargado = require_roles("administrador", "encargado_sucursal")
 
 
 @router.get("/preferencias", response_model=schemas.PerfilPreferencias)
@@ -42,6 +43,20 @@ def enviar_mensaje_chat(
     """CU21: procesa un mensaje del cliente y devuelve la respuesta del asistente virtual."""
     historial = [h.model_dump() for h in data.historial]
     return service.procesar_mensaje_chat(db, cliente_id=usuario.id, mensaje=data.mensaje, historial=historial)
+
+
+@router.post("/chat-reportes", response_model=schemas.ChatReportesResponse)
+def enviar_mensaje_chat_reportes(
+    data: schemas.ChatReportesRequest,
+    usuario: Usuario = Depends(admin_o_encargado),
+    db: Session = Depends(get_db),
+):
+    """CU13: asistente interno de reportes — responde y redacta reportes dinámicos en lenguaje
+    natural (texto o dictado por voz) para admin/encargado, sobre los datos reales del negocio."""
+    historial = [h.model_dump() for h in data.historial]
+    return service.procesar_mensaje_chat_reportes(
+        db, usuario=usuario, mensaje=data.mensaje, historial=historial, sucursal_id=data.sucursal_id
+    )
 
 
 # =========================================================================

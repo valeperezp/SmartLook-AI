@@ -49,3 +49,8 @@ export interface ConfiguracionIAPrueba {
   respuesta: string | null;
   error: string | null;
 }
+
+export interface ChatReportesResponse {
+  respuesta: string;
+  sugerencias: string[];
+}

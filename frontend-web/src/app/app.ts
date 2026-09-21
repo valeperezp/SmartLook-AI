@@ -9,11 +9,12 @@ import { PreferenciasService } from './core/services/preferencias.service';
 import { CarritoService } from './core/services/carrito.service';
 import { IconComponent } from './core/components/icon/icon';
 import { ChatWidget } from './core/components/chat-widget/chat-widget';
+import { ReportesChatWidget } from './core/components/reportes-chat-widget/reportes-chat-widget';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, IconComponent, ChatWidget],
+  imports: [CommonModule, RouterOutlet, RouterLink, IconComponent, ChatWidget, ReportesChatWidget],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

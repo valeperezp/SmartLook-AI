@@ -42,7 +42,8 @@ export type IconName =
   | 'plus'
   | 'pencil'
   | 'clock'
-  | 'list';
+  | 'list'
+  | 'download';
 
 @Component({
   selector: 'app-icon',
@@ -263,6 +264,11 @@ export type IconName =
           <line x1="3" y1="6" x2="3.01" y2="6" />
           <line x1="3" y1="12" x2="3.01" y2="12" />
           <line x1="3" y1="18" x2="3.01" y2="18" />
+        }
+        @case ('download') {
+          <path d="M12 3v12" />
+          <path d="M7 10.5 12 15.5 17 10.5" />
+          <path d="M4 19.5h16" />
         }
       }
     </svg>

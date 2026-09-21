@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { AuthService } from '../../../core/services/auth.service';
 import { ReportesService } from '../../../core/services/reportes.service';
+import { ReportesChatService } from '../../../core/services/reportes-chat.service';
 import { SucursalesService } from '../../../core/services/sucursales.service';
 import { Sucursal } from '../../../core/models/sucursal.model';
 import {
@@ -25,6 +26,7 @@ export class ReportesPage implements OnInit {
   private auth = inject(AuthService);
   private reportesService = inject(ReportesService);
   private sucursalesService = inject(SucursalesService);
+  private reportesChatService = inject(ReportesChatService);
 
   isAdmin = this.auth.isAdmin;
 
@@ -32,6 +34,7 @@ export class ReportesPage implements OnInit {
   sucursalId = signal<number | undefined>(undefined);
 
   cargando = signal<boolean>(true);
+  exportando = signal<'pdf' | 'excel' | null>(null);
   resumen = signal<ResumenReportes | null>(null);
   porEstado = signal<ReservasPorEstado[]>([]);
   porSucursal = signal<ReservasPorSucursal[]>([]);
@@ -82,6 +85,41 @@ export class ReportesPage implements OnInit {
     this.reportesService.reservasPorDia(sucursalId, 14).subscribe({
       next: (data) => this.porDia.set(data),
     });
+  }
+
+  exportarPDF() {
+    if (this.exportando()) return;
+    this.exportando.set('pdf');
+    this.reportesService.exportarPdf(this.sucursalId()).subscribe({
+      next: (blob) => this.descargarArchivo(blob, 'pdf'),
+      error: () => this.exportando.set(null),
+    });
+  }
+
+  exportarExcel() {
+    if (this.exportando()) return;
+    this.exportando.set('excel');
+    this.reportesService.exportarExcel(this.sucursalId()).subscribe({
+      next: (blob) => this.descargarArchivo(blob, 'xlsx'),
+      error: () => this.exportando.set(null),
+    });
+  }
+
+  abrirReporteDinamico() {
+    this.reportesChatService.abrir(this.sucursalId());
+  }
+
+  private descargarArchivo(blob: Blob, extension: string) {
+    const fecha = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reporte-smartlook-${fecha}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    this.exportando.set(null);
   }
 
   estadoClass(estado: string): string {

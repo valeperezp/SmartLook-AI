@@ -5,6 +5,7 @@ todavía no están implementados por el resto del equipo).
 """
 from datetime import datetime, timedelta
 
+from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,35 @@ from app.modules.inventario import service as inventario_service
 from app.modules.inventario.models import Inventario
 from app.modules.reservas.models import Reserva, ReservaItem
 from app.modules.sucursales.models import Sucursal
+from app.modules.usuarios.models import Usuario
+
+
+def sucursal_efectiva(usuario: Usuario, sucursal_id: int | None) -> int | None:
+    """Un encargado solo puede ver reportes de su propia sucursal; el admin puede ver todo o filtrar.
+
+    Centralizado acá (no solo en el router HTTP) porque el asistente de IA de reportes
+    también necesita aplicar exactamente esta misma regla de alcance por rol.
+    """
+    if usuario.rol == "encargado_sucursal":
+        if not usuario.sucursal_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="El encargado de sucursal no tiene una sucursal asignada.",
+            )
+        if sucursal_id is not None and sucursal_id != usuario.sucursal_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tiene permisos para ver reportes de otra sucursal.",
+            )
+        return usuario.sucursal_id
+    return sucursal_id
+
+
+def nombre_sucursal(db: Session, sucursal_id: int | None) -> str:
+    if sucursal_id is None:
+        return "Todas las sucursales"
+    sucursal = db.query(Sucursal).filter(Sucursal.id == sucursal_id).first()
+    return sucursal.nombre if sucursal else "Todas las sucursales"
 
 
 def reservas_por_estado(db: Session, sucursal_id: int | None = None) -> list[dict]:

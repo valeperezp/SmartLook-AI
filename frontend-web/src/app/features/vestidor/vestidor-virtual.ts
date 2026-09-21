@@ -63,6 +63,12 @@ export class VestidorVirtual implements OnInit, OnDestroy {
   // por categoría). Se calcula una sola vez por producto y se cachea acá.
   private coloresProductoCache = new Map<number, string>();
 
+  // Recorte PNG con fondo transparente de la prenda (modelo_ar_url), precargado y
+  // cacheado por producto. Cuando está disponible, se dibuja la imagen real en vez
+  // de la silueta vectorial — mucho más realista. Si no está (producto sin recorte
+  // generado, o la imagen todavía no cargó), se cae al dibujo vectorial de siempre.
+  private imagenesRecorteCache = new Map<number, HTMLImageElement>();
+
   productoSeleccionado(): Producto | undefined {
     return this.productos().find((p) => p.id === this.productoSeleccionadoId());
   }
@@ -74,6 +80,7 @@ export class VestidorVirtual implements OnInit, OnDestroy {
         if (data.length > 0) {
           this.productoSeleccionadoId.set(data[0].id);
           this.precalcularColorProducto(data[0]);
+          this.precargarRecorteProducto(data[0]);
         }
       },
     });
@@ -95,7 +102,10 @@ export class VestidorVirtual implements OnInit, OnDestroy {
   onProductoChange(id: number) {
     this.productoSeleccionadoId.set(id);
     const prod = this.productoSeleccionado();
-    if (prod) this.precalcularColorProducto(prod);
+    if (prod) {
+      this.precalcularColorProducto(prod);
+      this.precargarRecorteProducto(prod);
+    }
 
     // Si ya hay una foto con landmarks detectados, redibujamos con la prenda nueva
     // sin volver a correr la detección de pose (no cambió la persona en la foto).
@@ -151,6 +161,22 @@ export class VestidorVirtual implements OnInit, OnDestroy {
     };
     img.onerror = () => {};
     img.src = prod.imagen_url;
+  }
+
+  /** Precarga (una sola vez, cacheado) el recorte PNG transparente de la prenda, si existe. */
+  private precargarRecorteProducto(prod: Producto) {
+    if (!prod.modelo_ar_url || this.imagenesRecorteCache.has(prod.id)) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      this.imagenesRecorteCache.set(prod.id, img);
+      if (this.modo() === 'foto' && this.landmarksFotoActual && this.productoSeleccionadoId() === prod.id) {
+        this.redibujarFoto();
+      }
+    };
+    img.onerror = () => {};
+    img.src = prod.modelo_ar_url;
   }
 
   private colorParaDibujar(prod: Producto | undefined, categoria: string): string {
@@ -398,51 +424,84 @@ export class VestidorVirtual implements OnInit, OnDestroy {
       const caderaD = pto(24);
       const rodillaI = pto(25);
       const rodillaD = pto(26);
+      // No alcanza con visibility>0.4 y "está más abajo que...": cuando la rodilla no
+      // entra en la foto, MediaPipe puede "inventar" una posición cercana al hombro con
+      // una confianza que igual pasa ese filtro, y el pantalón termina dibujado sobre el
+      // pecho. Exigimos que la separación vertical hombro→cadera→rodilla sea proporcional
+      // al ancho de hombros (proporciones de un cuerpo real), no solo "algo más abajo".
       const caderaValida =
-        caderaI.vis > 0.4 && caderaD.vis > 0.4 && caderaI.y > hombroI.y && caderaD.y > hombroD.y;
+        caderaI.vis > 0.4 &&
+        caderaD.vis > 0.4 &&
+        caderaI.y - hombroI.y > anchoHombros * 0.6 &&
+        caderaD.y - hombroD.y > anchoHombros * 0.6;
       const rodillaValida =
-        rodillaI.vis > 0.4 && rodillaD.vis > 0.4 && rodillaI.y > caderaI.y && rodillaD.y > caderaD.y;
+        rodillaI.vis > 0.4 &&
+        rodillaD.vis > 0.4 &&
+        rodillaI.y - caderaI.y > anchoHombros * 0.5 &&
+        rodillaD.y - caderaD.y > anchoHombros * 0.5;
       if (!caderaValida || !rodillaValida) return false;
 
       const centroCaderaX = (caderaI.x + caderaD.x) / 2;
       const entrepierna = { x: centroCaderaX, y: Math.min(caderaI.y, caderaD.y) + Math.abs(caderaD.x - caderaI.x) * 0.55 };
 
-      ctx.save();
-      ctx.globalAlpha = 0.62;
-      const gradPantalon = ctx.createLinearGradient(caderaI.x, caderaI.y, rodillaD.x, rodillaD.y);
-      gradPantalon.addColorStop(0, this.ajustarLuminosidad(color, 18));
-      gradPantalon.addColorStop(1, this.ajustarLuminosidad(color, -22));
-      ctx.fillStyle = gradPantalon;
+      const imgPantalon = prod ? this.imagenesRecorteCache.get(prod.id) : undefined;
+      if (imgPantalon && imgPantalon.naturalWidth > 0) {
+        // Recorte real con transparencia: se dibuja la foto de la prenda, escalada a
+        // cadera+piernas, en vez de rellenar un path vectorial con color plano.
+        const anchoCadera = Math.abs(caderaD.x - caderaI.x) + anchoHombros * 0.15;
+        const largoPiernas = Math.max(rodillaI.y, rodillaD.y) - Math.min(caderaI.y, caderaD.y);
+        const drawHeight = largoPiernas * 2.1;
+        const drawWidth = drawHeight * (imgPantalon.naturalWidth / imgPantalon.naturalHeight);
+        const anchoFinal = Math.max(drawWidth, anchoCadera * 1.3);
+        const altoFinal = anchoFinal * (imgPantalon.naturalHeight / imgPantalon.naturalWidth);
+        ctx.save();
+        ctx.globalAlpha = 0.97;
+        ctx.drawImage(
+          imgPantalon,
+          centroCaderaX - anchoFinal / 2,
+          Math.min(caderaI.y, caderaD.y) - altoFinal * 0.06,
+          anchoFinal,
+          altoFinal
+        );
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.globalAlpha = 0.62;
+        const gradPantalon = ctx.createLinearGradient(caderaI.x, caderaI.y, rodillaD.x, rodillaD.y);
+        gradPantalon.addColorStop(0, this.ajustarLuminosidad(color, 18));
+        gradPantalon.addColorStop(1, this.ajustarLuminosidad(color, -22));
+        ctx.fillStyle = gradPantalon;
 
-      // Pierna izquierda
-      ctx.beginPath();
-      ctx.moveTo(caderaI.x, caderaI.y);
-      ctx.lineTo(entrepierna.x, entrepierna.y);
-      ctx.lineTo((entrepierna.x + rodillaI.x) / 2, rodillaI.y);
-      ctx.lineTo(rodillaI.x - anchoHombros * 0.06, rodillaI.y);
-      ctx.lineTo(caderaI.x - anchoHombros * 0.04, caderaI.y);
-      ctx.closePath();
-      ctx.fill();
+        // Pierna izquierda
+        ctx.beginPath();
+        ctx.moveTo(caderaI.x, caderaI.y);
+        ctx.lineTo(entrepierna.x, entrepierna.y);
+        ctx.lineTo((entrepierna.x + rodillaI.x) / 2, rodillaI.y);
+        ctx.lineTo(rodillaI.x - anchoHombros * 0.06, rodillaI.y);
+        ctx.lineTo(caderaI.x - anchoHombros * 0.04, caderaI.y);
+        ctx.closePath();
+        ctx.fill();
 
-      // Pierna derecha
-      ctx.beginPath();
-      ctx.moveTo(caderaD.x, caderaD.y);
-      ctx.lineTo(entrepierna.x, entrepierna.y);
-      ctx.lineTo((entrepierna.x + rodillaD.x) / 2, rodillaD.y);
-      ctx.lineTo(rodillaD.x + anchoHombros * 0.06, rodillaD.y);
-      ctx.lineTo(caderaD.x + anchoHombros * 0.04, caderaD.y);
-      ctx.closePath();
-      ctx.fill();
+        // Pierna derecha
+        ctx.beginPath();
+        ctx.moveTo(caderaD.x, caderaD.y);
+        ctx.lineTo(entrepierna.x, entrepierna.y);
+        ctx.lineTo((entrepierna.x + rodillaD.x) / 2, rodillaD.y);
+        ctx.lineTo(rodillaD.x + anchoHombros * 0.06, rodillaD.y);
+        ctx.lineTo(caderaD.x + anchoHombros * 0.04, caderaD.y);
+        ctx.closePath();
+        ctx.fill();
 
-      // Línea de cintura
-      ctx.globalAlpha = 0.75;
-      ctx.strokeStyle = this.ajustarLuminosidad(color, -30);
-      ctx.lineWidth = Math.max(2, anchoHombros * 0.025);
-      ctx.beginPath();
-      ctx.moveTo(caderaI.x - anchoHombros * 0.04, caderaI.y);
-      ctx.lineTo(caderaD.x + anchoHombros * 0.04, caderaD.y);
-      ctx.stroke();
-      ctx.restore();
+        // Línea de cintura
+        ctx.globalAlpha = 0.75;
+        ctx.strokeStyle = this.ajustarLuminosidad(color, -30);
+        ctx.lineWidth = Math.max(2, anchoHombros * 0.025);
+        ctx.beginPath();
+        ctx.moveTo(caderaI.x - anchoHombros * 0.04, caderaI.y);
+        ctx.lineTo(caderaD.x + anchoHombros * 0.04, caderaD.y);
+        ctx.stroke();
+        ctx.restore();
+      }
     } else {
       // Prenda de torso: alto proporcional al ancho de hombros (no a la cadera, que en
       // fotos tipo retrato no se ve y el modelo la "inventa" con muy baja confianza).
@@ -464,45 +523,57 @@ export class VestidorVirtual implements OnInit, OnDestroy {
       const axilaInset = anchoHombros * 0.06;
       const axilaY = yArriba + anchoHombros * 0.32;
 
-      ctx.save();
-      ctx.globalAlpha = 0.62;
-      const grad = ctx.createLinearGradient(hombroI.x, yArriba, hombroD.x, yAbajo);
-      grad.addColorStop(0, this.ajustarLuminosidad(color, 22));
-      grad.addColorStop(0.5, color);
-      grad.addColorStop(1, this.ajustarLuminosidad(color, -25));
-      ctx.fillStyle = grad;
+      const imgTorso = prod ? this.imagenesRecorteCache.get(prod.id) : undefined;
+      if (imgTorso && imgTorso.naturalWidth > 0) {
+        // Recorte real con transparencia: se dibuja la foto de la prenda, escalada al
+        // ancho de hombros+mangas, en vez de rellenar un path vectorial con color plano.
+        const anchoFinal = anchoHombros * (esVestido ? 2.3 : 2.6);
+        const altoFinal = anchoFinal * (imgTorso.naturalHeight / imgTorso.naturalWidth);
+        ctx.save();
+        ctx.globalAlpha = 0.97;
+        ctx.drawImage(imgTorso, centroX - anchoFinal / 2, yArriba - altoFinal * 0.07, anchoFinal, altoFinal);
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.globalAlpha = 0.62;
+        const grad = ctx.createLinearGradient(hombroI.x, yArriba, hombroD.x, yAbajo);
+        grad.addColorStop(0, this.ajustarLuminosidad(color, 22));
+        grad.addColorStop(0.5, color);
+        grad.addColorStop(1, this.ajustarLuminosidad(color, -25));
+        ctx.fillStyle = grad;
 
-      ctx.beginPath();
-      // Cuello izquierdo -> hombro izquierdo
-      ctx.moveTo(centroX - cuelloAncho, yArriba);
-      ctx.lineTo(hombroI.x, yArriba);
-      // Manga izquierda
-      ctx.lineTo(hombroI.x - mangaAfuera, yArriba + mangaCaida);
-      ctx.lineTo(hombroI.x - axilaInset, axilaY);
-      // Lateral izquierdo hasta el ruedo
-      ctx.lineTo(centroX - anchoLateral, yAbajo);
-      // Ruedo
-      ctx.lineTo(centroX + anchoLateral, yAbajo);
-      // Lateral derecho hasta la axila
-      ctx.lineTo(hombroD.x + axilaInset, axilaY);
-      // Manga derecha
-      ctx.lineTo(hombroD.x + mangaAfuera, yArriba + mangaCaida);
-      ctx.lineTo(hombroD.x, yArriba);
-      // Escote (curva)
-      ctx.lineTo(centroX + cuelloAncho, yArriba);
-      ctx.quadraticCurveTo(centroX, yArriba + cuelloProfundo, centroX - cuelloAncho, yArriba);
-      ctx.closePath();
-      ctx.fill();
+        ctx.beginPath();
+        // Cuello izquierdo -> hombro izquierdo
+        ctx.moveTo(centroX - cuelloAncho, yArriba);
+        ctx.lineTo(hombroI.x, yArriba);
+        // Manga izquierda
+        ctx.lineTo(hombroI.x - mangaAfuera, yArriba + mangaCaida);
+        ctx.lineTo(hombroI.x - axilaInset, axilaY);
+        // Lateral izquierdo hasta el ruedo
+        ctx.lineTo(centroX - anchoLateral, yAbajo);
+        // Ruedo
+        ctx.lineTo(centroX + anchoLateral, yAbajo);
+        // Lateral derecho hasta la axila
+        ctx.lineTo(hombroD.x + axilaInset, axilaY);
+        // Manga derecha
+        ctx.lineTo(hombroD.x + mangaAfuera, yArriba + mangaCaida);
+        ctx.lineTo(hombroD.x, yArriba);
+        // Escote (curva)
+        ctx.lineTo(centroX + cuelloAncho, yArriba);
+        ctx.quadraticCurveTo(centroX, yArriba + cuelloProfundo, centroX - cuelloAncho, yArriba);
+        ctx.closePath();
+        ctx.fill();
 
-      // Línea de costura central sutil, para que no se vea tan plano.
-      ctx.globalAlpha = 0.25;
-      ctx.strokeStyle = this.ajustarLuminosidad(color, -40);
-      ctx.lineWidth = Math.max(1, anchoHombros * 0.012);
-      ctx.beginPath();
-      ctx.moveTo(centroX, yArriba + cuelloProfundo * 1.3);
-      ctx.lineTo(centroX, yAbajo);
-      ctx.stroke();
-      ctx.restore();
+        // Línea de costura central sutil, para que no se vea tan plano.
+        ctx.globalAlpha = 0.25;
+        ctx.strokeStyle = this.ajustarLuminosidad(color, -40);
+        ctx.lineWidth = Math.max(1, anchoHombros * 0.012);
+        ctx.beginPath();
+        ctx.moveTo(centroX, yArriba + cuelloProfundo * 1.3);
+        ctx.lineTo(centroX, yAbajo);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // Etiqueta con el nombre de la prenda, arriba de los hombros.
