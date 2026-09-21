@@ -68,4 +68,8 @@
   @if (auth.isCliente()) {
     <app-chat-widget />
   }
+
+  @if (auth.isAdmin() || auth.isEncargado()) {
+    <app-reportes-chat-widget />
+  }
 </div>

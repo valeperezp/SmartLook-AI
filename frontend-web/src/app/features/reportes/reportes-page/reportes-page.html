@@ -4,17 +4,44 @@
     <p>Indicadores de reservas e inventario {{ isAdmin() ? 'de toda la plataforma' : 'de tu sucursal' }}.</p>
   </div>
 
-  @if (isAdmin()) {
-    <div class="filtro-sucursal">
-      <app-icon name="store" [size]="16" />
-      <select (change)="onSucursalChange($any($event.target).value)">
-        <option value="">Todas las sucursales</option>
-        @for (s of sucursales(); track s.id) {
-          <option [value]="s.id">{{ s.nombre }}</option>
-        }
-      </select>
+  <div class="reportes-acciones">
+    @if (isAdmin()) {
+      <div class="filtro-sucursal">
+        <app-icon name="store" [size]="16" />
+        <select (change)="onSucursalChange($any($event.target).value)">
+          <option value="">Todas las sucursales</option>
+          @for (s of sucursales(); track s.id) {
+            <option [value]="s.id">{{ s.nombre }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="exportar-botones">
+      <button
+        type="button"
+        class="btn-secondary"
+        [disabled]="exportando() !== null"
+        (click)="exportarPDF()"
+      >
+        <app-icon name="download" [size]="16" />
+        <span>{{ exportando() === 'pdf' ? 'Generando...' : 'Exportar PDF' }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn-secondary"
+        [disabled]="exportando() !== null"
+        (click)="exportarExcel()"
+      >
+        <app-icon name="download" [size]="16" />
+        <span>{{ exportando() === 'excel' ? 'Generando...' : 'Exportar Excel' }}</span>
+      </button>
+      <button type="button" class="btn-secondary btn-reporte-ia" (click)="abrirReporteDinamico()">
+        <app-icon name="bar-chart" [size]="16" />
+        <span>Reporte dinámico (IA)</span>
+      </button>
     </div>
-  }
+  </div>
 </div>
 
 <div class="stats-grid">

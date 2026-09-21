@@ -8,6 +8,7 @@ una llamada a un LLM externo sin tocar el router (ver `ai_api_key` en config).
 """
 import unicodedata
 from collections import Counter
+from datetime import datetime
 
 import httpx
 from sqlalchemy import func, or_
@@ -16,9 +17,12 @@ from sqlalchemy.orm import Session, joinedload
 from app.modules.catalogo.models import Categoria, Coleccion, Producto, Temporada
 from app.modules.ia.models import ConfiguracionIA
 from app.modules.inventario.models import Inventario
+from app.modules.reportes import service as reportes_service
 from app.modules.reservas.models import Reserva, ReservaItem
 from app.modules.sucursales.models import Sucursal
+from app.modules.usuarios.models import Usuario
 from app.shared.core.config import settings
+from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
 
 
 def _historial_cliente(db: Session, cliente_id: int) -> list[ReservaItem]:
@@ -476,6 +480,7 @@ def _completar_chat_openai(
     mensaje_usuario: str,
     datos_disponibles: str,
     historial: list[dict] | None = None,
+    system_prompt: str = _SYSTEM_PROMPT_CHAT,
 ) -> str:
     """
     Llama a `{base_url}/chat/completions` siguiendo el estándar de la API de OpenAI
@@ -483,11 +488,13 @@ def _completar_chat_openai(
     como con servidores locales que exponen ese mismo contrato (Ollama, LM Studio, ...).
     Incluye los últimos turnos de la conversación para que el modelo entienda preguntas
     de seguimiento ("dame más detalles") sin necesitar repetir todo el contexto a mano.
+    `system_prompt` permite reusar esta misma llamada para personas distintas (cliente
+    vs. asistente interno de reportes) sin duplicar la lógica de red/reintentos.
     Lanza la excepción tal cual si algo falla — el llamador decide cómo degradar.
     """
     headers = {"Authorization": f"Bearer {config.api_key or 'sin-api-key'}"}
 
-    messages = [{"role": "system", "content": _SYSTEM_PROMPT_CHAT}]
+    messages = [{"role": "system", "content": system_prompt}]
     for turno in (historial or [])[-6:]:
         rol = "assistant" if turno.get("autor") == "bot" else "user"
         texto = turno.get("texto", "")
@@ -549,7 +556,11 @@ def _resumen_catalogo_completo(db: Session) -> str:
 
 
 def _generar_respuesta_ia(
-    db: Session, mensaje_usuario: str, datos_disponibles: str, historial: list[dict] | None = None
+    db: Session,
+    mensaje_usuario: str,
+    datos_disponibles: str,
+    historial: list[dict] | None = None,
+    system_prompt: str = _SYSTEM_PROMPT_CHAT,
 ) -> str | None:
     """
     Le pide al proveedor de IA configurado (Ollama local, OpenAI, etc. — ver ConfiguracionIA)
@@ -559,7 +570,7 @@ def _generar_respuesta_ia(
     """
     config = obtener_configuracion_ia(db)
     try:
-        texto = _completar_chat_openai(config, mensaje_usuario, datos_disponibles, historial)
+        texto = _completar_chat_openai(config, mensaje_usuario, datos_disponibles, historial, system_prompt)
         return texto or None
     except Exception:
         # Proveedor caído, modelo inexistente, api_key inválida, timeout, etc.: degradar sin romper el chat.
@@ -607,3 +618,139 @@ def _resolver_intencion(db: Session, cliente_id: int, intencion: str, texto_norm
     if intencion == "sucursales":
         return _responder_sucursales(db)
     return _responder_producto(db, texto_norm)
+
+
+# =========================================================================
+# CU13 — Asistente de reportes dinámicos (admin/encargado)
+#
+# Tercera vía para "generar un reporte", junto a la descarga en PDF y Excel
+# (ver módulo `reportes`): en vez de un archivo, el usuario le pide en lenguaje
+# natural (texto o voz) lo que necesita y el modelo lo redacta en el chat,
+# siempre anclado a los mismos números que ya calcula `reportes.service` —
+# nunca inventa cifras. Reusa la MISMA regla de alcance por sucursal que la
+# página de Reportes (un encargado jamás ve datos de otra sucursal).
+# =========================================================================
+
+_SYSTEM_PROMPT_REPORTES = (
+    "Sos el asistente interno de analítica de SmartLook-AI, una tienda de ropa con sucursales físicas. "
+    "Hablás con personal de la empresa (administradores o encargados de sucursal) que están viendo el panel "
+    "de Reportes, nunca con clientes finales. Respondé siempre en español, en tono profesional, claro y directo. "
+    "Usá EXCLUSIVAMENTE los números que aparecen en 'Datos disponibles' de este turno, o los que vos mismo ya "
+    "mencionaste antes en esta conversación — nunca inventes cifras, productos, sucursales ni fechas que no "
+    "estén ahí. Si te piden algo que esos datos no cubren, decilo con honestidad en vez de inventar una respuesta, "
+    "y sugerí qué otro dato podrían pedir en su lugar. Conservá los números exactamente como aparecen, sin redondear "
+    "ni inventar decimales. "
+    "Cuando te pidan un 'reporte', un resumen o un análisis, generalo directamente en este chat: organizalo con "
+    "encabezados cortos y viñetas, priorizando lo más importante (alertas de stock, tendencias, comparaciones) "
+    "antes que el detalle exhaustivo. Preferí una respuesta bien estructurada de 8 a 15 líneas antes que una "
+    "lista interminable de números. "
+    "Si los datos muestran productos agotados o con stock bajo, mencionalos aunque no te los pidan explícitamente: "
+    "es información operativa crítica para quien te lee. "
+    "El alcance de datos que recibís ya viene filtrado correctamente según quién te habla: un encargado de "
+    "sucursal solo recibe los datos de SU sucursal. Nunca le ofrezcas comparar con otras sucursales ni des a "
+    "entender que tenés datos de otras sucursales si no aparecen en 'Datos disponibles'. "
+    "Si es útil para lo que pidió, recordale que además de esta conversación puede descargar el mismo tipo de "
+    "reporte como archivo formal en PDF o Excel con los botones de la página de Reportes."
+)
+
+
+def _construir_datos_reportes(
+    db: Session, usuario: Usuario, sucursal_id: int | None
+) -> tuple[str, dict, str]:
+    """Arma el bloque de datos reales (grounding) que se le pasa a la IA, con el mismo alcance
+    por sucursal que ya aplica el resto del módulo de reportes."""
+    es_admin = usuario.rol == "administrador"
+    efectiva = reportes_service.sucursal_efectiva(usuario, sucursal_id)
+    nombre_sucursal = reportes_service.nombre_sucursal(db, efectiva)
+
+    resumen = reportes_service.resumen_general(db, sucursal_id=efectiva)
+    por_estado = reportes_service.reservas_por_estado(db, sucursal_id=efectiva)
+    top_productos = reportes_service.productos_mas_reservados(db, sucursal_id=efectiva, limit=10)
+    por_dia = reportes_service.reservas_por_dia(db, sucursal_id=efectiva, dias=30)
+    por_sucursal = reportes_service.reservas_por_sucursal(db) if es_admin and efectiva is None else []
+
+    ahora = datetime.now(ZONA_HORARIA_LOCAL)
+    lineas = [
+        f"Fecha y hora actual: {ahora.strftime('%d/%m/%Y, %H:%M')} (hora de Bolivia)",
+        f"Quién pregunta: {'Administrador' if es_admin else 'Encargado de sucursal'} — alcance de datos: {nombre_sucursal}",
+        "",
+        "== Resumen general ==",
+        f"Reservas totales: {resumen['total_reservas']}",
+        f"Unidades reservadas: {resumen['total_unidades_reservadas']}",
+        f"Inventario disponible: {resumen['inventario_disponible']} unidades",
+        f"Inventario reservado: {resumen['inventario_reservado']} unidades",
+        f"Productos con stock bajo: {resumen['productos_stock_bajo']}",
+        f"Productos agotados: {resumen['productos_agotados']}",
+    ]
+
+    if por_estado:
+        lineas.append("\n== Reservas por estado ==")
+        lineas += [f"{e['estado']}: {e['cantidad']}" for e in por_estado]
+
+    if top_productos:
+        lineas.append("\n== Productos más reservados (top 10) ==")
+        lineas += [
+            f"{p['nombre_producto']} ({p['nombre_categoria'] or 'sin categoría'}): "
+            f"{p['total_unidades']} unidades en {p['total_reservas']} reserva(s)"
+            for p in top_productos
+        ]
+
+    if por_dia:
+        lineas.append("\n== Reservas por día (últimos 30 días) ==")
+        lineas += [f"{d['fecha']}: {d['cantidad']}" for d in por_dia]
+
+    if por_sucursal:
+        lineas.append("\n== Comparativa entre sucursales ==")
+        lineas += [
+            f"{s['nombre_sucursal']}: {s['cantidad_reservas']} reservas, {s['total_unidades']} unidades"
+            for s in por_sucursal
+        ]
+
+    return "\n".join(lineas), resumen, nombre_sucursal
+
+
+_SUGERENCIAS_REPORTES_BASE = [
+    "Generame un resumen del día",
+    "¿Qué productos tienen stock bajo?",
+    "¿Cómo van las reservas esta semana?",
+]
+
+
+def _sugerencias_reportes(es_admin: bool) -> list[str]:
+    extra = "Compará las sucursales" if es_admin else "¿Cuáles son mis productos más reservados?"
+    return _SUGERENCIAS_REPORTES_BASE + [extra]
+
+
+def _respaldo_reportes(resumen: dict, nombre_sucursal: str) -> str:
+    """Si el proveedor de IA configurado no responde (no configurado, caído, timeout), igual
+    devolvemos algo útil: el mismo resumen que ya se usa en el dashboard, en texto plano."""
+    return (
+        f"Resumen de {nombre_sucursal}:\n"
+        f"• Reservas totales: {resumen['total_reservas']}\n"
+        f"• Unidades reservadas: {resumen['total_unidades_reservadas']}\n"
+        f"• Inventario disponible: {resumen['inventario_disponible']} unidades\n"
+        f"• Inventario reservado: {resumen['inventario_reservado']} unidades\n"
+        f"• Productos con stock bajo: {resumen['productos_stock_bajo']}\n"
+        f"• Productos agotados: {resumen['productos_agotados']}\n\n"
+        "No pude conectarme al proveedor de IA configurado para darte un análisis en lenguaje natural "
+        "(un administrador puede revisar la configuración en el panel de IA). Mientras tanto, podés descargar "
+        "el reporte completo en PDF o Excel desde los botones de la página de Reportes."
+    )
+
+
+def procesar_mensaje_chat_reportes(
+    db: Session,
+    usuario: Usuario,
+    mensaje: str,
+    historial: list[dict] | None = None,
+    sucursal_id: int | None = None,
+) -> dict:
+    """CU13 (asistente): responde preguntas y redacta reportes dinámicos en lenguaje natural para
+    admin/encargado, anclado siempre a los datos reales del módulo de reportes."""
+    datos_disponibles, resumen, nombre_sucursal = _construir_datos_reportes(db, usuario, sucursal_id)
+    respuesta_ia = _generar_respuesta_ia(db, mensaje, datos_disponibles, historial, _SYSTEM_PROMPT_REPORTES)
+    respuesta = respuesta_ia or _respaldo_reportes(resumen, nombre_sucursal)
+    return {
+        "respuesta": respuesta,
+        "sugerencias": _sugerencias_reportes(usuario.rol == "administrador"),
+    }

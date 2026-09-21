@@ -26,6 +26,7 @@ from app.modules.pagos.router import router as pagos_router
 from app.modules.ia.router import router as ia_router
 from app.modules.reportes.router import router as reportes_router
 from app.modules.promociones.router import router as promociones_router
+from app.modules.vestidor.router import router as vestidor_router
 
 import app.modules.usuarios.models
 import app.modules.sucursales.models
@@ -79,6 +80,7 @@ app.include_router(pagos_router)
 app.include_router(ia_router)
 app.include_router(reportes_router)
 app.include_router(promociones_router)
+app.include_router(vestidor_router)
 
 
 @app.get("/", tags=["health"])
