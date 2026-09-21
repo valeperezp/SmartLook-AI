@@ -25,11 +25,15 @@
       </div>
     </div>
 
-    <!-- Instrucciones y Visualización del QR -->
+    <!-- QR real de la sucursal — el que el cliente escanea para transferir -->
     <div class="qr-display-section">
       <div class="qr-code-frame">
-        @if (qrDataUrl()) {
-          <img [src]="qrDataUrl()" alt="Código QR para comprobante" class="qr-image" />
+        @if (cargandoQrSucursal()) {
+          <div class="qr-placeholder">
+            <div class="spinner-sm"></div>
+          </div>
+        } @else if (qrSucursal()?.imagen_url) {
+          <img [src]="qrSucursal()!.imagen_url" alt="Código QR de pago de la sucursal" class="qr-image" />
         } @else {
           <div class="qr-placeholder">
             <app-icon name="qr" [size]="48" />
@@ -39,10 +43,15 @@
 
       <div class="qr-guide-steps">
         <h3 class="guide-title">¿Cómo pagar con QR?</h3>
+        @if (!cargandoQrSucursal() && !qrSucursal()?.imagen_url) {
+          <p class="qr-sin-configurar">
+            La sucursal todavía no cargó su QR de pago. Coordiná la transferencia por otro medio y subí el comprobante más abajo.
+          </p>
+        }
         <ol class="steps-list">
           <li>
-            <strong>1. Escanear o transferir:</strong>
-            <span>Escaneá este código QR o transferí exactamente <strong>${{ monto | number:'1.2-2' }}</strong> desde tu app móvil bancaria.</span>
+            <strong>1. Transferir:</strong>
+            <span>Escaneá el código QR de arriba con tu app bancaria y transferí exactamente <strong>${{ monto | number:'1.2-2' }}</strong>.</span>
           </li>
           <li>
             <strong>2. Guardar comprobante:</strong>
@@ -55,6 +64,17 @@
         </ol>
       </div>
     </div>
+
+    <!-- QR de acceso rápido (opcional) — abre esta misma pantalla desde el celular -->
+    @if (qrDataUrl()) {
+      <details class="qr-acceso-rapido">
+        <summary>¿Preferís continuar desde tu celular?</summary>
+        <div class="qr-acceso-rapido-body">
+          <img [src]="qrDataUrl()" alt="Código para abrir esta pantalla en tu celular" class="qr-image-sm" />
+          <span>Escaneá este código para abrir esta misma pantalla en tu teléfono y subir el comprobante desde ahí.</span>
+        </div>
+      </details>
+    }
 
     <!-- Sección de carga de comprobante -->
     <div class="receipt-upload-section">
