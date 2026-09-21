@@ -103,7 +103,11 @@ class VestidorProvider extends ChangeNotifier {
       if (data is Map && data.containsKey('detail')) {
         detail = data['detail']?.toString();
       }
-      if (dioErr.response?.statusCode == 503) {
+      if (dioErr.type == DioExceptionType.receiveTimeout ||
+          dioErr.type == DioExceptionType.connectionTimeout) {
+        _errorMessage =
+            'La generación tardó más de lo esperado. Puede estar procesándose, reintentá en unos segundos.';
+      } else if (dioErr.response?.statusCode == 503) {
         _errorMessage = detail ??
             'El vestidor con IA está en preparación en el servidor. Puedes visualizar la prenda y reservarla.';
       } else if (dioErr.response?.statusCode == 429) {
@@ -111,7 +115,7 @@ class VestidorProvider extends ChangeNotifier {
       } else if (dioErr.response?.statusCode == 502) {
         _errorMessage = detail ?? 'Error al procesar la imagen con el servicio de IA. Intentá de nuevo.';
       } else {
-        _errorMessage = detail ?? 'Error al procesar la imagen: ${dioErr.message}';
+        _errorMessage = detail ?? 'Error al procesar la imagen: ${dioErr.message ?? "desconocido"}';
       }
     } catch (e) {
       _errorMessage = 'Error inesperado al generar la prueba virtual: $e';
