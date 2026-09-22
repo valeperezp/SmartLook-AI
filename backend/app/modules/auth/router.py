@@ -1,5 +1,4 @@
-"""Endpoints HTTP del módulo Auth."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -17,8 +16,30 @@ def registrar(data: schemas.RegistroRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=schemas.TokenResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    usuario = service.autenticar_usuario(db, form_data.username, form_data.password)
+async def login(request: Request, db: Session = Depends(get_db)):
+    username = None
+    password = None
+    
+    try:
+        body = await request.json()
+        if isinstance(body, dict):
+            username = body.get("username") or body.get("email")
+            password = body.get("password")
+    except Exception:
+        pass
+    
+    if not username or not password:
+        try:
+            form = await request.form()
+            username = form.get("username") or form.get("email")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(status_code=422, detail="Email y contraseña son requeridos")
+
+    usuario = service.autenticar_usuario(db, str(username).strip(), str(password))
     if not usuario:
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
     return schemas.TokenResponse(access_token=service.emitir_token(usuario))
