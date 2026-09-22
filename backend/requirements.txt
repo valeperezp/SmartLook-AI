@@ -14,5 +14,6 @@ stripe>=11.0.0
 reportlab>=4.2.0
 openpyxl>=3.1.5
 tzdata>=2024.2
+replicate>=0.34.0
 
 

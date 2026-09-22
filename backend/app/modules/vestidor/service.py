@@ -1,92 +1,112 @@
 """
-Lógica del vestidor virtual con IA (CU05) — genera una foto de la persona
-"puesta" la prenda real, usando Gemini 2.5 Flash Image ("Nano Banana") como
-editor de imágenes: se le pasan la foto de la persona + la foto de catálogo
-de la prenda, y devuelve una imagen fotorrealista combinada.
+Lógica del vestidor virtual con IA (CU05) — genera una foto fotorrealista de la
+persona probándose la prenda, usando Replicate (IDM-VTON): se le pasan la foto
+de la persona + la foto de catálogo de la prenda, y devuelve la imagen combinada.
 
-Si GEMINI_API_KEY no está configurada, el endpoint no se registra como
-disponible y el frontend sigue funcionando con la silueta dibujada en el
-navegador (MediaPipe) — este módulo es un complemento, no un reemplazo duro.
+Presupuesto acotado ($4 ≈ 80 generaciones en Replicate) — por eso hay cache de
+24h por (usuario, producto) y un límite diario por usuario, ambos obligatorios.
 """
 import base64
+from datetime import datetime, timedelta
 
-import httpx
+import replicate
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.modules.catalogo.models import Producto
+from app.modules.vestidor.models import VestidorGeneracion
 from app.shared.core.config import settings
 
-_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-
-_PROMPT = """Sos un editor fotográfico profesional especializado en fotografía de moda.
-Te doy dos imágenes:
-1. Una foto de una persona.
-2. Una prenda de ropa de catálogo, categoría "{categoria}", llamada "{nombre}".
-
-Generá una única imagen fotorrealista de la MISMA persona de la primera foto (mismo rostro, \
-cuerpo, pose, iluminación y fondo) pero vistiendo la prenda de la segunda imagen en el lugar \
-correspondiente de su cuerpo, reemplazando la ropa que tenga puesta en esa zona. Mantené todo \
-lo demás de la foto original intacto: identidad, pose, fondo e iluminación. Devolvé únicamente \
-la imagen resultante, sin texto."""
+_MODELO_IDM_VTON = (
+    "cuuupid/idm-vton:906425dbca90663ff5427624839572cc56ea7d380343d13e2a4c4b09d3f0c30f"
+)
 
 
-def generar_prueba_virtual(
-    db: Session, producto_id: int, foto_bytes: bytes, foto_mime: str
-) -> tuple[str, str]:
-    """Devuelve (imagen_base64, mime_type) de la persona probándose la prenda."""
-    if not settings.gemini_api_key:
+async def generar_prueba_virtual(
+    db: Session, usuario_id: int, producto_id: int, foto_usuario: bytes
+) -> dict:
+    if not settings.replicate_api_token:
+        raise HTTPException(status_code=503, detail="REPLICATE_API_TOKEN no configurado")
+
+    # Cache: misma combinación (usuario, producto) generada en las últimas 24h —
+    # evita gastar una generación de Replicate si el usuario vuelve a probarse
+    # la misma prenda.
+    cache = (
+        db.query(VestidorGeneracion)
+        .filter(
+            VestidorGeneracion.usuario_id == usuario_id,
+            VestidorGeneracion.producto_id == producto_id,
+            VestidorGeneracion.creado_en > datetime.utcnow() - timedelta(hours=24),
+        )
+        .first()
+    )
+    if cache:
+        producto = db.query(Producto).filter(Producto.id == producto_id).first()
+        return {
+            "imagen_resultado_url": cache.imagen_resultado_url,
+            "producto_id": producto_id,
+            "producto_nombre": producto.nombre if producto else "",
+            "desde_cache": True,
+        }
+
+    # Límite diario por usuario — protege el presupuesto de Replicate.
+    hoy = datetime.utcnow().date()
+    count = (
+        db.query(VestidorGeneracion)
+        .filter(
+            VestidorGeneracion.usuario_id == usuario_id,
+            func.date(VestidorGeneracion.creado_en) == hoy,
+        )
+        .count()
+    )
+    if count >= settings.vestidor_max_por_usuario_dia:
         raise HTTPException(
-            status_code=503,
-            detail="El vestidor con IA no está configurado en este servidor (falta GEMINI_API_KEY).",
+            status_code=429,
+            detail=f"Limite diario alcanzado ({settings.vestidor_max_por_usuario_dia} por dia)",
         )
 
     producto = db.query(Producto).filter(Producto.id == producto_id).first()
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     if not producto.imagen_url:
-        raise HTTPException(status_code=400, detail="Ese producto todavía no tiene una foto cargada")
+        raise HTTPException(status_code=400, detail="El producto no tiene imagen")
+
+    foto_b64 = base64.b64encode(foto_usuario).decode()
+    human_img = "data:image/jpeg;base64," + foto_b64
+
+    def _llamar_replicate() -> str:
+        # replicate.Client.run(...) es una llamada HTTP bloqueante — se ejecuta
+        # en un threadpool (ver abajo) para no trabar el event loop de FastAPI.
+        client = replicate.Client(api_token=settings.replicate_api_token)
+        output = client.run(
+            _MODELO_IDM_VTON,
+            input={
+                "human_img": human_img,
+                "garm_img": producto.imagen_url,
+                "garment_des": producto.nombre,
+                "category": "upper_body",
+            },
+        )
+        return output if isinstance(output, str) else output[0]
 
     try:
-        resp_prenda = httpx.get(producto.imagen_url, timeout=20.0)
-        resp_prenda.raise_for_status()
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"No se pudo descargar la foto de la prenda: {exc}")
+        result_url = await run_in_threadpool(_llamar_replicate)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Error con Replicate: {exc}")
 
-    prenda_bytes = resp_prenda.content
-    prenda_mime = resp_prenda.headers.get("content-type", "image/jpeg").split(";")[0]
-    categoria_nombre = producto.categoria.nombre if producto.categoria else "prenda"
-
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": _PROMPT.format(categoria=categoria_nombre, nombre=producto.nombre)},
-                    {"inline_data": {"mime_type": foto_mime, "data": base64.b64encode(foto_bytes).decode()}},
-                    {"inline_data": {"mime_type": prenda_mime, "data": base64.b64encode(prenda_bytes).decode()}},
-                ]
-            }
-        ]
-    }
-
-    url = _GEMINI_URL.format(modelo=settings.gemini_image_model)
-    try:
-        resp = httpx.post(url, params={"key": settings.gemini_api_key}, json=payload, timeout=60.0)
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status_code=502, detail=f"Gemini rechazó la solicitud: {exc.response.text[:300]}")
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"No se pudo contactar a Gemini: {exc}")
-
-    data = resp.json()
-    for candidato in data.get("candidates") or []:
-        for parte in candidato.get("content", {}).get("parts", []):
-            inline = parte.get("inlineData") or parte.get("inline_data")
-            if inline and inline.get("data"):
-                mime = inline.get("mimeType") or inline.get("mime_type") or "image/png"
-                return inline["data"], mime
-
-    raise HTTPException(
-        status_code=502,
-        detail="Gemini no devolvió ninguna imagen (puede haber bloqueado el pedido por sus filtros de seguridad).",
+    gen = VestidorGeneracion(
+        usuario_id=usuario_id,
+        producto_id=producto_id,
+        imagen_resultado_url=result_url,
     )
+    db.add(gen)
+    db.commit()
+
+    return {
+        "imagen_resultado_url": result_url,
+        "producto_id": producto_id,
+        "producto_nombre": producto.nombre,
+        "desde_cache": False,
+    }
