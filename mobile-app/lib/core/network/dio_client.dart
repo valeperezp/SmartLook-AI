@@ -36,6 +36,7 @@ class DioClient {
           response: error.response,
           type: error.type,
           error: ApiException(mensaje, statusCode: error.response?.statusCode),
+          message: mensaje,
         ));
       },
     ));
@@ -62,8 +63,8 @@ class DioClient {
     return dio.get<T>(path, queryParameters: query);
   }
 
-  Future<Response<T>> post<T>(String path, {dynamic data}) {
-    return dio.post<T>(path, data: data);
+  Future<Response<T>> post<T>(String path, {dynamic data, Options? options}) {
+    return dio.post<T>(path, data: data, options: options);
   }
 
   Future<Response<T>> put<T>(String path, {dynamic data}) {

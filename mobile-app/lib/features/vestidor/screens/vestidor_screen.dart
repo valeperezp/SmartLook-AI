@@ -419,6 +419,23 @@ class _VestidorScreenState extends State<VestidorScreen> {
             ),
           ),
         ),
+        if (provider.procesandoFoto)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Column(
+              children: [
+                Text(
+                  'Generando tu imagen con IA...',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Puede tardar hasta 60 segundos',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

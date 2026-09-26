@@ -49,6 +49,12 @@ class VestidorService {
     final response = await _client.post<Map<String, dynamic>>(
       '/vestidor/generar',
       data: formData,
+      // Replicate (IDM-VTON) puede tardar 20-45s en generar la imagen — muy por
+      // encima del timeout global de 10s del DioClient, pensado para requests normales.
+      options: Options(
+        receiveTimeout: const Duration(seconds: 180),
+        sendTimeout: const Duration(seconds: 60),
+      ),
     );
 
     if (response.data == null) {
