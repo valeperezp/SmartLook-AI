@@ -160,6 +160,27 @@ def crear_pago_qr(db: Session, venta_id: int) -> models.Pago:
     return pago
 
 
+def crear_pago_efectivo(db: Session, venta_id: int) -> models.Pago:
+    """Registra un pago pendiente en efectivo — se cobra al retirar en la sucursal."""
+    venta = db.query(Venta).filter(Venta.id == venta_id).first()
+    if not venta:
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+
+    if venta.estado == "cancelada":
+        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada")
+
+    pago = models.Pago(
+        venta_id=venta_id,
+        metodo="efectivo",
+        monto=float(venta.total),
+        estado="pendiente",
+    )
+    db.add(pago)
+    db.commit()
+    db.refresh(pago)
+    return pago
+
+
 async def subir_comprobante(db: Session, pago_id: int, archivo: UploadFile) -> models.Pago:
     """Sube el comprobante de un pago QR."""
     pago = db.query(models.Pago).filter(models.Pago.id == pago_id).first()

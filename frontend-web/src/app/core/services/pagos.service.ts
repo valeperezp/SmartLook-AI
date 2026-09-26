@@ -24,6 +24,10 @@ export class PagosService {
     return this.http.post<Pago>(`${this.base}/qr`, { venta_id: ventaId });
   }
 
+  crearPagoEfectivo(ventaId: number) {
+    return this.http.post<Pago>(`${this.base}/efectivo`, { venta_id: ventaId });
+  }
+
   subirComprobante(pagoId: number, file: File) {
     const formData = new FormData();
     formData.append('archivo', file);

@@ -236,9 +236,13 @@
 
 .payment-tabs-selector {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.75rem;
   margin-bottom: 1.5rem;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
 
   .payment-tab-btn {
     display: flex;
@@ -266,6 +270,55 @@
       color: var(--accent, #d4a55c);
       box-shadow: 0 0 0 1px var(--accent);
     }
+  }
+}
+
+.efectivo-payment-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .efectivo-info-box {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    background: var(--overlay-1);
+    border: 1px solid var(--border-color);
+
+    app-icon {
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    strong {
+      display: block;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+  }
+
+  .btn-generate-order {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.95rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
   }
 }
 

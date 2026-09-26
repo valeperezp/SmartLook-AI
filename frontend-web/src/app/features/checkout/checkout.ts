@@ -7,6 +7,7 @@ import { CarritoService } from '../../core/services/carrito.service';
 import { SucursalesService } from '../../core/services/sucursales.service';
 import { VentasService } from '../../core/services/ventas.service';
 import { AuthService } from '../../core/services/auth.service';
+import { PagosService } from '../../core/services/pagos.service';
 
 import { Sucursal } from '../../core/models/sucursal.model';
 import { VentaOnlineCreate } from '../../core/models/venta.model';
@@ -33,13 +34,14 @@ export class Checkout implements OnInit {
   carritoService = inject(CarritoService);
   private sucursalesService = inject(SucursalesService);
   private ventasService = inject(VentasService);
+  private pagosService = inject(PagosService);
   auth = inject(AuthService);
 
   sucursales = signal<Sucursal[]>([]);
   cargandoSucursales = signal<boolean>(true);
   sucursalId = signal<number | null>(null);
 
-  metodoPago = signal<'tarjeta' | 'qr'>('tarjeta');
+  metodoPago = signal<'tarjeta' | 'qr' | 'efectivo'>('tarjeta');
 
   creandoVenta = signal<boolean>(false);
   errorCheckout = signal<string | null>(null);
@@ -49,6 +51,8 @@ export class Checkout implements OnInit {
 
   pagoCompletado = signal<boolean>(false);
   pagoQREnviado = signal<boolean>(false);
+  pagoEfectivoConfirmado = signal<boolean>(false);
+  confirmandoEfectivo = signal<boolean>(false);
   ordenFinalizadaId = signal<number | null>(null);
 
   sucursalSeleccionada = computed(() =>
@@ -60,7 +64,8 @@ export class Checkout implements OnInit {
     if (
       this.carritoService.estaVacio() &&
       !this.pagoCompletado() &&
-      !this.pagoQREnviado()
+      !this.pagoQREnviado() &&
+      !this.pagoEfectivoConfirmado()
     ) {
       this.router.navigate(['/carrito']);
       return;
@@ -87,7 +92,7 @@ export class Checkout implements OnInit {
     });
   }
 
-  seleccionarMetodoPago(metodo: 'tarjeta' | 'qr') {
+  seleccionarMetodoPago(metodo: 'tarjeta' | 'qr' | 'efectivo') {
     this.metodoPago.set(metodo);
   }
 
@@ -147,6 +152,29 @@ export class Checkout implements OnInit {
     this.ordenFinalizadaId.set(ordenId);
     this.pagoQREnviado.set(true);
     this.carritoService.vaciar();
+  }
+
+  confirmarPagoEfectivo() {
+    const venta = this.ventaId();
+    if (!venta) return;
+
+    this.confirmandoEfectivo.set(true);
+    this.errorCheckout.set(null);
+
+    this.pagosService.crearPagoEfectivo(venta).subscribe({
+      next: () => {
+        this.confirmandoEfectivo.set(false);
+        this.ordenFinalizadaId.set(venta);
+        this.pagoEfectivoConfirmado.set(true);
+        this.carritoService.vaciar();
+      },
+      error: (err) => {
+        this.confirmandoEfectivo.set(false);
+        const msg =
+          err.error?.detail || 'No se pudo registrar el pago en efectivo. Intentá nuevamente.';
+        this.errorCheckout.set(msg);
+      },
+    });
   }
 
   onErrorPago(msg: string) {

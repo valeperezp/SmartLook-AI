@@ -77,6 +77,45 @@
         </a>
       </div>
     </div>
+  } @else if (pagoEfectivoConfirmado()) {
+    <!-- PANTALLA DE CONFIRMACIÓN TRAS ELEGIR PAGO EN EFECTIVO -->
+    <div class="checkout-success-card qr-pending-card">
+      <div class="pending-icon-badge">
+        <app-icon name="package" [size]="48" />
+      </div>
+
+      <span class="pending-eyebrow">Pago en Efectivo Reservado</span>
+      <h1 class="success-title">Orden #{{ ordenFinalizadaId() }}</h1>
+
+      <p class="success-description">
+        Tus prendas quedaron reservadas. Pagá en efectivo al momento de retirarlas en la sucursal.
+      </p>
+
+      @if (sucursalSeleccionada(); as suc) {
+        <div class="pickup-branch-card">
+          <div class="branch-icon-box">
+            <app-icon name="store" [size]="24" />
+          </div>
+          <div class="branch-details">
+            <span class="pickup-label">Sucursal de Retiro:</span>
+            <strong class="branch-name">{{ suc.nombre }}</strong>
+            <span class="branch-address">{{ suc.direccion }} - {{ suc.ciudad }}</span>
+          </div>
+        </div>
+      }
+
+      <div class="success-notice">
+        <app-icon name="sparkles" [size]="18" />
+        <span>Presentá tu documento o número de orden en la sucursal, y abonás el total al retirar.</span>
+      </div>
+
+      <div class="success-actions">
+        <a routerLink="/" class="btn-primary btn-back-home">
+          <app-icon name="shirt" [size]="18" />
+          <span>Volver al Catálogo</span>
+        </a>
+      </div>
+    </div>
   } @else {
     <!-- PROCESO DE CHECKOUT (4 PASOS) -->
     <div class="checkout-header">
@@ -179,25 +218,41 @@
                 <app-icon name="qr" [size]="18" />
                 <span class="tab-text">📱 QR</span>
               </button>
+
+              <button
+                type="button"
+                class="payment-tab-btn"
+                [class.active]="metodoPago() === 'efectivo'"
+                (click)="seleccionarMetodoPago('efectivo')"
+              >
+                <app-icon name="dollar-sign" [size]="18" />
+                <span class="tab-text">💵 Efectivo</span>
+              </button>
             </div>
 
             @if (!ventaId()) {
               <!-- BOTÓN INICIAL PARA CREAR VENTA ONLINE -->
               <div class="create-order-prompt">
                 <div class="prompt-info">
-                  <app-icon [name]="metodoPago() === 'tarjeta' ? 'credit-card' : 'qr'" [size]="24" />
-                  <div>
-                    <strong>
-                      {{ metodoPago() === 'tarjeta' ? 'Confirmar pedido y habilitar pasarela' : 'Confirmar pedido y habilitar código QR' }}
-                    </strong>
-                    <p>
-                      @if (metodoPago() === 'tarjeta') {
-                        Al hacer clic se registrará tu orden como pendiente y se desplegará el formulario de tarjeta seguro de Stripe.
-                      } @else {
-                        Al hacer clic se registrará tu orden como pendiente y se generará el código QR para transferir y subir tu comprobante.
-                      }
-                    </p>
-                  </div>
+                  @if (metodoPago() === 'tarjeta') {
+                    <app-icon name="credit-card" [size]="24" />
+                    <div>
+                      <strong>Confirmar pedido y habilitar pasarela</strong>
+                      <p>Al hacer clic se registrará tu orden como pendiente y se desplegará el formulario de tarjeta seguro de Stripe.</p>
+                    </div>
+                  } @else if (metodoPago() === 'qr') {
+                    <app-icon name="qr" [size]="24" />
+                    <div>
+                      <strong>Confirmar pedido y habilitar código QR</strong>
+                      <p>Al hacer clic se registrará tu orden como pendiente y se generará el código QR para transferir y subir tu comprobante.</p>
+                    </div>
+                  } @else {
+                    <app-icon name="dollar-sign" [size]="24" />
+                    <div>
+                      <strong>Confirmar pedido y pagar en la sucursal</strong>
+                      <p>Al hacer clic se registrará tu orden como pendiente. Vas a pagar el total en efectivo cuando retires tus prendas.</p>
+                    </div>
+                  }
                 </div>
 
                 <button
@@ -209,15 +264,15 @@
                   @if (creandoVenta()) {
                     <div class="spinner-sm"></div>
                     <span>Creando orden...</span>
+                  } @else if (metodoPago() === 'tarjeta') {
+                    <app-icon name="credit-card" [size]="18" />
+                    <span>Pagar con tarjeta (${{ carritoService.total() | number:'1.2-2' }})</span>
+                  } @else if (metodoPago() === 'qr') {
+                    <app-icon name="qr" [size]="18" />
+                    <span>Pagar con QR (${{ carritoService.total() | number:'1.2-2' }})</span>
                   } @else {
-                    <app-icon [name]="metodoPago() === 'tarjeta' ? 'credit-card' : 'qr'" [size]="18" />
-                    <span>
-                      @if (metodoPago() === 'tarjeta') {
-                        Pagar con tarjeta (${{ carritoService.total() | number:'1.2-2' }})
-                      } @else {
-                        Pagar con QR (${{ carritoService.total() | number:'1.2-2' }})
-                      }
-                    </span>
+                    <app-icon name="dollar-sign" [size]="18" />
+                    <span>Reservar y pagar en sucursal (${{ carritoService.total() | number:'1.2-2' }})</span>
                   }
                 </button>
               </div>
@@ -237,7 +292,7 @@
                     (errorPago)="onErrorPago($event)"
                   />
                 </div>
-              } @else {
+              } @else if (metodoPago() === 'qr') {
                 <div class="qr-payment-wrapper">
                   <app-qr-payment
                     [ventaId]="ventaId()!"
@@ -245,6 +300,35 @@
                     [sucursalId]="sucursalId()!"
                     (pagoEnviado)="onPagoQREnviado()"
                   />
+                </div>
+              } @else {
+                <div class="efectivo-payment-wrapper">
+                  <div class="efectivo-info-box">
+                    <app-icon name="dollar-sign" [size]="28" />
+                    <div>
+                      <strong>Pagás al retirar en la sucursal</strong>
+                      <p>
+                        Reservamos <strong>{{ carritoService.cantidadTotal() }}</strong> prenda(s) por un total de
+                        <strong>${{ montoVenta() | number:'1.2-2' }}</strong>. Confirmá abajo para finalizar tu orden —
+                        el pago se realiza en efectivo cuando pases a buscar tu pedido.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn-primary btn-generate-order"
+                    [disabled]="confirmandoEfectivo()"
+                    (click)="confirmarPagoEfectivo()"
+                  >
+                    @if (confirmandoEfectivo()) {
+                      <div class="spinner-sm"></div>
+                      <span>Confirmando...</span>
+                    } @else {
+                      <app-icon name="check-circle" [size]="18" />
+                      <span>Confirmar orden — pago en efectivo</span>
+                    }
+                  </button>
                 </div>
               }
             }
