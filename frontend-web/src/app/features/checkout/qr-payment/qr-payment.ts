@@ -10,7 +10,9 @@ import {
 import { CommonModule } from '@angular/common';
 import * as QRCode from 'qrcode';
 import { PagosService } from '../../../core/services/pagos.service';
+import { SucursalQRService } from '../../../core/services/sucursal-qr.service';
 import { Pago } from '../../../core/models/pago.model';
+import { SucursalQR } from '../../../core/models/sucursal-qr.model';
 import { IconComponent } from '../../../core/components/icon/icon';
 
 @Component({
@@ -23,15 +25,24 @@ import { IconComponent } from '../../../core/components/icon/icon';
 export class QrPayment implements OnInit {
   @Input({ required: true }) ventaId!: number;
   @Input({ required: true }) monto!: number;
+  @Input({ required: true }) sucursalId!: number;
 
   @Output() pagoEnviado = new EventEmitter<void>();
 
   private pagosService = inject(PagosService);
+  private sucursalQRService = inject(SucursalQRService);
 
   cargando = signal<boolean>(true);
   pago = signal<Pago | null>(null);
   qrDataUrl = signal<string | null>(null);
   errorMensaje = signal<string | null>(null);
+
+  // QR real de la sucursal (subido por el encargado) — es el que el cliente
+  // tiene que escanear con su app bancaria para pagar. Se pide siempre fresco
+  // al abrir esta pantalla, así que si el encargado subió uno nuevo, este es
+  // el que se ve (no hay caché de por medio).
+  qrSucursal = signal<SucursalQR | null>(null);
+  cargandoQrSucursal = signal<boolean>(true);
 
   archivoSeleccionado = signal<File | null>(null);
   previewUrl = signal<string | null>(null);
@@ -39,6 +50,23 @@ export class QrPayment implements OnInit {
 
   async ngOnInit() {
     await this.iniciarPagoQR();
+    this.cargarQrSucursal();
+  }
+
+  private cargarQrSucursal() {
+    this.cargandoQrSucursal.set(true);
+    this.sucursalQRService.obtener(this.sucursalId).subscribe({
+      next: (qr) => {
+        this.qrSucursal.set(qr);
+        this.cargandoQrSucursal.set(false);
+      },
+      error: () => {
+        // Sucursal sin QR configurado todavía, o error de red — no bloquea el
+        // resto del flujo, el cliente igual puede subir el comprobante después.
+        this.qrSucursal.set(null);
+        this.cargandoQrSucursal.set(false);
+      },
+    });
   }
 
   async iniciarPagoQR() {
