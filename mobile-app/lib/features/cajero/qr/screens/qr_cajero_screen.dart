@@ -23,12 +23,21 @@ class QrCajeroScreen extends StatefulWidget {
 }
 
 class _QrCajeroScreenState extends State<QrCajeroScreen> {
+  late final QrCajeroProvider _qr;
+
   @override
   void initState() {
     super.initState();
+    _qr = context.read<QrCajeroProvider>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _iniciar();
     });
+  }
+
+  @override
+  void dispose() {
+    _qr.detenerPolling(); // salir de la pantalla (tambien con el boton atras del sistema) detiene el polling
+    super.dispose();
   }
 
   void _iniciar() {

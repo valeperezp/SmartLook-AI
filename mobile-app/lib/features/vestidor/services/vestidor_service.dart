@@ -4,8 +4,29 @@ import '../../../core/network/dio_client.dart';
 import '../models/producto_ar.dart';
 import '../models/vestidor_prueba.dart';
 
+/// El polling se cancelo (nueva generacion, limpiarFoto o 401): no es un error para el usuario.
+class GeneracionCancelada implements Exception {}
+
 class VestidorService {
   final DioClient _client = DioClient();
+  CancelToken? _cancelToken;
+  int _generacionId = 0;
+
+  /// Detiene el polling en curso. El job sigue en el servidor y cuenta en el limite diario.
+  void cancelar() {
+    _cancelToken?.cancel();
+    _generacionId++;
+  }
+
+  /// Transitorio = vale la pena reintentar (red, timeouts, 5xx). El resto (401/403/404/4xx) es fatal.
+  bool _esTransitorio(DioException e) {
+    final codigo = e.response?.statusCode ?? 0;
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        (e.type == DioExceptionType.badResponse && codigo >= 500);
+  }
 
   /// Obtiene los datos del producto para el vestidor
   Future<ProductoAr> obtenerProductoAR(int productoId) async {
@@ -43,6 +64,13 @@ class VestidorService {
     String nombreArchivo = 'persona.jpg',
     void Function(String estado)? onEstado,
   }) async {
+    _cancelToken?.cancel();
+    final token = _cancelToken = CancelToken();
+    final generacion = ++_generacionId;
+    void verificarVigente() {
+      if (generacion != _generacionId || token.isCancelled) throw GeneracionCancelada();
+    }
+
     // ===== FASE 1: POST — crear job (responde en <5s) =====
     final formData = FormData.fromMap({
       'producto_id': productoId,
@@ -72,16 +100,31 @@ class VestidorService {
     }
 
     // ===== FASE 2: Polling GET /vestidor/job/{jobId} =====
-    final deadline = DateTime.now().add(const Duration(minutes: 5));
+    verificarVigente();
+    final reloj = Stopwatch()..start(); // monotonico: no depende del reloj de pared
     String? ultimoEstado;
+    var fallosSeguidos = 0;
 
-    while (DateTime.now().isBefore(deadline)) {
-      await Future.delayed(const Duration(seconds: 2));
+    while (reloj.elapsed < const Duration(minutes: 5)) {
+      // 2 s entre consultas; tras un fallo transitorio, backoff exponencial 2/4/8/16 s.
+      await Future.delayed(Duration(seconds: fallosSeguidos == 0 ? 2 : 2 << (fallosSeguidos - 1)));
+      verificarVigente();
 
-      final jobResponse = await _client.dio.get<Map<String, dynamic>>(
-        '/vestidor/job/$jobId',
-        options: Options(receiveTimeout: const Duration(seconds: 15)),
-      );
+      final Response<Map<String, dynamic>> jobResponse;
+      try {
+        jobResponse = await _client.dio.get<Map<String, dynamic>>(
+          '/vestidor/job/$jobId',
+          options: Options(receiveTimeout: const Duration(seconds: 15)),
+          cancelToken: token,
+        );
+      } on DioException catch (e) {
+        if (CancelToken.isCancel(e)) throw GeneracionCancelada();
+        // Hasta 5 fallos transitorios seguidos; al agotarlos (o ante un fatal) se relanza el error.
+        if (!_esTransitorio(e) || ++fallosSeguidos >= 5) rethrow;
+        continue;
+      }
+      fallosSeguidos = 0;
+      verificarVigente();
 
       final jobData = jobResponse.data;
       if (jobData == null) continue;

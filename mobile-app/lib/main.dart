@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'core/config/env.dart';
+import 'core/network/dio_client.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/providers/admin_provider.dart';
@@ -53,12 +54,29 @@ class SmartLookApp extends StatefulWidget {
 class _SmartLookAppState extends State<SmartLookApp> {
   late final AuthProvider _authProvider;
   late final AppRouter _appRouter;
+  bool _reseteoEn401Instalado = false;
 
   @override
   void initState() {
     super.initState();
     _authProvider = AuthProvider();
     _appRouter = AppRouter(_authProvider);
+  }
+
+  /// Ante un 401 con sesion activa, vacia los datos personales/transitorios de vestidor y checkout.
+  /// El carrito no se toca. Se encadena sobre el callback que AuthProvider registro en DioClient.
+  void _instalarReseteoEn401(BuildContext context) {
+    if (_reseteoEn401Instalado) return;
+    _reseteoEn401Instalado = true;
+    final dio = DioClient();
+    final alNoAutorizado = dio.onUnauthorized;
+    dio.onUnauthorized = () {
+      if (_authProvider.isLoggedIn && context.mounted) {
+        context.read<VestidorProvider>().limpiarFoto();
+        context.read<CheckoutProvider>().reset();
+      }
+      alNoAutorizado?.call();
+    };
   }
 
   @override
@@ -136,6 +154,10 @@ class _SmartLookAppState extends State<SmartLookApp> {
         theme: AppTheme.light(),
         themeMode: ThemeMode.light,
         routerConfig: _appRouter.router,
+        builder: (context, child) {
+          _instalarReseteoEn401(context);
+          return child ?? const SizedBox.shrink();
+        },
       ),
     );
   }

@@ -16,6 +16,7 @@ class VestidorProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _infoMessage;
   String? _estadoJob;
+  int _generacionId = 0;
 
   Uint8List? _fotoUsuarioBytes;
   String? _nombreArchivoFoto;
@@ -32,6 +33,12 @@ class VestidorProvider extends ChangeNotifier {
   VestidorPrueba? get resultadoPrueba => _resultadoPrueba;
 
   void seleccionarProducto(ProductoAr prod) {
+    // Cambiar de prenda a mitad de una generacion detiene su polling (mismo patron que limpiarFoto).
+    if (_procesandoFoto) {
+      _service.cancelar();
+      _generacionId++;
+      _procesandoFoto = false;
+    }
     _productoActual = prod;
     _resultadoPrueba = null;
     _errorMessage = null;
@@ -41,6 +48,9 @@ class VestidorProvider extends ChangeNotifier {
   }
 
   void limpiarFoto() {
+    _service.cancelar();
+    _generacionId++;
+    _procesandoFoto = false;
     _fotoUsuarioBytes = null;
     _nombreArchivoFoto = null;
     _resultadoPrueba = null;
@@ -87,6 +97,7 @@ class VestidorProvider extends ChangeNotifier {
       return;
     }
 
+    final miGeneracion = ++_generacionId;
     _procesandoFoto = true;
     _errorMessage = null;
     _infoMessage = null;
@@ -99,6 +110,7 @@ class VestidorProvider extends ChangeNotifier {
         fotoBytes: _fotoUsuarioBytes!,
         nombreArchivo: _nombreArchivoFoto ?? 'persona.jpg',
         onEstado: (estado) {
+          if (miGeneracion != _generacionId) return;
           _estadoJob = estado;
           notifyListeners();
         },
@@ -106,7 +118,10 @@ class VestidorProvider extends ChangeNotifier {
 
       _resultadoPrueba = resultado;
       _infoMessage = '¡Prueba virtual generada con éxito!';
+    } on GeneracionCancelada {
+      // Cancelado a proposito (limpiarFoto, nueva generacion, 401): salida silenciosa.
     } on DioException catch (dioErr) {
+      if (miGeneracion != _generacionId) return;
       final data = dioErr.response?.data;
       String? detail;
       if (data is Map && data.containsKey('detail')) {
@@ -126,11 +141,14 @@ class VestidorProvider extends ChangeNotifier {
             'Error al procesar la imagen: ${dioErr.message ?? "desconocido"}';
       }
     } catch (e) {
+      if (miGeneracion != _generacionId) return;
       _errorMessage = 'Error inesperado al generar la prueba virtual: $e';
     } finally {
-      _procesandoFoto = false;
-      _estadoJob = null;
-      notifyListeners();
+      if (miGeneracion == _generacionId) {
+        _procesandoFoto = false;
+        _estadoJob = null;
+        notifyListeners();
+      }
     }
   }
 

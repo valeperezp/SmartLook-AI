@@ -9,6 +9,9 @@ class DioClient {
 
   late final Dio dio;
 
+  /// Se invoca cuando una peticion autenticada recibe 401 (sesion vencida o invalida).
+  void Function()? onUnauthorized;
+
   DioClient._internal() {
     dio = Dio(BaseOptions(
       baseUrl: Env.apiUrl,
@@ -29,6 +32,10 @@ class DioClient {
       onError: (error, handler) {
         if (error.response?.statusCode == 401) {
           TokenStorage.clearToken();
+          final llevabaToken = error.requestOptions.headers['Authorization'] != null;
+          if (llevabaToken && !error.requestOptions.path.contains('/auth/login')) {
+            onUnauthorized?.call();
+          }
         }
         final mensaje = _extraerMensaje(error);
         handler.reject(DioException(

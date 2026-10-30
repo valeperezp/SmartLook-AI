@@ -48,7 +48,15 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
     });
 
     final provider = context.read<CheckoutProvider>();
-    final pago = await provider.iniciarPagoQR();
+    // Si el widget se vuelve a montar (p. ej. al alternar el metodo de pago), se reutiliza el Pago QR
+    // pendiente de esta venta en vez de crear otro.
+    final existente = provider.pagoActual;
+    final pago = (existente != null &&
+            existente.ventaId == widget.ventaId &&
+            existente.metodo == 'qr' &&
+            existente.estado == 'pendiente')
+        ? existente
+        : await provider.iniciarPagoQR();
 
     if (!mounted) return;
 
