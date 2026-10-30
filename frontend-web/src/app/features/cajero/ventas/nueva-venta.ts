@@ -38,6 +38,9 @@ export class NuevaVenta implements OnInit {
 
   user = this.auth.currentUser;
 
+  private readonly mensajeSinSucursal =
+    'Tu usuario no tiene una sucursal asignada. P\u00eddele a un administrador que te asigne una.';
+
   // Estado con signals
   productos = signal<Producto[]>([]);
   categorias = signal<Categoria[]>([]);
@@ -116,6 +119,11 @@ export class NuevaVenta implements OnInit {
   }
 
   abrirSelectorVariante(prod: Producto) {
+    const sucursalId = this.user()?.sucursal_id;
+    if (!sucursalId) {
+      this.mostrarToast(this.mensajeSinSucursal, true);
+      return;
+    }
     this.productoParaAgregar.set(prod);
     this.cantidadParaAgregar.set(1);
     this.varianteSeleccionada.set(null);
@@ -123,7 +131,6 @@ export class NuevaVenta implements OnInit {
     this.cargandoVariantes.set(true);
     this.modalVarianteAbierto.set(true);
 
-    const sucursalId = this.user()?.sucursal_id || 1;
     this.catalogoService.obtenerDisponibilidad(prod.id).subscribe({
       next: (disp) => {
         this.cargandoVariantes.set(false);
@@ -232,7 +239,11 @@ export class NuevaVenta implements OnInit {
       return;
     }
 
-    const sucursalId = this.user()?.sucursal_id || 1;
+    const sucursalId = this.user()?.sucursal_id;
+    if (!sucursalId) {
+      this.mostrarToast(this.mensajeSinSucursal, true);
+      return;
+    }
 
     const payload: VentaPresencialCreate = {
       sucursal_id: sucursalId,
