@@ -17,7 +17,6 @@ class Settings(BaseSettings):
 
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
-    ai_api_key: str = ""  # (sin uso actualmente) reservado por si se vuelve a un proveedor de IA en la nube
     uploads_base_url: str = "http://localhost:8000"
     uploads_dir: str = "/app/uploads"
 
@@ -30,11 +29,6 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_service_role_key: str = ""
     supabase_storage_bucket: str = "productos"
-
-    # Vestidor virtual (CU05) — Gemini 2.5 Flash Image ("Nano Banana"), tier gratis de
-    # Google AI Studio. Clave server-side only, nunca se expone al frontend.
-    gemini_api_key: str = ""
-    gemini_image_model: str = "gemini-2.5-flash-image"
 
     # Vestidor virtual móvil (CU05) — Replicate (IDM-VTON), pago por uso. Presupuesto
     # acotado ($4 ≈ 80 generaciones): cache 24h + límite diario por usuario obligatorios.

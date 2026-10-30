@@ -5,11 +5,16 @@ Arquitectura modular: cada dominio de negocio vive en app/modules/<dominio>/
 con su propio models.py, schemas.py, service.py y router.py.
 Este archivo solo ensambla los routers — no debe crecer con lógica de negocio.
 """
+import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.shared.core.config import settings
 from app.shared.db.session import engine, Base
@@ -90,6 +95,17 @@ def root():
     return {"status": "ok", "service": "SmartLook-AI API"}
 
 
+def _ping_db() -> None:
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+
+
 @app.get("/health", tags=["health"])
-def health_check():
+async def health_check():
+    # Si la BD no responde en 5 s (o falla) el servicio no esta sano: 503 en vez de un 200 engañoso.
+    try:
+        await asyncio.wait_for(run_in_threadpool(_ping_db), timeout=5.0)
+    except Exception as exc:
+        logging.getLogger(__name__).error("Health check: la base de datos no responde: %r", exc)
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "unavailable"})
     return {"status": "healthy"}

@@ -229,7 +229,7 @@ def registrar_movimiento(
     db: Session, data: schemas.MovimientoCreate, usuario_id: int | None = None
 ) -> models.MovimientoInventario:
     """Registra una entrada o salida de inventario y actualiza la cantidad disponible."""
-    inv = db.query(models.Inventario).filter(models.Inventario.id == data.inventario_id).first()
+    inv = db.query(models.Inventario).filter(models.Inventario.id == data.inventario_id).with_for_update().populate_existing().first()
     if not inv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de inventario no encontrado")
 
@@ -270,7 +270,7 @@ def ajustar_stock(
     db: Session, data: schemas.AjusteStockCreate, usuario_id: int | None = None
 ) -> models.Inventario:
     """Ajusta la cantidad disponible a un conteo físico real y genera un movimiento de tipo 'ajuste'."""
-    inv = db.query(models.Inventario).filter(models.Inventario.id == data.inventario_id).first()
+    inv = db.query(models.Inventario).filter(models.Inventario.id == data.inventario_id).with_for_update().populate_existing().first()
     if not inv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de inventario no encontrado")
 

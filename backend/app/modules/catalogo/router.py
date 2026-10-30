@@ -1,5 +1,6 @@
 """Endpoints HTTP del módulo Catálogo. Lectura abierta, escritura admin."""
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
@@ -213,8 +214,9 @@ def eliminar_producto(producto_id: int, db: Session = Depends(get_db)):
 async def subir_imagen_producto(producto_id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)):
     """Sube una imagen a Supabase Storage y la asocia al producto."""
     contenido = await archivo.read()
-    return service.subir_imagen_producto(
-        db, producto_id, contenido, archivo.filename or "imagen.jpg", archivo.content_type or "image/jpeg"
+    return await run_in_threadpool(
+        service.subir_imagen_producto,
+        db, producto_id, contenido, archivo.filename or "imagen.jpg", archivo.content_type or "image/jpeg",
     )
 
 

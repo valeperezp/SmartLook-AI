@@ -1,4 +1,5 @@
 """Lógica de negocio del módulo Usuarios."""
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.usuarios import models, schemas
@@ -32,11 +33,33 @@ def crear_usuario(db: Session, data: schemas.UsuarioCreate) -> models.Usuario:
     return usuario
 
 
+def _validar_no_es_ultimo_admin(db: Session, usuario: models.Usuario) -> None:
+    """Impide desactivar al unico administrador activo (la app quedaria sin admins)."""
+    if usuario.rol != "administrador" or not usuario.activo:
+        return
+    # Se bloquean las filas de los admins activos: dos desactivaciones simultaneas no pueden dejar cero.
+    admins_activos = (
+        db.query(models.Usuario.id)
+        .filter(models.Usuario.rol == "administrador", models.Usuario.activo.is_(True))
+        .order_by(models.Usuario.id)
+        .with_for_update()
+        .all()
+    )
+    if len(admins_activos) <= 1:
+        raise HTTPException(
+            status_code=400,
+            detail="No se puede desactivar al ultimo administrador activo. Asigna otro administrador primero.",
+        )
+
+
 def actualizar_usuario(db: Session, usuario_id: int, data: schemas.UsuarioUpdate) -> models.Usuario | None:
     usuario = obtener_usuario(db, usuario_id)
     if not usuario:
         return None
-    for campo, valor in data.model_dump(exclude_unset=True).items():
+    cambios = data.model_dump(exclude_unset=True)
+    if cambios.get("activo") is False:
+        _validar_no_es_ultimo_admin(db, usuario)
+    for campo, valor in cambios.items():
         setattr(usuario, campo, valor)
     db.commit()
     db.refresh(usuario)
@@ -61,6 +84,7 @@ def desactivar_usuario(db: Session, usuario_id: int) -> models.Usuario | None:
     usuario = obtener_usuario(db, usuario_id)
     if not usuario:
         return None
+    _validar_no_es_ultimo_admin(db, usuario)
     usuario.activo = False
     db.commit()
     db.refresh(usuario)

@@ -1,4 +1,7 @@
 """Endpoints HTTP del módulo Vestidor virtual (CU05)."""
+import logging
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -9,6 +12,19 @@ from app.modules.vestidor.models import VestidorJob
 from app.shared.db.session import SessionLocal, get_db
 
 router = APIRouter(prefix="/vestidor", tags=["vestidor"])
+logger = logging.getLogger(__name__)
+
+# Mensajes de negocio que se pueden mostrar tal cual; cualquier otro error del job es interno y se oculta.
+_PREFIJOS_ERROR_VISIBLES = ("Replicate", "Timeout", "Job expirado")
+_ERROR_GENERICO = "Error en la generación del vestidor. Reintentá."
+
+
+def _error_para_cliente(error: str | None) -> str | None:
+    if not error:
+        return error
+    if error.startswith(_PREFIJOS_ERROR_VISIBLES):
+        return error
+    return _ERROR_GENERICO
 
 
 @router.post(
@@ -53,11 +69,15 @@ async def generar_vestidor(
 
     background_tasks.add_task(_tarea_background, job.id, foto_bytes)
 
-    return schemas.VestidorJobCrearResponse(
+    respuesta = schemas.VestidorJobCrearResponse(
         job_id=job.id,
         estado=job.estado,
         mensaje="Generación iniciada. Consulta el estado en GET /vestidor/job/{job_id}",
     )
+    # Libera la conexion de la request antes de que corra el BackgroundTask: FastAPI cierra get_db
+    # recien al terminar las background tasks y el job quedaria reteniendo 2 conexiones del pool.
+    db.close()
+    return respuesta
 
 
 @router.get(
@@ -79,11 +99,18 @@ async def consultar_job(
     if job.usuario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No tienes acceso a este job")
 
+    # Un job activo sin cambios por mas de 4 min se da por perdido (reinicio del backend, fallo del proveedor).
+    if job.estado in ("pendiente", "procesando") and datetime.utcnow() - job.actualizado_en > timedelta(minutes=4):
+        job.estado = "fallido"
+        job.error = "Job expirado sin respuesta del proveedor IA (timeout)"
+        db.commit()
+        db.refresh(job)
+
     return schemas.VestidorJobEstado(
         job_id=job.id,
         estado=job.estado,
         imagen_resultado_url=job.imagen_resultado_url,
-        error=job.error,
+        error=_error_para_cliente(job.error),
         producto_id=job.producto_id,
         creado_en=job.creado_en,
         actualizado_en=job.actualizado_en,

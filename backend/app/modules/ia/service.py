@@ -9,6 +9,7 @@ una llamada a un LLM externo sin tocar el router (ver `ai_api_key` en config).
 import unicodedata
 from collections import Counter
 from datetime import datetime
+from types import SimpleNamespace
 
 import httpx
 from sqlalchemy import func, or_
@@ -569,6 +570,8 @@ def _generar_respuesta_ia(
     por cualquier motivo, devuelve None para que el llamador use el texto de respaldo por reglas.
     """
     config = obtener_configuracion_ia(db)
+    config = SimpleNamespace(base_url=config.base_url, api_key=config.api_key, modelo=config.modelo)
+    db.commit()  # libera la conexion del pool antes de la llamada lenta al LLM
     try:
         texto = _completar_chat_openai(config, mensaje_usuario, datos_disponibles, historial, system_prompt)
         return texto or None
