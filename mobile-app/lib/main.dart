@@ -25,6 +25,14 @@ import 'features/cajero/ventas/providers/mis_ventas_provider.dart';
 import 'features/cajero/qr/providers/qr_cajero_provider.dart';
 import 'features/ia/providers/ia_provider.dart';
 import 'features/mis_compras/providers/ventas_provider.dart';
+import 'features/offline/providers/catalogo_offline_provider.dart';
+import 'features/offline/providers/conectividad_provider.dart';
+import 'features/offline/providers/devolucion_provider.dart';
+import 'features/offline/providers/puntos_provider.dart';
+import 'features/offline/providers/suscripciones_provider.dart';
+import 'features/offline/providers/turno_caja_provider.dart';
+import 'features/offline/providers/venta_offline_provider.dart';
+import 'features/offline/services/sync_service.dart';
 import 'features/proveedor/providers/proveedor_provider.dart';
 import 'features/reservas/providers/reservas_provider.dart';
 import 'features/vestidor/providers/vestidor_provider.dart';
@@ -146,6 +154,34 @@ class _SmartLookAppState extends State<SmartLookApp> {
         ),
         ChangeNotifierProvider<ProveedorProvider>(
           create: (_) => ProveedorProvider(),
+        ),
+        ChangeNotifierProvider<CatalogoOfflineProvider>(
+          create: (_) => CatalogoOfflineProvider(),
+        ),
+        ChangeNotifierProvider<VentaOfflineProvider>(
+          create: (_) => VentaOfflineProvider(),
+        ),
+        // Servidor simulado hasta que exista el endpoint real de sincronización
+        // lazy: false → empieza a escuchar la red desde el arranque; dispose cancela la suscripción
+        Provider<SyncService>(
+          lazy: false,
+          create: (_) => SyncService()..iniciarEscucha(),
+          dispose: (_, sync) => sync.dispose(),
+        ),
+        ChangeNotifierProvider<ConectividadProvider>(
+          create: (_) => ConectividadProvider(),
+        ),
+        ChangeNotifierProvider<TurnoCajaProvider>(
+          create: (_) => TurnoCajaProvider(),
+        ),
+        ChangeNotifierProvider<DevolucionProvider>(
+          create: (_) => DevolucionProvider(),
+        ),
+        ChangeNotifierProvider<PuntosProvider>(
+          create: (_) => PuntosProvider(),
+        ),
+        ChangeNotifierProvider<SuscripcionesProvider>(
+          create: (_) => SuscripcionesProvider(),
         ),
       ],
       child: MaterialApp.router(
