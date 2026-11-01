@@ -87,9 +87,17 @@
       font-weight: 600;
       color: #fbf2e6;
 
-      &.connected { color: #a9c49c; }
-      &.error { color: #d19d90; }
-      &.checking { color: var(--brass-light); }
+      &.connected {
+        color: #a9c49c;
+      }
+
+      &.error {
+        color: #d19d90;
+      }
+
+      &.checking {
+        color: var(--brass-light);
+      }
     }
 
     .stat-label {
@@ -485,7 +493,8 @@
 }
 
 /* Loading & Empty States */
-.loading-state, .empty-state {
+.loading-state,
+.empty-state {
   text-align: center;
   padding: 4rem 2rem;
   background: var(--bg-card);
@@ -592,24 +601,35 @@
   &.badge-disponible {
     color: var(--success);
     border: 1px solid rgba(76, 122, 90, 0.35);
-    .stock-dot { background: var(--success); box-shadow: 0 0 6px rgba(76, 122, 90, 0.6); }
+
+    .stock-dot {
+      background: var(--success);
+      box-shadow: 0 0 6px rgba(76, 122, 90, 0.6);
+    }
   }
 
   &.badge-bajo {
     color: var(--warning);
     border: 1px solid rgba(179, 132, 63, 0.4);
-    .stock-dot { background: var(--warning); }
+
+    .stock-dot {
+      background: var(--warning);
+    }
   }
 
   &.badge-agotado {
     color: var(--danger);
     border: 1px solid rgba(163, 64, 47, 0.35);
-    .stock-dot { background: var(--danger); }
+
+    .stock-dot {
+      background: var(--danger);
+    }
   }
 
   &.badge-reservada {
     color: var(--warning);
     border: 1px solid rgba(179, 132, 63, 0.4);
+
     .stock-dot {
       background: var(--warning);
     }
@@ -618,6 +638,7 @@
   &.badge-vendida {
     color: var(--danger);
     border: 1px solid rgba(163, 64, 47, 0.35);
+
     .stock-dot {
       background: var(--danger);
     }
@@ -759,7 +780,8 @@
   overflow-y: auto;
   flex: 1;
 
-  .modal-loading, .modal-error {
+  .modal-loading,
+  .modal-error {
     text-align: center;
     padding: 3rem 1rem;
     color: var(--text-muted);
@@ -862,18 +884,22 @@
           background: rgba(76, 122, 90, 0.15);
           color: var(--success);
         }
+
         &.status-bajo {
           background: rgba(179, 132, 63, 0.15);
           color: var(--warning);
         }
+
         &.status-agotado {
           background: rgba(163, 64, 47, 0.15);
           color: var(--danger);
         }
+
         &.status-reservada {
           color: var(--warning);
           border-color: rgba(179, 132, 63, 0.4);
         }
+
         &.status-vendida {
           color: var(--danger);
           border-color: rgba(163, 64, 47, 0.35);
@@ -915,6 +941,7 @@
 
           &.tc-empty {
             opacity: 0.5;
+
             .tc-qty {
               color: var(--text-muted);
             }
@@ -958,13 +985,25 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ===== BOTÓN "RESERVAR" Y "AÑADIR" EN CADA CHIP ===== */

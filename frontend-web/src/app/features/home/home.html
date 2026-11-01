@@ -36,48 +36,49 @@
 <div class="page-container">
   <!-- Recomendaciones IA (CU06 / CU20) -->
   @if (auth.isLoggedIn()) {
-    <section class="recomendaciones-section">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">Recomendado para vos</h2>
-          <p class="section-subtitle">Basado en tus reservas y compras anteriores, tu talla habitual y en lo más popular entre otros clientes</p>
-        </div>
+  <section class="recomendaciones-section">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Recomendado para vos</h2>
+        <p class="section-subtitle">Basado en tus reservas y compras anteriores, tu talla habitual y en lo más popular
+          entre otros clientes</p>
       </div>
+    </div>
 
-      @if (cargandoRecomendaciones()) {
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <p>Analizando tus preferencias...</p>
-        </div>
-      } @else if (recomendaciones().length > 0) {
-        <div class="recomendaciones-scroll">
-          @for (rec of recomendaciones(); track rec.producto_id) {
-            <div class="recomendacion-card" (click)="verRecomendacion(rec)">
-              <div class="recomendacion-media">
-                @if (rec.imagen_url) {
-                  <img [src]="rec.imagen_url" [alt]="rec.nombre_producto" class="recomendacion-image" />
-                } @else {
-                  <app-icon name="sparkles" [size]="26" />
-                }
-                @if (rec.nombre_categoria) {
-                  <span class="product-badge">{{ rec.nombre_categoria }}</span>
-                }
-              </div>
-              <div class="recomendacion-body">
-                <h3 class="recomendacion-name">{{ rec.nombre_producto }}</h3>
-                <p class="recomendacion-motivo">{{ rec.motivo }}</p>
-                <div class="recomendacion-footer">
-                  <span class="recomendacion-precio">${{ rec.precio | number:'1.2-2' }}</span>
-                  @if (rec.talla_sugerida) {
-                    <span class="recomendacion-talla">Talla {{ rec.talla_sugerida }}</span>
-                  }
-                </div>
-              </div>
-            </div>
+    @if (cargandoRecomendaciones()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Analizando tus preferencias...</p>
+    </div>
+    } @else if (recomendaciones().length > 0) {
+    <div class="recomendaciones-scroll">
+      @for (rec of recomendaciones(); track rec.producto_id) {
+      <div class="recomendacion-card" (click)="verRecomendacion(rec)">
+        <div class="recomendacion-media">
+          @if (rec.imagen_url) {
+          <img [src]="rec.imagen_url" [alt]="rec.nombre_producto" class="recomendacion-image" />
+          } @else {
+          <app-icon name="sparkles" [size]="26" />
+          }
+          @if (rec.nombre_categoria) {
+          <span class="product-badge">{{ rec.nombre_categoria }}</span>
           }
         </div>
+        <div class="recomendacion-body">
+          <h3 class="recomendacion-name">{{ rec.nombre_producto }}</h3>
+          <p class="recomendacion-motivo">{{ rec.motivo }}</p>
+          <div class="recomendacion-footer">
+            <span class="recomendacion-precio">${{ rec.precio | number:'1.2-2' }}</span>
+            @if (rec.talla_sugerida) {
+            <span class="recomendacion-talla">Talla {{ rec.talla_sugerida }}</span>
+            }
+          </div>
+        </div>
+      </div>
       }
-    </section>
+    </div>
+    }
+  </section>
   }
 
   <!-- Catalog Section -->
@@ -94,15 +95,11 @@
         <!-- Sucursal Dropdown Filter -->
         <div class="branch-filter">
           <app-icon name="store" [size]="16" />
-          <select
-            [ngModel]="selectedSucursalId()"
-            (ngModelChange)="setSucursal($event)"
-            class="select-sucursal"
-            aria-label="Filtrar por sucursal"
-          >
+          <select [ngModel]="selectedSucursalId()" (ngModelChange)="setSucursal($event)" class="select-sucursal"
+            aria-label="Filtrar por sucursal">
             <option value="todas">Todas las sucursales</option>
             @for (suc of sucursales(); track suc.id) {
-              <option [value]="suc.id">{{ suc.nombre }}</option>
+            <option [value]="suc.id">{{ suc.nombre }}</option>
             }
           </select>
         </div>
@@ -110,462 +107,397 @@
         <!-- Search Bar -->
         <div class="search-bar">
           <app-icon name="search" [size]="16" />
-          <input
-            type="text"
-            placeholder="Buscar prenda..."
-            [ngModel]="searchQuery()"
-            (ngModelChange)="searchQuery.set($event)"
-          />
+          <input type="text" placeholder="Buscar prenda..." [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)" />
         </div>
       </div>
     </div>
 
     <!-- Category Filter Chips -->
     <div class="filter-chips">
-      <button
-        class="chip-btn"
-        [class.active]="selectedCategoryId() === 'todos'"
-        (click)="setCategory('todos')"
-      >
+      <button class="chip-btn" [class.active]="selectedCategoryId() === 'todos'" (click)="setCategory('todos')">
         Todos
       </button>
       @for (cat of categorias(); track cat.id) {
-        <button
-          class="chip-btn"
-          [class.active]="selectedCategoryId() === cat.id"
-          (click)="setCategory(cat.id)"
-        >
-          {{ cat.nombre }}
-        </button>
+      <button class="chip-btn" [class.active]="selectedCategoryId() === cat.id" (click)="setCategory(cat.id)">
+        {{ cat.nombre }}
+      </button>
       }
     </div>
 
     <!-- Products Grid -->
     @if (isLoading()) {
-      <div class="loading-state">
-        <div class="spinner"></div>
-        <p>Cargando prendas y disponibilidad...</p>
-      </div>
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Cargando prendas y disponibilidad...</p>
+    </div>
     } @else if (filteredProductos().length === 0) {
-      <div class="empty-state">
-        <app-icon name="shirt" [size]="36" />
-        <h3>No se encontraron prendas</h3>
-        <p>No hay productos que coincidan con la categoría o sucursal seleccionada.</p>
-      </div>
+    <div class="empty-state">
+      <app-icon name="shirt" [size]="36" />
+      <h3>No se encontraron prendas</h3>
+      <p>No hay productos que coincidan con la categoría o sucursal seleccionada.</p>
+    </div>
     } @else {
-      <div class="products-grid">
-        @for (prod of filteredProductos(); track prod.id) {
-          <div class="product-card" (click)="abrirDetalle(prod)">
-            <div class="product-media">
-              @if (prod.imagen_url) {
-                <img [src]="prod.imagen_url" [alt]="prod.nombre" class="product-image" />
-              } @else {
-                <app-icon name="shirt" [size]="34" />
-              }
-              <span class="product-badge">{{ prod.categoria.nombre }}</span>
+    <div class="products-grid">
+      @for (prod of filteredProductos(); track prod.id) {
+      <div class="product-card" (click)="abrirDetalle(prod)">
+        <div class="product-media">
+          @if (prod.imagen_url) {
+          <img [src]="prod.imagen_url" [alt]="prod.nombre" class="product-image" />
+          } @else {
+          <app-icon name="shirt" [size]="34" />
+          }
+          <span class="product-badge">{{ prod.categoria.nombre }}</span>
 
-              <!-- Stock Badge -->
-              <div class="stock-badge-container">
-                @if (prod.estado_global === 'disponible') {
-                  <span class="stock-badge badge-disponible">
-                    <span class="stock-dot"></span> Disponible
-                  </span>
-                } @else if (prod.estado_global === 'bajo') {
-                  <span class="stock-badge badge-bajo">
-                    <span class="stock-dot"></span> Stock bajo
-                  </span>
-                } @else {
-                  <span class="stock-badge badge-agotado">
-                    <span class="stock-dot"></span> Agotado
-                  </span>
-                }
-              </div>
+          <!-- Stock Badge -->
+          <div class="stock-badge-container">
+            @if (prod.estado_global === 'disponible') {
+            <span class="stock-badge badge-disponible">
+              <span class="stock-dot"></span> Disponible
+            </span>
+            } @else if (prod.estado_global === 'bajo') {
+            <span class="stock-badge badge-bajo">
+              <span class="stock-dot"></span> Stock bajo
+            </span>
+            } @else {
+            <span class="stock-badge badge-agotado">
+              <span class="stock-dot"></span> Agotado
+            </span>
+            }
+          </div>
+        </div>
+
+        <div class="product-body">
+          @if (prod.temporada) {
+          <div class="product-meta">
+            <span class="meta-tag">
+              <app-icon name="calendar" [size]="12" /> {{ prod.temporada.nombre }}
+            </span>
+            @if (prod.coleccion) {
+            <span class="meta-tag">
+              <app-icon name="tag" [size]="12" /> {{ prod.coleccion.nombre }}
+            </span>
+            }
+          </div>
+          }
+
+          <h3 class="product-name">{{ prod.nombre }}</h3>
+          <p class="product-desc">{{ prod.descripcion || 'Sin descripción adicional' }}</p>
+
+          <!-- Branch Stock Indicator -->
+          <div class="stock-branch-info">
+            <app-icon name="store" [size]="14" />
+            @if (prod.sucursales_con_stock && prod.sucursales_con_stock > 0) {
+            <span>
+              Disponible en
+              <strong>{{ prod.sucursales_con_stock }}</strong>
+              {{ prod.sucursales_con_stock === 1 ? 'sucursal' : 'sucursales' }}
+            </span>
+            } @else {
+            <span class="no-branches">Sin stock en sucursales</span>
+            }
+          </div>
+
+          <div class="product-footer">
+            <div class="price-container">
+              <span class="price-label">Precio</span>
+              <span class="price-amount">${{ prod.precio | number:'1.2-2' }}</span>
             </div>
-
-            <div class="product-body">
-              @if (prod.temporada) {
-                <div class="product-meta">
-                  <span class="meta-tag">
-                    <app-icon name="calendar" [size]="12" /> {{ prod.temporada.nombre }}
-                  </span>
-                  @if (prod.coleccion) {
-                    <span class="meta-tag">
-                      <app-icon name="tag" [size]="12" /> {{ prod.coleccion.nombre }}
-                    </span>
-                  }
-                </div>
-              }
-
-              <h3 class="product-name">{{ prod.nombre }}</h3>
-              <p class="product-desc">{{ prod.descripcion || 'Sin descripción adicional' }}</p>
-
-              <!-- Branch Stock Indicator -->
-              <div class="stock-branch-info">
-                <app-icon name="store" [size]="14" />
-                @if (prod.sucursales_con_stock && prod.sucursales_con_stock > 0) {
-                  <span>
-                    Disponible en
-                    <strong>{{ prod.sucursales_con_stock }}</strong>
-                    {{ prod.sucursales_con_stock === 1 ? 'sucursal' : 'sucursales' }}
-                  </span>
-                } @else {
-                  <span class="no-branches">Sin stock en sucursales</span>
-                }
-              </div>
-
-              <div class="product-footer">
-                <div class="price-container">
-                  <span class="price-label">Precio</span>
-                  <span class="price-amount">${{ prod.precio | number:'1.2-2' }}</span>
-                </div>
-                <div class="product-card-actions">
-                  <button
-                    type="button"
-                    class="btn-add-cart"
-                    [disabled]="prod.estado_global === 'agotado'"
-                    (click)="abrirModalCarrito(prod); $event.stopPropagation()"
-                    title="Añadir al carrito"
-                  >
-                    <app-icon name="shopping-cart" [size]="14" />
-                    <span>Añadir</span>
-                  </button>
-                  <button type="button" class="btn-check-stock" (click)="abrirDetalle(prod); $event.stopPropagation()">
-                    Stock
-                  </button>
-                </div>
-              </div>
+            <div class="product-card-actions">
+              <button type="button" class="btn-add-cart" [disabled]="prod.estado_global === 'agotado'"
+                (click)="abrirModalCarrito(prod); $event.stopPropagation()" title="Añadir al carrito">
+                <app-icon name="shopping-cart" [size]="14" />
+                <span>Añadir</span>
+              </button>
+              <button type="button" class="btn-check-stock" (click)="abrirDetalle(prod); $event.stopPropagation()">
+                Stock
+              </button>
             </div>
           </div>
-        }
+        </div>
       </div>
+      }
+    </div>
     }
   </section>
 </div>
 
 <!-- Modal Detalle de Disponibilidad por Sucursal -->
 @if (modalAbierto() && selectedProducto(); as prod) {
-  <div class="modal-backdrop" (click)="cerrarDetalle()">
-    <div class="modal-container" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <div class="modal-title-group">
-          <span class="modal-category">{{ prod.categoria.nombre }}</span>
-          <h2 class="modal-title">{{ prod.nombre }}</h2>
-          <span class="modal-price">${{ prod.precio | number:'1.2-2' }}</span>
+<div class="modal-backdrop" (click)="cerrarDetalle()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="modal-category">{{ prod.categoria.nombre }}</span>
+        <h2 class="modal-title">{{ prod.nombre }}</h2>
+        <span class="modal-price">${{ prod.precio | number:'1.2-2' }}</span>
+      </div>
+      <button class="modal-close-btn" (click)="cerrarDetalle()" aria-label="Cerrar modal">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (loadingDisponibilidad()) {
+      <div class="modal-loading">
+        <div class="spinner"></div>
+        <p>Consultando existencias en todas las sucursales...</p>
+      </div>
+      } @else if (errorDisponibilidad()) {
+      <div class="modal-error">
+        <p>{{ errorDisponibilidad() }}</p>
+      </div>
+      } @else if (disponibilidad(); as disp) {
+      <div class="modal-summary">
+        <div class="summary-pill">
+          <span class="summary-label">Total global</span>
+          <span class="summary-val">{{ disp.total_global }} unidades</span>
         </div>
-        <button class="modal-close-btn" (click)="cerrarDetalle()" aria-label="Cerrar modal">
-          <app-icon name="x" [size]="16" />
-        </button>
+        <div class="summary-pill">
+          <span class="summary-label">Sucursales con stock</span>
+          <span class="summary-val">{{ disp.sucursales_con_stock }} de {{ disp.disponibilidad.length }}</span>
+        </div>
       </div>
 
-      <div class="modal-body">
-        @if (loadingDisponibilidad()) {
-          <div class="modal-loading">
-            <div class="spinner"></div>
-            <p>Consultando existencias en todas las sucursales...</p>
-          </div>
-        } @else if (errorDisponibilidad()) {
-          <div class="modal-error">
-            <p>{{ errorDisponibilidad() }}</p>
-          </div>
-        } @else if (disponibilidad(); as disp) {
-          <div class="modal-summary">
-            <div class="summary-pill">
-              <span class="summary-label">Total global</span>
-              <span class="summary-val">{{ disp.total_global }} unidades</span>
+      <h3 class="branches-section-title">Disponibilidad por Sucursal</h3>
+
+      <div class="branches-list">
+        @for (suc of disp.disponibilidad; track suc.sucursal_id) {
+        <div class="branch-card" [class.branch-no-stock]="suc.total_disponible === 0">
+          <div class="branch-card-header">
+            <div class="branch-info">
+              <h4 class="branch-name">
+                <app-icon name="store" [size]="15" /> {{ suc.nombre_sucursal }}
+              </h4>
+              @if (suc.ciudad) {
+              <span class="branch-city">{{ suc.ciudad }}</span>
+              }
             </div>
-            <div class="summary-pill">
-              <span class="summary-label">Sucursales con stock</span>
-              <span class="summary-val">{{ disp.sucursales_con_stock }} de {{ disp.disponibilidad.length }}</span>
-            </div>
-          </div>
-
-          <h3 class="branches-section-title">Disponibilidad por Sucursal</h3>
-
-          <div class="branches-list">
-            @for (suc of disp.disponibilidad; track suc.sucursal_id) {
-              <div class="branch-card" [class.branch-no-stock]="suc.total_disponible === 0">
-                <div class="branch-card-header">
-                  <div class="branch-info">
-                    <h4 class="branch-name">
-                      <app-icon name="store" [size]="15" /> {{ suc.nombre_sucursal }}
-                    </h4>
-                    @if (suc.ciudad) {
-                      <span class="branch-city">{{ suc.ciudad }}</span>
-                    }
-                  </div>
-                  <span
-                    class="branch-status"
-                    [class.status-disponible]="suc.estado === 'disponible'"
-                    [class.status-bajo]="suc.estado === 'bajo'"
-                    [class.status-agotado]="suc.estado === 'agotado'"
-                  >
-                    @if (suc.estado === 'disponible') {
-                      Disponible ({{ suc.total_disponible }} un.)
-                    } @else if (suc.estado === 'bajo') {
-                      Stock bajo ({{ suc.total_disponible }} un.)
-                    } @else {
-                      Agotado
-                    }
-                  </span>
-                  @if (suc.total_reservada > 0) {
-                    <span class="stock-badge badge-reservada">
-                      <span class="stock-dot"></span>
-                      {{ suc.total_reservada }} Reservadas
-                    </span>
-                  }
-                  @if (suc.total_vendida > 0) {
-                    <span class="stock-badge badge-vendida">
-                      <span class="stock-dot"></span>
-                      {{ suc.total_vendida }} Vendidas
-                    </span>
-                  }
-                </div>
-
-                @if (suc.items.length > 0) {
-                  <div class="items-breakdown">
-                    <span class="breakdown-title">Desglose por Talla y Color:</span>
-                    <div class="talla-color-chips">
-                      @for (item of suc.items; track $index) {
-                        <div class="tc-chip" [class.tc-empty]="item.cantidad_disponible === 0">
-                          <span class="tc-name">
-                            Talla <strong>{{ item.nombre_talla || 'N/A' }}</strong> / {{ item.nombre_color || 'N/A' }}
-                          </span>
-                          <span class="tc-qty">{{ item.cantidad_disponible }} un.</span>
-                          @if (item.cantidad_reservada > 0) {
-                            <span class="stock-badge badge-reservada">
-                              <span class="stock-dot"></span>
-                              {{ item.cantidad_reservada }} Reservadas
-                            </span>
-                          }
-                          @if (item.cantidad_vendida > 0) {
-                            <span class="stock-badge badge-vendida">
-                              <span class="stock-dot"></span>
-                              {{ item.cantidad_vendida }} Vendidas
-                            </span>
-                          }
-                          @if (item.cantidad_disponible > 0) {
-                            <div class="chip-action-btns">
-                              <button
-                                type="button"
-                                class="btn-cart-chip"
-                                (click)="agregarDirectoDesdeChip(prod, item)"
-                                title="Añadir al carrito"
-                              >
-                                <app-icon name="shopping-cart" [size]="12" /> Añadir
-                              </button>
-                              <button
-                                type="button"
-                                class="btn-reservar-chip"
-                                (click)="abrirReservaModal(prod, suc, item)"
-                              >
-                                Reservar
-                              </button>
-                            </div>
-                          }
-                        </div>
-                      }
-                    </div>
-                  </div>
-                } @else {
-                  <p class="branch-empty">No hay existencias cargadas para esta sucursal.</p>
-                }
-              </div>
+            <span class="branch-status" [class.status-disponible]="suc.estado === 'disponible'"
+              [class.status-bajo]="suc.estado === 'bajo'" [class.status-agotado]="suc.estado === 'agotado'">
+              @if (suc.estado === 'disponible') {
+              Disponible ({{ suc.total_disponible }} un.)
+              } @else if (suc.estado === 'bajo') {
+              Stock bajo ({{ suc.total_disponible }} un.)
+              } @else {
+              Agotado
+              }
+            </span>
+            @if (suc.total_reservada > 0) {
+            <span class="stock-badge badge-reservada">
+              <span class="stock-dot"></span>
+              {{ suc.total_reservada }} Reservadas
+            </span>
+            }
+            @if (suc.total_vendida > 0) {
+            <span class="stock-badge badge-vendida">
+              <span class="stock-dot"></span>
+              {{ suc.total_vendida }} Vendidas
+            </span>
             }
           </div>
+
+          @if (suc.items.length > 0) {
+          <div class="items-breakdown">
+            <span class="breakdown-title">Desglose por Talla y Color:</span>
+            <div class="talla-color-chips">
+              @for (item of suc.items; track $index) {
+              <div class="tc-chip" [class.tc-empty]="item.cantidad_disponible === 0">
+                <span class="tc-name">
+                  Talla <strong>{{ item.nombre_talla || 'N/A' }}</strong> / {{ item.nombre_color || 'N/A' }}
+                </span>
+                <span class="tc-qty">{{ item.cantidad_disponible }} un.</span>
+                @if (item.cantidad_reservada > 0) {
+                <span class="stock-badge badge-reservada">
+                  <span class="stock-dot"></span>
+                  {{ item.cantidad_reservada }} Reservadas
+                </span>
+                }
+                @if (item.cantidad_vendida > 0) {
+                <span class="stock-badge badge-vendida">
+                  <span class="stock-dot"></span>
+                  {{ item.cantidad_vendida }} Vendidas
+                </span>
+                }
+                @if (item.cantidad_disponible > 0) {
+                <div class="chip-action-btns">
+                  <button type="button" class="btn-cart-chip" (click)="agregarDirectoDesdeChip(prod, item)"
+                    title="Añadir al carrito">
+                    <app-icon name="shopping-cart" [size]="12" /> Añadir
+                  </button>
+                  <button type="button" class="btn-reservar-chip" (click)="abrirReservaModal(prod, suc, item)">
+                    Reservar
+                  </button>
+                </div>
+                }
+              </div>
+              }
+            </div>
+          </div>
+          } @else {
+          <p class="branch-empty">No hay existencias cargadas para esta sucursal.</p>
+          }
+        </div>
         }
       </div>
+      }
+    </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn-modal-close" (click)="cerrarDetalle()">
-          Cerrar
-        </button>
-      </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-modal-close" (click)="cerrarDetalle()">
+        Cerrar
+      </button>
     </div>
   </div>
+</div>
 }
 
 <!-- Mini-Modal de Reserva (CU03) -->
 @if (reservaModalAbierto() && reservaItemSeleccionado(); as item) {
-  <div class="modal-backdrop reserva-backdrop" (click)="cerrarReservaModal()">
-    <div class="modal-container reserva-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <div class="modal-title-group">
-          <span class="modal-category">Confirmar reserva</span>
-          <h2 class="modal-title">{{ item.nombre_producto }}</h2>
+<div class="modal-backdrop reserva-backdrop" (click)="cerrarReservaModal()">
+  <div class="modal-container reserva-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="modal-category">Confirmar reserva</span>
+        <h2 class="modal-title">{{ item.nombre_producto }}</h2>
+      </div>
+      <button class="modal-close-btn" (click)="cerrarReservaModal()" aria-label="Cerrar modal de reserva">
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="reserva-info-grid">
+        <div class="reserva-info-item">
+          <span class="label">Prenda</span>
+          <span class="value">{{ item.nombre_producto }}</span>
         </div>
-        <button class="modal-close-btn" (click)="cerrarReservaModal()" aria-label="Cerrar modal de reserva">
-          <app-icon name="x" [size]="16" />
-        </button>
+        <div class="reserva-info-item">
+          <span class="label">Sucursal</span>
+          <span class="value">{{ item.nombre_sucursal }}</span>
+        </div>
+        <div class="reserva-info-item">
+          <span class="label">Talla / Color</span>
+          <span class="value">
+            Talla {{ item.nombre_talla || 'N/A' }} &bull; {{ item.nombre_color || 'N/A' }}
+          </span>
+        </div>
+        <div class="reserva-info-item">
+          <span class="label">Stock disponible</span>
+          <span class="value value-accent">{{ item.disponible }} un.</span>
+        </div>
       </div>
 
-      <div class="modal-body">
-        <div class="reserva-info-grid">
-          <div class="reserva-info-item">
-            <span class="label">Prenda</span>
-            <span class="value">{{ item.nombre_producto }}</span>
-          </div>
-          <div class="reserva-info-item">
-            <span class="label">Sucursal</span>
-            <span class="value">{{ item.nombre_sucursal }}</span>
-          </div>
-          <div class="reserva-info-item">
-            <span class="label">Talla / Color</span>
-            <span class="value">
-              Talla {{ item.nombre_talla || 'N/A' }} &bull; {{ item.nombre_color || 'N/A' }}
-            </span>
-          </div>
-          <div class="reserva-info-item">
-            <span class="label">Stock disponible</span>
-            <span class="value value-accent">{{ item.disponible }} un.</span>
-          </div>
+      <form (ngSubmit)="confirmarReserva()" class="reserva-form">
+        <div class="form-group">
+          <label for="reserva-cantidad">Cantidad a reservar</label>
+          <input id="reserva-cantidad" type="number" min="1" [max]="item.disponible" [ngModel]="reservaCantidad()"
+            (ngModelChange)="reservaCantidad.set($event)" name="cantidad" required />
         </div>
 
-        <form (ngSubmit)="confirmarReserva()" class="reserva-form">
-          <div class="form-group">
-            <label for="reserva-cantidad">Cantidad a reservar</label>
-            <input
-              id="reserva-cantidad"
-              type="number"
-              min="1"
-              [max]="item.disponible"
-              [ngModel]="reservaCantidad()"
-              (ngModelChange)="reservaCantidad.set($event)"
-              name="cantidad"
-              required
-            />
-          </div>
+        <div class="form-group">
+          <label for="reserva-horario">Horario estimado de retiro (opcional)</label>
+          <input id="reserva-horario" type="datetime-local" [ngModel]="reservaHorario()"
+            (ngModelChange)="reservaHorario.set($event)" name="horario" />
+        </div>
 
-          <div class="form-group">
-            <label for="reserva-horario">Horario estimado de retiro (opcional)</label>
-            <input
-              id="reserva-horario"
-              type="datetime-local"
-              [ngModel]="reservaHorario()"
-              (ngModelChange)="reservaHorario.set($event)"
-              name="horario"
-            />
-          </div>
+        <div class="modal-footer"
+          style="padding: 1.25rem 0 0; border-top: none; gap: 0.75rem; justify-content: flex-end;">
+          <button type="button" class="btn-modal-secondary" (click)="cerrarReservaModal()"
+            [disabled]="reservaCreando()">
+            Cancelar
+          </button>
+          <button type="submit" class="btn-modal-primary"
+            [disabled]="reservaCreando() || reservaCantidad() < 1 || reservaCantidad() > item.disponible">
+            @if (reservaCreando()) {
+            Reservando...
+            } @else {
+            Confirmar Reserva
+            }
+          </button>
+        </div>
+      </form>
 
-          <div class="modal-footer" style="padding: 1.25rem 0 0; border-top: none; gap: 0.75rem; justify-content: flex-end;">
-            <button
-              type="button"
-              class="btn-modal-secondary"
-              (click)="cerrarReservaModal()"
-              [disabled]="reservaCreando()"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              class="btn-modal-primary"
-              [disabled]="reservaCreando() || reservaCantidad() < 1 || reservaCantidad() > item.disponible"
-            >
-              @if (reservaCreando()) {
-                Reservando...
-              } @else {
-                Confirmar Reserva
-              }
-            </button>
-          </div>
-        </form>
-
-        @if (reservaToast()) {
-          <div class="toast-inline" [class.toast-error]="reservaToastIsError()">
-            {{ reservaToast() }}
-          </div>
-        }
+      @if (reservaToast()) {
+      <div class="toast-inline" [class.toast-error]="reservaToastIsError()">
+        {{ reservaToast() }}
       </div>
+      }
     </div>
   </div>
+</div>
 }
 
 <!-- Mini-Modal de Añadir al Carrito -->
 @if (modalCarritoAbierto() && productoParaCarrito(); as prod) {
-  <div class="modal-backdrop reserva-backdrop" (click)="cerrarModalCarrito()">
-    <div class="modal-container reserva-modal" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <div class="modal-title-group">
-          <span class="eyebrow">Añadir al Carrito</span>
-          <h2 class="modal-title">{{ prod.nombre }}</h2>
-          <span class="modal-price" style="font-size: 1.1rem; color: var(--accent); font-weight: 700;">
-            ${{ prod.precio | number:'1.2-2' }}
-          </span>
+<div class="modal-backdrop reserva-backdrop" (click)="cerrarModalCarrito()">
+  <div class="modal-container reserva-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="eyebrow">Añadir al Carrito</span>
+        <h2 class="modal-title">{{ prod.nombre }}</h2>
+        <span class="modal-price" style="font-size: 1.1rem; color: var(--accent); font-weight: 700;">
+          ${{ prod.precio | number:'1.2-2' }}
+        </span>
+      </div>
+      <button class="modal-close-btn" (click)="cerrarModalCarrito()" aria-label="Cerrar modal">
+        ✕
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (cargandoVariantesCarrito()) {
+      <div class="modal-loading" style="padding: 2rem; text-align: center;">
+        <div class="spinner"></div>
+        <p>Cargando tallas y colores disponibles...</p>
+      </div>
+      } @else if (variantesParaCarrito().length === 0) {
+      <div class="modal-error" style="padding: 1.5rem; text-align: center;">
+        <p>Actualmente no hay stock disponible para esta prenda.</p>
+      </div>
+      } @else {
+      <form (ngSubmit)="confirmarAgregarAlCarrito()" class="reserva-form">
+        <div class="form-group">
+          <label for="variante-select">Seleccioná Talla y Color</label>
+          <select id="variante-select" [ngModel]="varianteSeleccionadaCarrito()"
+            (ngModelChange)="varianteSeleccionadaCarrito.set($event)" name="variante" class="form-select"
+            style="width: 100%; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
+            required>
+            @for (v of variantesParaCarrito(); track $index) {
+            <option [ngValue]="v">
+              Talla {{ v.nombre_talla || 'Única' }} &bull; {{ v.nombre_color || 'Estándar' }} ({{ v.cantidad_disponible
+              }} un. disponibles)
+            </option>
+            }
+          </select>
         </div>
-        <button class="modal-close-btn" (click)="cerrarModalCarrito()" aria-label="Cerrar modal">
-          ✕
-        </button>
-      </div>
 
-      <div class="modal-body">
-        @if (cargandoVariantesCarrito()) {
-          <div class="modal-loading" style="padding: 2rem; text-align: center;">
-            <div class="spinner"></div>
-            <p>Cargando tallas y colores disponibles...</p>
-          </div>
-        } @else if (variantesParaCarrito().length === 0) {
-          <div class="modal-error" style="padding: 1.5rem; text-align: center;">
-            <p>Actualmente no hay stock disponible para esta prenda.</p>
-          </div>
-        } @else {
-          <form (ngSubmit)="confirmarAgregarAlCarrito()" class="reserva-form">
-            <div class="form-group">
-              <label for="variante-select">Seleccioná Talla y Color</label>
-              <select
-                id="variante-select"
-                [ngModel]="varianteSeleccionadaCarrito()"
-                (ngModelChange)="varianteSeleccionadaCarrito.set($event)"
-                name="variante"
-                class="form-select"
-                style="width: 100%; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
-                required
-              >
-                @for (v of variantesParaCarrito(); track $index) {
-                  <option [ngValue]="v">
-                    Talla {{ v.nombre_talla || 'Única' }} &bull; {{ v.nombre_color || 'Estándar' }} ({{ v.cantidad_disponible }} un. disponibles)
-                  </option>
-                }
-              </select>
-            </div>
+        <div class="form-group">
+          <label for="cart-cantidad">Cantidad</label>
+          <input id="cart-cantidad" type="number" min="1"
+            [max]="varianteSeleccionadaCarrito()?.cantidad_disponible || 99" [ngModel]="cantidadParaCarrito()"
+            (ngModelChange)="cantidadParaCarrito.set($event)" name="cantidad"
+            style="width: 100%; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
+            required />
+        </div>
 
-            <div class="form-group">
-              <label for="cart-cantidad">Cantidad</label>
-              <input
-                id="cart-cantidad"
-                type="number"
-                min="1"
-                [max]="varianteSeleccionadaCarrito()?.cantidad_disponible || 99"
-                [ngModel]="cantidadParaCarrito()"
-                (ngModelChange)="cantidadParaCarrito.set($event)"
-                name="cantidad"
-                style="width: 100%; padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-primary);"
-                required
-              />
-            </div>
-
-            <div class="modal-actions" style="margin-top: 1.5rem;">
-              <button
-                type="submit"
-                class="btn-primary"
-                style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.85rem;"
-              >
-                <app-icon name="shopping-cart" [size]="16" />
-                Añadir al Carrito
-              </button>
-            </div>
-          </form>
-        }
-      </div>
+        <div class="modal-actions" style="margin-top: 1.5rem;">
+          <button type="submit" class="btn-primary"
+            style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.85rem;">
+            <app-icon name="shopping-cart" [size]="16" />
+            Añadir al Carrito
+          </button>
+        </div>
+      </form>
+      }
     </div>
   </div>
+</div>
 }
 
 <!-- Toast flotante cuando el modal ya se cerró -->
 @if (reservaToast() && !reservaModalAbierto()) {
-  <div
-    class="toast-inline toast-floating"
-    [class.toast-error]="reservaToastIsError()"
-  >
-    {{ reservaToast() }}
-  </div>
+<div class="toast-inline toast-floating" [class.toast-error]="reservaToastIsError()">
+  {{ reservaToast() }}
+</div>
 }
-
