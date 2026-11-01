@@ -12,7 +12,9 @@ Arquitectura asíncrona (Fase 1):
   - generar_prueba_virtual(): wrapper síncrono legado (conservado).
 """
 import base64
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import replicate
 from fastapi import HTTPException
@@ -23,6 +25,9 @@ from starlette.concurrency import run_in_threadpool
 from app.modules.catalogo.models import Producto
 from app.modules.vestidor.models import VestidorGeneracion, VestidorJob
 from app.shared.core.config import settings
+from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
+
+logger = logging.getLogger(__name__)
 
 _MODELO_IDM_VTON = (
     "cuuupid/idm-vton:906425dbca90663ff5427624839572cc56ea7d380343d13e2a4c4b09d3f0c30f"
@@ -61,13 +66,18 @@ def _llamar_replicate_sync(human_img: str, producto: Producto) -> str:
 
 
 def _contar_generaciones_hoy(db: Session, usuario_id: int) -> int:
-    """Suma jobs (cualquier estado) + generaciones legado creadas hoy."""
-    hoy = datetime.utcnow().date()
+    """Suma jobs (cualquier estado) + generaciones legado creadas hoy (dia local, America/La_Paz)."""
+    # creado_en se guarda en UTC sin zona: el dia local se traduce a un rango [inicio, fin) en UTC
+    # (La Paz es UTC-4 fijo, sin horario de verano), asi el limite se reinicia a las 00:00 locales.
+    inicio_local = datetime.now(ZONA_HORARIA_LOCAL).replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_utc = inicio_local.astimezone(timezone.utc).replace(tzinfo=None)
+    fin_utc = inicio_utc + timedelta(days=1)
     jobs = (
         db.query(VestidorJob)
         .filter(
             VestidorJob.usuario_id == usuario_id,
-            func.date(VestidorJob.creado_en) == hoy,
+            VestidorJob.creado_en >= inicio_utc,
+            VestidorJob.creado_en < fin_utc,
         )
         .count()
     )
@@ -75,7 +85,8 @@ def _contar_generaciones_hoy(db: Session, usuario_id: int) -> int:
         db.query(VestidorGeneracion)
         .filter(
             VestidorGeneracion.usuario_id == usuario_id,
-            func.date(VestidorGeneracion.creado_en) == hoy,
+            VestidorGeneracion.creado_en >= inicio_utc,
+            VestidorGeneracion.creado_en < fin_utc,
         )
         .count()
     )
@@ -142,9 +153,13 @@ async def procesar_job(db: Session, job_id: int, foto_usuario: bytes) -> None:
             raise ValueError("Producto no encontrado o sin imagen")
 
         human_img = _construir_human_img(foto_usuario)
+        # Solo se necesitan imagen_url y nombre: se copian a un objeto simple y se libera la conexion
+        # del pool durante la llamada lenta a Replicate (el job se refresca solo al escribir el resultado).
+        producto_datos = SimpleNamespace(imagen_url=producto.imagen_url, nombre=producto.nombre)
+        db.commit()
 
         def _run() -> str:
-            return _llamar_replicate_sync(human_img, producto)
+            return _llamar_replicate_sync(human_img, producto_datos)
 
         result_url = await run_in_threadpool(_run)
 
@@ -152,6 +167,7 @@ async def procesar_job(db: Session, job_id: int, foto_usuario: bytes) -> None:
         job.imagen_resultado_url = result_url
 
     except Exception as exc:
+        logger.error("Vestidor: fallo el job %s: %s", job_id, exc, exc_info=True)
         job.estado = "fallido"
         job.error = str(exc)
 

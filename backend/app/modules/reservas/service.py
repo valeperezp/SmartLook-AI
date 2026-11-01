@@ -2,7 +2,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.modules.inventario.models import Inventario
+from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.reservas import models, schemas
 
 
@@ -30,7 +30,8 @@ def _ajustar_stock_reserva(
     if color_id is not None:
         query = query.filter(Inventario.color_id == color_id)
 
-    inventario = query.first()
+    # Bloqueo de fila: reservar, cancelar y atender sobre el mismo inventario se serializan
+    inventario = query.with_for_update().populate_existing().first()
     if not inventario:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -50,6 +51,9 @@ def _ajustar_stock_reserva(
         inventario.cantidad_disponible -= cantidad
         inventario.cantidad_reservada += cantidad
 
+    # populate_existing + autoflush desactivado: sin flush, un producto repetido en la misma operacion
+    # recargaria el valor de BD y perderia este cambio.
+    db.flush()
     return inventario
 
 
@@ -64,7 +68,8 @@ def crear_reserva(db: Session, data: schemas.ReservaCreate, cliente_id: int) -> 
     db.add(reserva)
     db.flush()  # Para obtener el ID sin commitear
 
-    for item_data in data.items:
+    # Orden estable (producto, talla, color), igual que en ventas, para evitar interbloqueos
+    for item_data in sorted(data.items, key=lambda i: (i.producto_id, i.talla_id or 0, i.color_id or 0)):
         _ajustar_stock_reserva(
             db=db,
             producto_id=item_data.producto_id,
@@ -135,7 +140,7 @@ def cancelar_reserva(db: Session, reserva_id: int, cliente_id: int) -> models.Re
     if reserva.estado == "atendida":
         raise HTTPException(status_code=400, detail="No se puede cancelar una reserva ya atendida")
 
-    for item in reserva.items:
+    for item in sorted(reserva.items, key=lambda i: (i.producto_id, i.talla_id or 0, i.color_id or 0)):
         _ajustar_stock_reserva(
             db=db,
             producto_id=item.producto_id,
@@ -167,16 +172,6 @@ def listar_reservas_por_sucursal(db: Session, sucursal_id: int) -> list[models.R
         .order_by(models.Reserva.creada_en.desc())
         .all()
     )
-
-
-def cambiar_estado(db: Session, reserva_id: int, nuevo_estado: str) -> models.Reserva | None:
-    """Cambiar estado (encargado/admin)."""
-    reserva = db.query(models.Reserva).filter(models.Reserva.id == reserva_id).first()
-    if reserva:
-        reserva.estado = nuevo_estado
-        db.commit()
-        db.refresh(reserva)
-    return reserva
 
 
 # =========================================================================
@@ -221,7 +216,15 @@ def cambiar_estado_con_validacion(
     Cambia el estado de una reserva con validación de transición.
     Si sucursal_id se provee, valida que la reserva pertenezca a esa sucursal.
     """
-    reserva = db.query(models.Reserva).filter(models.Reserva.id == reserva_id).first()
+    # Se bloquea la fila: dos cambios de estado simultaneos de la misma reserva se serializan
+    # y el segundo falla la validacion de transicion (evita convertir o liberar el stock dos veces).
+    reserva = (
+        db.query(models.Reserva)
+        .filter(models.Reserva.id == reserva_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
     if not reserva:
         return None
 
@@ -235,7 +238,7 @@ def cambiar_estado_con_validacion(
 
     # Si se cancela, revertir stock
     if nuevo_estado == "cancelada":
-        for item in reserva.items:
+        for item in sorted(reserva.items, key=lambda i: (i.producto_id, i.talla_id or 0, i.color_id or 0)):
             _ajustar_stock_reserva(
                 db=db,
                 producto_id=item.producto_id,
@@ -246,10 +249,48 @@ def cambiar_estado_con_validacion(
                 liberar=True,
             )
 
+    # Si se atiende (solo desde 'confirmada', ver ESTADOS_PERMITIDOS), lo reservado pasa a vendido
+    if nuevo_estado == "atendida":
+        _convertir_reserva_en_venta(db, reserva)
+
     reserva.estado = nuevo_estado
     db.commit()
     db.refresh(reserva)
     return reserva
+
+
+def _convertir_reserva_en_venta(db: Session, reserva: models.Reserva) -> None:
+    """Mueve el stock de cantidad_reservada a cantidad_vendida y registra el movimiento de inventario."""
+    # Bloqueo en orden estable (producto, talla, color) para evitar interbloqueos entre operaciones concurrentes
+    for item in sorted(reserva.items, key=lambda i: (i.producto_id, i.talla_id or 0, i.color_id or 0)):
+        query = db.query(Inventario).filter(
+            Inventario.producto_id == item.producto_id,
+            Inventario.sucursal_id == reserva.sucursal_id,
+            Inventario.activo.is_(True),
+        )
+        if item.talla_id is not None:
+            query = query.filter(Inventario.talla_id == item.talla_id)
+        if item.color_id is not None:
+            query = query.filter(Inventario.color_id == item.color_id)
+
+        inventario = query.with_for_update().populate_existing().first()
+        if not inventario:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No hay inventario para el producto {item.producto_id} en la sucursal {reserva.sucursal_id}",
+            )
+
+        inventario.cantidad_reservada = max(0, inventario.cantidad_reservada - item.cantidad)
+        inventario.cantidad_vendida += item.cantidad
+        db.add(
+            MovimientoInventario(
+                inventario_id=inventario.id,
+                tipo="venta",
+                cantidad=item.cantidad,
+                motivo=f"Reserva #{reserva.id} atendida",
+                usuario_id=reserva.cliente_id,
+            )
+        )
 
 
 def obtener_reserva_por_sucursal(

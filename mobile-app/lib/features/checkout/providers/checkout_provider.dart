@@ -12,9 +12,9 @@ import '../services/ventas_online_service.dart';
 enum EstadoCheckout { idle, creando, esperandoPago, exitoso, error }
 
 class CheckoutProvider extends ChangeNotifier {
-  final CatalogoService _catalogoService = CatalogoService();
-  final VentasOnlineService _ventasOnlineService = VentasOnlineService();
-  final PagosService _pagosService = PagosService();
+  final CatalogoService _catalogoService;
+  final VentasOnlineService _ventasOnlineService;
+  final PagosService _pagosService;
 
   EstadoCheckout _estado = EstadoCheckout.idle;
   List<Sucursal> _sucursales = [];
@@ -44,7 +44,14 @@ class CheckoutProvider extends ChangeNotifier {
   bool get pagoQREnviado => _pagoQREnviado;
   String? get errorMessage => _errorMessage;
 
-  CheckoutProvider() {
+  /// Los servicios se pueden inyectar (para pruebas); por defecto usan la API real.
+  CheckoutProvider({
+    CatalogoService? catalogoService,
+    VentasOnlineService? ventasOnlineService,
+    PagosService? pagosService,
+  })  : _catalogoService = catalogoService ?? CatalogoService(),
+        _ventasOnlineService = ventasOnlineService ?? VentasOnlineService(),
+        _pagosService = pagosService ?? PagosService() {
     cargarSucursales();
   }
 
@@ -172,14 +179,29 @@ class CheckoutProvider extends ChangeNotifier {
         metodo: 'tarjeta',
       );
 
-      try {
-        final pago = await _pagosService.confirmarPago(
-          paymentIntentId: intentRes.paymentIntentId,
-        );
-        _pagoId = pago.id;
-        _pagoActual = pago;
-      } catch (confErr) {
-        debugPrint('Confirmación directa de PaymentIntent: $confErr');
+      // Un fallo de red/servidor aquí cae al catch de abajo: la orden NO se da por pagada.
+      final pago = await _pagosService.confirmarPago(
+        paymentIntentId: intentRes.paymentIntentId,
+      );
+      _pagoId = pago.id;
+      _pagoActual = pago;
+
+      // Solo el estado 'completado' del backend significa pago exitoso.
+      if (pago.estado != 'completado') {
+        debugPrint('Pago con tarjeta no completado: estado ${pago.estado}');
+        if (pago.estado == 'fallido') {
+          // El backend cancela la orden online cuando el cobro falla: para reintentar hay que crear una nueva.
+          _ventaId = null;
+          _montoVenta = 0.0;
+          _pagoId = null;
+          _pagoActual = null;
+          _errorMessage = 'Error al procesar el pago: el cobro no se completó. Intentá de nuevo.';
+        } else {
+          _errorMessage = 'Error al procesar el pago: todavía no se confirmó (estado: ${pago.estado}). Intentá de nuevo en unos instantes.';
+        }
+        _estado = EstadoCheckout.error;
+        notifyListeners();
+        return false;
       }
 
       _ordenFinalizadaId = _ventaId;
@@ -187,7 +209,7 @@ class CheckoutProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = 'Error al procesar el pago: ${e.toString().replaceAll('Exception: ', '')}';
       _estado = EstadoCheckout.error;
       notifyListeners();
       return false;

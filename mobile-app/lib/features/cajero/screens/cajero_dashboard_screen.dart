@@ -46,6 +46,12 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
         ),
         backgroundColor: Colors.blue.shade800,
         actions: [
+          // TEMPORAL: acceso al POS offline (fase de pruebas)
+          IconButton(
+            icon: const Icon(Icons.cloud_off, color: Colors.white),
+            tooltip: 'POS offline',
+            onPressed: () => context.push('/offline/pos'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Cerrar sesión',
@@ -198,6 +204,40 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                           ],
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Mi Caja: apertura y cierre de turno (offline)
+                  Card(
+                    elevation: 1.5,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.green.shade50,
+                        child: Icon(Icons.account_balance_wallet, color: Colors.green.shade700),
+                      ),
+                      title: const Text('Mi Caja', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Abrir turno, ver el arqueo y cerrar caja'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () => context.push('/offline/turno'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Cambios y devoluciones (offline)
+                  Card(
+                    elevation: 1.5,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.orange.shade50,
+                        child: Icon(Icons.swap_horiz, color: Colors.orange.shade800),
+                      ),
+                      title: const Text('Cambios/Devoluciones', style: TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Cambiar o devolver prendas de una venta reciente'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () => context.push('/offline/devoluciones'),
                     ),
                   ),
                   const SizedBox(height: 12),

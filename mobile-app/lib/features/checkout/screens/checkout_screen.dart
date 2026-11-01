@@ -565,6 +565,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             QrPaymentWidget(
                               ventaId: checkout.ventaId!,
                               monto: checkout.montoVenta,
+                              sucursalId: checkout.sucursalId!,
                               onPagoEnviado: () => _onFinalizado(context, esQR: true),
                             ),
                         ],

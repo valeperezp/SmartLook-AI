@@ -137,6 +137,17 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.account_circle, color: Colors.white),
+            tooltip: 'Mi cuenta (puntos y avisos)',
+            onPressed: () => context.push('/offline/mi-cuenta'),
+          ),
+          // TEMPORAL: acceso al catálogo offline (fase de pruebas)
+          IconButton(
+            icon: const Icon(Icons.cloud_off, color: Colors.white),
+            tooltip: 'Catálogo offline',
+            onPressed: () => context.push('/offline/catalogo'),
+          ),
+          IconButton(
             icon: const Icon(Icons.receipt_long, color: Colors.white),
             tooltip: 'Mis Reservas',
             onPressed: () => context.go('/mis-reservas'),

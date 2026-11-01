@@ -15,7 +15,16 @@ class Env {
     return 'http://localhost:8000';
   }
 
-  static const String webUrl = 'http://localhost:4200';
+  static const String _webUrlOverride = String.fromEnvironment('WEB_URL', defaultValue: '');
+  static String get webUrl {
+    if (_webUrlOverride.isNotEmpty) return _webUrlOverride;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      // TODO: cuando se defina el deploy, compilar con
+      // --dart-define=WEB_URL=https://tu-dominio.com
+      return 'http://localhost:4200';
+    }
+    return 'http://localhost:4200';
+  }
   static const String stripePublishableKey =
       'pk_test_51UGODfQ61dJbPxVzfUK66ISHzsuSMdEh5ghQ2LPhLXYj3XwYcj4nnf01uXI9ODLXW6uP76KthPxUw93pp8ZNwwHV00URCaL1zK';
   

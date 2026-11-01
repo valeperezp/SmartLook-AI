@@ -4,19 +4,29 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/config/env.dart';
+import '../../encargado/mi_qr/models/sucursal_qr.dart';
+import '../../encargado/mi_qr/services/sucursal_qr_service.dart';
 import '../models/pago.dart';
 import '../providers/checkout_provider.dart';
 
 class QrPaymentWidget extends StatefulWidget {
   final int ventaId;
   final double monto;
+
+  /// Sucursal de la orden: de ella sale el QR bancario que el cliente debe escanear para pagar.
+  final int sucursalId;
   final VoidCallback onPagoEnviado;
+
+  /// Solo para pruebas: permite reemplazar la consulta del QR de la sucursal.
+  final SucursalQrService? qrService;
 
   const QrPaymentWidget({
     super.key,
     required this.ventaId,
     required this.monto,
+    required this.sucursalId,
     required this.onPagoEnviado,
+    this.qrService,
   });
 
   @override
@@ -35,10 +45,49 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
   Uint8List? _previewBytes;
   bool _subiendoComprobante = false;
 
+  // QR bancario de la sucursal (el que subió el encargado), el mismo que muestra la web.
+  late final SucursalQrService _qrService = widget.qrService ?? SucursalQrService();
+  SucursalQR? _qrSucursal;
+  bool _cargandoQrSucursal = true;
+  String? _errorQrSucursal; // fallo distinto de "no hay QR" (red, servidor)
+
+  // QR dinámico que abre en la web la pantalla de comprobante (secundario).
+  bool _mostrarQrComprobante = false;
+
   @override
   void initState() {
     super.initState();
     _iniciarPagoQR();
+    _cargarQrSucursal();
+  }
+
+  /// Pide el QR activo de la sucursal. Sin QR configurado (404) queda `_qrSucursal == null` y sin error.
+  Future<void> _cargarQrSucursal() async {
+    setState(() {
+      _cargandoQrSucursal = true;
+      _errorQrSucursal = null;
+    });
+    try {
+      final qr = await _qrService.obtenerQR(widget.sucursalId);
+      if (!mounted) return;
+      setState(() {
+        _qrSucursal = (qr != null && qr.activo && qr.imagenUrl.isNotEmpty) ? qr : null;
+        _cargandoQrSucursal = false;
+      });
+    } catch (e) {
+      debugPrint('QR de la sucursal ${widget.sucursalId}: $e');
+      if (!mounted) return;
+      setState(() {
+        _qrSucursal = null;
+        _errorQrSucursal = 'No se pudo cargar el QR de la sucursal. Revisá tu conexión e intentá de nuevo.';
+        _cargandoQrSucursal = false;
+      });
+    }
+  }
+
+  String _resolverUrl(String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return url.startsWith('/') ? '${Env.apiUrl}$url' : '${Env.apiUrl}/$url';
   }
 
   Future<void> _iniciarPagoQR() async {
@@ -48,7 +97,15 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
     });
 
     final provider = context.read<CheckoutProvider>();
-    final pago = await provider.iniciarPagoQR();
+    // Si el widget se vuelve a montar (p. ej. al alternar el metodo de pago), se reutiliza el Pago QR
+    // pendiente de esta venta en vez de crear otro.
+    final existente = provider.pagoActual;
+    final pago = (existente != null &&
+            existente.ventaId == widget.ventaId &&
+            existente.metodo == 'qr' &&
+            existente.estado == 'pendiente')
+        ? existente
+        : await provider.iniciarPagoQR();
 
     if (!mounted) return;
 
@@ -119,6 +176,79 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
         _errorMensaje = provider.errorMessage ?? 'Error al subir el comprobante.';
       });
     }
+  }
+
+  Widget _buildQrBancario() {
+    const alto = 240.0;
+    final marco = BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
+      ],
+      border: Border.all(color: Colors.grey.shade200),
+    );
+
+    Widget contenido;
+    if (_cargandoQrSucursal) {
+      contenido = const SizedBox(height: alto, width: alto, child: Center(child: CircularProgressIndicator()));
+    } else if (_qrSucursal != null) {
+      contenido = Image.network(
+        _resolverUrl(_qrSucursal!.imagenUrl),
+        key: const ValueKey('qr-bancario'),
+        width: alto,
+        height: alto,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, progreso) => progreso == null
+            ? child
+            : const SizedBox(height: alto, width: alto, child: Center(child: CircularProgressIndicator())),
+        errorBuilder: (context, error, stack) => SizedBox(
+          height: alto,
+          width: alto,
+          child: Center(
+            child: Text(
+              'No se pudo mostrar la imagen del QR de la sucursal.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+          ),
+        ),
+      );
+    } else {
+      final fallo = _errorQrSucursal != null;
+      contenido = SizedBox(
+        width: alto,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(fallo ? Icons.wifi_off : Icons.qr_code_2, size: 48, color: Colors.grey.shade500),
+              const SizedBox(height: 10),
+              Text(
+                fallo ? _errorQrSucursal! : 'La sucursal todavía no cargó su QR',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade800, fontSize: 13),
+              ),
+              if (!fallo) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Coordiná la transferencia por otro medio y subí el comprobante más abajo.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                ),
+              ],
+              if (fallo) ...[
+                const SizedBox(height: 8),
+                TextButton.icon(onPressed: _cargarQrSucursal, icon: const Icon(Icons.refresh, size: 16), label: const Text('Reintentar')),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(padding: const EdgeInsets.all(16), decoration: marco, child: contenido);
   }
 
   @override
@@ -213,33 +343,47 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
         ),
         const SizedBox(height: 20),
 
-        // QR Code Container
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: QrImageView(
-            data: _qrData ?? 'pago:${widget.ventaId}',
-            version: QrVersions.auto,
-            size: 200.0,
-            backgroundColor: Colors.white,
-          ),
-        ),
+        // QR bancario de la sucursal (el que se escanea con la app del banco para pagar)
+        _buildQrBancario(),
         const SizedBox(height: 12),
         Text(
           'Pago ID: #${_pago?.id ?? widget.ventaId}',
           style: TextStyle(fontSize: 12, color: Colors.grey.shade600, letterSpacing: 1),
         ),
+        const SizedBox(height: 12),
+
+        // QR dinámico (secundario): abre la pantalla web para subir el comprobante desde otro celular
+        OutlinedButton.icon(
+          onPressed: _qrData == null
+              ? null
+              : () => setState(() => _mostrarQrComprobante = !_mostrarQrComprobante),
+          icon: Icon(_mostrarQrComprobante ? Icons.expand_less : Icons.qr_code_2, size: 18),
+          label: const Text('Subir comprobante desde el celular'),
+        ),
+        if (_mostrarQrComprobante && _qrData != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: QrImageView(
+              data: _qrData!,
+              version: QrVersions.auto,
+              size: 160.0,
+              backgroundColor: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Escaneá este código con otro celular para abrir la página donde subir el comprobante. '
+            'No sirve para pagar.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+        ],
         const SizedBox(height: 24),
 
         // Sección Comprobante

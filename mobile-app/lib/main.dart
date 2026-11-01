@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'core/config/env.dart';
+import 'core/network/dio_client.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/providers/admin_provider.dart';
@@ -24,6 +25,14 @@ import 'features/cajero/ventas/providers/mis_ventas_provider.dart';
 import 'features/cajero/qr/providers/qr_cajero_provider.dart';
 import 'features/ia/providers/ia_provider.dart';
 import 'features/mis_compras/providers/ventas_provider.dart';
+import 'features/offline/providers/catalogo_offline_provider.dart';
+import 'features/offline/providers/conectividad_provider.dart';
+import 'features/offline/providers/devolucion_provider.dart';
+import 'features/offline/providers/puntos_provider.dart';
+import 'features/offline/providers/suscripciones_provider.dart';
+import 'features/offline/providers/turno_caja_provider.dart';
+import 'features/offline/providers/venta_offline_provider.dart';
+import 'features/offline/services/sync_service.dart';
 import 'features/proveedor/providers/proveedor_provider.dart';
 import 'features/reservas/providers/reservas_provider.dart';
 import 'features/vestidor/providers/vestidor_provider.dart';
@@ -53,12 +62,29 @@ class SmartLookApp extends StatefulWidget {
 class _SmartLookAppState extends State<SmartLookApp> {
   late final AuthProvider _authProvider;
   late final AppRouter _appRouter;
+  bool _reseteoEn401Instalado = false;
 
   @override
   void initState() {
     super.initState();
     _authProvider = AuthProvider();
     _appRouter = AppRouter(_authProvider);
+  }
+
+  /// Ante un 401 con sesion activa, vacia los datos personales/transitorios de vestidor y checkout.
+  /// El carrito no se toca. Se encadena sobre el callback que AuthProvider registro en DioClient.
+  void _instalarReseteoEn401(BuildContext context) {
+    if (_reseteoEn401Instalado) return;
+    _reseteoEn401Instalado = true;
+    final dio = DioClient();
+    final alNoAutorizado = dio.onUnauthorized;
+    dio.onUnauthorized = () {
+      if (_authProvider.isLoggedIn && context.mounted) {
+        context.read<VestidorProvider>().limpiarFoto();
+        context.read<CheckoutProvider>().reset();
+      }
+      alNoAutorizado?.call();
+    };
   }
 
   @override
@@ -129,6 +155,34 @@ class _SmartLookAppState extends State<SmartLookApp> {
         ChangeNotifierProvider<ProveedorProvider>(
           create: (_) => ProveedorProvider(),
         ),
+        ChangeNotifierProvider<CatalogoOfflineProvider>(
+          create: (_) => CatalogoOfflineProvider(),
+        ),
+        ChangeNotifierProvider<VentaOfflineProvider>(
+          create: (_) => VentaOfflineProvider(),
+        ),
+        // Servidor simulado hasta que exista el endpoint real de sincronización
+        // lazy: false → empieza a escuchar la red desde el arranque; dispose cancela la suscripción
+        Provider<SyncService>(
+          lazy: false,
+          create: (_) => SyncService()..iniciarEscucha(),
+          dispose: (_, sync) => sync.dispose(),
+        ),
+        ChangeNotifierProvider<ConectividadProvider>(
+          create: (_) => ConectividadProvider(),
+        ),
+        ChangeNotifierProvider<TurnoCajaProvider>(
+          create: (_) => TurnoCajaProvider(),
+        ),
+        ChangeNotifierProvider<DevolucionProvider>(
+          create: (_) => DevolucionProvider(),
+        ),
+        ChangeNotifierProvider<PuntosProvider>(
+          create: (_) => PuntosProvider(),
+        ),
+        ChangeNotifierProvider<SuscripcionesProvider>(
+          create: (_) => SuscripcionesProvider(),
+        ),
       ],
       child: MaterialApp.router(
         title: 'SmartLook AI',
@@ -136,6 +190,10 @@ class _SmartLookAppState extends State<SmartLookApp> {
         theme: AppTheme.light(),
         themeMode: ThemeMode.light,
         routerConfig: _appRouter.router,
+        builder: (context, child) {
+          _instalarReseteoEn401(context);
+          return child ?? const SizedBox.shrink();
+        },
       ),
     );
   }

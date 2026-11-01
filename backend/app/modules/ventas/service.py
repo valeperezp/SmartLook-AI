@@ -18,7 +18,7 @@ def _buscar_inventario(db: Session, producto_id: int, sucursal_id: int, talla_id
         query = query.filter(Inventario.talla_id == talla_id)
     if color_id is not None:
         query = query.filter(Inventario.color_id == color_id)
-    return query.first()
+    return query.with_for_update().populate_existing().first()
 
 
 def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, cajero_id: int) -> models.Venta:
@@ -56,6 +56,7 @@ def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, caj
         # Descontar stock
         inventario.cantidad_disponible -= item_data.cantidad
         inventario.cantidad_vendida += item_data.cantidad
+        db.flush()  # sin autoflush, populate_existing descartaria este descuento si el producto se repite en la venta
 
         # Crear item
         precio = float(producto.precio)
@@ -196,7 +197,8 @@ def completar_venta_y_descontar_stock(db: Session, venta_id: int) -> models.Vent
 
     # 1. Verificar disponibilidad de stock para todos los items antes de modificar
     inventarios_a_descontar = []
-    for item in venta.items:
+    # Bloqueo en orden estable (producto, talla, color) para evitar interbloqueos entre ventas concurrentes
+    for item in sorted(venta.items, key=lambda i: (i.producto_id, i.talla_id or 0, i.color_id or 0)):
         inventario = _buscar_inventario(
             db, item.producto_id, venta.sucursal_id, item.talla_id, item.color_id
         )

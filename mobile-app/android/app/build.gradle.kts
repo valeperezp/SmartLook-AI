@@ -13,6 +13,23 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Firma de release: se usa key.properties solo si esta completo y el keystore existe.
+// Si no, el release se firma con la clave de debug para que el proyecto compile en cualquier clon.
+val requiredKeystoreKeys = listOf("storePassword", "keyPassword", "keyAlias", "storeFile")
+val missingKeystoreKeys = requiredKeystoreKeys.filter { keystoreProperties.getProperty(it).isNullOrBlank() }
+val keystoreFile = keystoreProperties.getProperty("storeFile")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { path -> file(path).takeIf { it.exists() } ?: rootProject.file(path).takeIf { it.exists() } }
+val hasValidKeystore = keystorePropertiesFile.exists() && missingKeystoreKeys.isEmpty() && keystoreFile != null
+if (!hasValidKeystore) {
+    val reason = when {
+        !keystorePropertiesFile.exists() -> "no se encontro key.properties"
+        missingKeystoreKeys.isNotEmpty() -> "key.properties incompleto (faltan: ${missingKeystoreKeys.joinToString()})"
+        else -> "el archivo indicado en storeFile no existe"
+    }
+    logger.warn("WARNING: $reason. El build release se firmara con la clave de DEBUG (no apto para Play Store).")
+}
+
 android {
     namespace = "com.smartlook.smartlook_mobile"
     compileSdk = flutter.compileSdkVersion
@@ -39,19 +56,19 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            val storePath = keystoreProperties["storeFile"] as String
-            val keyFile = file(storePath)
-            storeFile = if (keyFile.exists()) keyFile else rootProject.file(storePath)
-            storePassword = keystoreProperties["storePassword"] as String
+        if (hasValidKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = keystoreFile
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasValidKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
             isMinifyEnabled = false
             isShrinkResources = false
         }

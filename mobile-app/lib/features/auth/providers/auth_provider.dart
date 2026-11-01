@@ -24,7 +24,15 @@ class AuthProvider extends ChangeNotifier {
   bool get isProveedor => _usuario?.isProveedor ?? false;
 
   AuthProvider() {
+    _dioClient.onUnauthorized = _manejarNoAutorizado;
     cargarSesion();
+  }
+
+  /// Un 401 en una peticion autenticada: la sesion ya no es valida, se cierra y el router vuelve al login.
+  void _manejarNoAutorizado() {
+    if (_usuario != null) {
+      logout();
+    }
   }
 
   Future<void> cargarSesion() async {
@@ -60,8 +68,15 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _usuario = null;
       }
+    } on DioException catch (e) {
+      // Solo un 401 significa token invalido/expirado. Sin red, timeout o 5xx se conserva el token
+      // (el proximo arranque o request reintenta); la sesion queda sin usuario cargado por ahora.
+      if (e.response?.statusCode == 401) {
+        await TokenStorage.clearToken();
+      }
+      _usuario = null;
     } catch (_) {
-      await TokenStorage.clearToken();
+      // Error no HTTP (p. ej. respuesta ilegible): tampoco se descarta el token.
       _usuario = null;
     }
   }

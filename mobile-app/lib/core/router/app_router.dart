@@ -31,6 +31,11 @@ import '../../features/cajero/qr/screens/qr_cajero_screen.dart';
 import '../../features/carrito/screens/carrito_screen.dart';
 import '../../features/checkout/screens/checkout_screen.dart';
 import '../../features/mis_compras/screens/mis_compras_screen.dart';
+import '../../features/offline/screens/catalogo_offline_screen.dart';
+import '../../features/offline/screens/pantalla_devoluciones.dart';
+import '../../features/offline/screens/pantalla_mi_cuenta.dart';
+import '../../features/offline/screens/pantalla_turno.dart';
+import '../../features/offline/screens/pos_offline_screen.dart';
 import '../../features/proveedor/screens/proveedor_catalogo_screen.dart';
 import '../../features/proveedor/screens/proveedor_dashboard_screen.dart';
 import '../../features/proveedor/screens/proveedor_productos_screen.dart';
@@ -433,6 +438,51 @@ class AppRouter {
           pageBuilder: (context, state) => _buildFadeTransitionPage(
             state: state,
             child: const CheckoutScreen(),
+          ),
+        ),
+
+        // TEMPORAL: catálogo offline + reserva local (Cliente)
+        GoRoute(
+          path: '/offline/catalogo',
+          pageBuilder: (context, state) => _buildFadeTransitionPage(
+            state: state,
+            child: const CatalogoOfflineScreen(),
+          ),
+        ),
+
+        // TEMPORAL: POS offline de contado (Cajero)
+        GoRoute(
+          path: '/offline/pos',
+          pageBuilder: (context, state) => _buildFadeTransitionPage(
+            state: state,
+            child: const PosOfflineScreen(),
+          ),
+        ),
+
+        // Mi cuenta: puntos de fidelización y avisos de stock (Cliente)
+        GoRoute(
+          path: '/offline/mi-cuenta',
+          pageBuilder: (context, state) => _buildFadeTransitionPage(
+            state: state,
+            child: const PantallaMiCuenta(),
+          ),
+        ),
+
+        // Cambios y devoluciones offline (Cajero)
+        GoRoute(
+          path: '/offline/devoluciones',
+          pageBuilder: (context, state) => _buildFadeTransitionPage(
+            state: state,
+            child: const PantallaDevoluciones(),
+          ),
+        ),
+
+        // Mi Caja: turno de caja offline (Cajero)
+        GoRoute(
+          path: '/offline/turno',
+          pageBuilder: (context, state) => _buildFadeTransitionPage(
+            state: state,
+            child: const PantallaTurno(),
           ),
         ),
 

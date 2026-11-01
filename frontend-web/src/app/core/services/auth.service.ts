@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { catchError, of, shareReplay, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -87,8 +87,12 @@ export class AuthService {
 
     return this.http.get<Usuario>(`${this.apiUrl}/auth/me`).pipe(
       tap((usuario) => this.currentUser.set(usuario)),
-      catchError(() => {
-        this.clearToken();
+      catchError((err) => {
+        // Solo un 401 significa token invalido/expirado. Red caida, timeout, 5xx o cold start del backend
+        // no deben cerrar la sesion: el token se conserva y el proximo request reintenta.
+        if (err instanceof HttpErrorResponse && err.status === 401) {
+          this.clearToken();
+        }
         return of(null);
       }),
       shareReplay(1)

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../../checkout/models/pago.dart';
 import '../../../encargado/mi_qr/models/sucursal_qr.dart';
@@ -18,6 +19,8 @@ class QrCajeroProvider with ChangeNotifier {
   String? _errorMessage;
 
   Timer? _pollingTimer;
+  bool _consultando = false;
+  static const Duration _esperaMaxima = Duration(minutes: 15);
 
   // Getters
   Pago? get pago => _pago;
@@ -64,7 +67,17 @@ class QrCajeroProvider with ChangeNotifier {
 
   void _iniciarPolling(int pagoId) {
     detenerPolling();
+    final reloj = Stopwatch()..start();
     _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_consultando) return; // evita consultas solapadas si la red es lenta
+      if (reloj.elapsed > _esperaMaxima) {
+        detenerPolling();
+        _esperandoComprobante = false;
+        _errorMessage = 'Tiempo de espera agotado: no lleg\u00f3 el comprobante en 15 minutos.';
+        notifyListeners();
+        return;
+      }
+      _consultando = true;
       try {
         final pagoActualizado = await _service.consultarPago(pagoId);
         _pago = pagoActualizado;
@@ -86,8 +99,14 @@ class QrCajeroProvider with ChangeNotifier {
           detenerPolling();
           notifyListeners();
         }
-      } catch (_) {
-        // Error de red en polling silencioso
+      } on DioException catch (e) {
+        // 401: la sesion ya no es valida (el interceptor cierra sesion); seguir consultando no sirve.
+        if (e.response?.statusCode == 401) detenerPolling();
+        debugPrint('Polling QR: ${e.message}');
+      } catch (e) {
+        debugPrint('Polling QR: $e');
+      } finally {
+        _consultando = false;
       }
     });
   }

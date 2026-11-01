@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.catalogo import models, schemas
 from app.shared.core.config import settings
+from app.shared.utils.imagenes import validar_imagen
 
 
 def _aplicar_update(instancia, data) -> None:
@@ -260,7 +261,8 @@ def subir_imagen_producto(
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
-    extension = nombre_archivo.rsplit(".", 1)[-1].lower() if "." in nombre_archivo else "jpg"
+    # Tamano y magic bytes; el tipo y la extension salen del contenido real, no del nombre/cabecera del cliente
+    content_type, extension = validar_imagen(contenido)
     ruta_archivo = f"producto-{producto_id}-{uuid.uuid4().hex}.{extension}"
     bucket = settings.supabase_storage_bucket
 

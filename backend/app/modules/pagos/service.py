@@ -1,4 +1,6 @@
 """Lógica de negocio del módulo Pagos (CU19 - Stripe en modo test)."""
+from decimal import ROUND_HALF_UP, Decimal
+
 import stripe
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
@@ -6,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.modules.pagos import models, schemas
 from app.modules.ventas.models import Venta
 from app.shared.core.config import settings
+from app.shared.utils.imagenes import validar_imagen
 
 
 def _inicializar_stripe():
@@ -29,7 +32,8 @@ def crear_payment_intent(db: Session, data: schemas.PaymentIntentCreate) -> dict
     if venta.estado == "cancelada":
         raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada")
 
-    monto_centavos = int(float(venta.total) * 100)
+    # Decimal evita el error binario de float (19.99 * 100 = 1998.999...).
+    monto_centavos = int((Decimal(str(venta.total)) * 100).to_integral_value(ROUND_HALF_UP))
 
     try:
         intent = stripe.PaymentIntent.create(
@@ -66,18 +70,33 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
     if not venta_id:
         raise HTTPException(status_code=400, detail="PaymentIntent sin venta_id")
 
-    venta = db.query(Venta).filter(Venta.id == venta_id).first()
+    # Se bloquea la fila de la venta: dos confirmaciones simultaneas del mismo pago se serializan
+    # y la segunda ya encuentra el Pago que creo la primera.
+    venta = db.query(Venta).filter(Venta.id == venta_id).with_for_update().populate_existing().first()
     if not venta:
         raise HTTPException(status_code=404, detail="Venta asociada no encontrada")
 
+    # Idempotencia: un PaymentIntent solo genera un Pago (referencia_externa empieza por el id del intent;
+    # este mismo flujo le agrega el sufijo " - FALLO STOCK: ..."). Si ya esta resuelto, se devuelve tal cual.
+    pago_existente = (
+        db.query(models.Pago)
+        .filter(models.Pago.referencia_externa.startswith(intent.id, autoescape=True))
+        .order_by(models.Pago.id)
+        .first()
+    )
+    if pago_existente and pago_existente.estado in ("completado", "fallido"):
+        return pago_existente
+
+    # Un Pago 'pendiente' previo (3DS / processing) se actualiza; si no hay ninguno, se crea.
+    pago = pago_existente or models.Pago(
+        venta_id=venta_id,
+        metodo=metadata.get("metodo", "tarjeta"),
+        monto=float(venta.total),
+        referencia_externa=intent.id,
+    )
+
     if intent.status == "succeeded":
-        pago = models.Pago(
-            venta_id=venta_id,
-            metodo=metadata.get("metodo", "tarjeta"),
-            monto=float(venta.total),
-            estado="completado",
-            referencia_externa=intent.id,
-        )
+        pago.estado = "completado"
         db.add(pago)
         db.commit()
         db.refresh(pago)
@@ -94,17 +113,18 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
                 venta.estado = "cancelada"
                 db.commit()
                 raise e
-    else:
-        pago = models.Pago(
-            venta_id=venta_id,
-            metodo=metadata.get("metodo", "tarjeta"),
-            monto=float(venta.total),
-            estado="fallido",
-            referencia_externa=intent.id,
-        )
+    elif intent.status in ("requires_payment_method", "canceled"):
+        # Fallo definitivo del cobro: se cancela la venta online que siga pendiente.
+        pago.estado = "fallido"
         db.add(pago)
-        if venta.canal == "online":
+        if venta.canal == "online" and venta.estado == "pendiente":
             venta.estado = "cancelada"
+        db.commit()
+        db.refresh(pago)
+    else:
+        # processing / requires_action (3DS) / otros: el cobro sigue en curso; no se cancela nada.
+        pago.estado = "pendiente"
+        db.add(pago)
         db.commit()
         db.refresh(pago)
 
@@ -197,10 +217,9 @@ async def subir_comprobante(db: Session, pago_id: int, archivo: UploadFile) -> m
         raise HTTPException(status_code=400, detail="Formato no permitido. Usá PNG, JPG o WEBP")
     
     contenido = await archivo.read()
-    if len(contenido) > MAX_COMPROBANTE_SIZE:
-        raise HTTPException(status_code=400, detail="El archivo supera los 10 MB")
+    # Tamano y magic bytes (el content-type declarado es falsificable); la extension sale del contenido real
+    _, extension = validar_imagen(contenido, MAX_COMPROBANTE_SIZE)
     
-    extension = archivo.filename.split('.')[-1] if '.' in archivo.filename else 'jpg'
     nombre = f"pago_{pago_id}_{uuid.uuid4().hex[:8]}.{extension}"
     path_relativo = f"comprobantes/{nombre}"
     path_absoluto = os.path.join(settings.uploads_dir, path_relativo)
@@ -221,7 +240,8 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
     """Confirma o rechaza un pago QR."""
     from datetime import datetime, timezone
     
-    pago = db.query(models.Pago).filter(models.Pago.id == pago_id).first()
+    # Se bloquea la fila del pago: dos cajeros aprobando a la vez se serializan y el segundo ve el estado ya cambiado.
+    pago = db.query(models.Pago).filter(models.Pago.id == pago_id).with_for_update().populate_existing().first()
     if not pago:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
     
@@ -229,15 +249,23 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
         raise HTTPException(status_code=400, detail="Este pago no es por QR")
     
     if pago.estado != "pendiente":
-        raise HTTPException(status_code=400, detail="Este pago ya fue procesado")
+        raise HTTPException(status_code=409, detail="Este pago ya fue procesado")
     
     if not pago.comprobante_path:
         raise HTTPException(status_code=400, detail="El pago no tiene comprobante subido")
     
+    venta = db.query(Venta).filter(Venta.id == pago.venta_id).first()
+
+    # Cajero / encargado solo gestionan pagos de su propia sucursal; el administrador no tiene restriccion.
+    from app.modules.usuarios.models import Usuario
+
+    usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if usuario and usuario.rol in ("cajero", "encargado_sucursal"):
+        if venta is None or venta.sucursal_id != usuario.sucursal_id:
+            raise HTTPException(status_code=403, detail="No tiene permisos para gestionar pagos de otra sucursal")
+
     pago.confirmado_por_id = usuario_id
     pago.confirmado_en = datetime.now(timezone.utc)
-    
-    venta = db.query(Venta).filter(Venta.id == pago.venta_id).first()
 
     if aprobar:
         pago.estado = "completado"
@@ -342,10 +370,9 @@ async def subir_comprobante_publico(db: Session, pago_id: int, archivo: UploadFi
         raise HTTPException(status_code=400, detail="Formato no permitido. Usá PNG, JPG o WEBP")
     
     contenido = await archivo.read()
-    if len(contenido) > MAX_COMPROBANTE_SIZE:
-        raise HTTPException(status_code=400, detail="El archivo supera los 10 MB")
+    # Tamano y magic bytes (el content-type declarado es falsificable); la extension sale del contenido real
+    _, extension = validar_imagen(contenido, MAX_COMPROBANTE_SIZE)
     
-    extension = archivo.filename.split('.')[-1] if '.' in archivo.filename else 'jpg'
     nombre = f"pago_{pago_id}_{uuid.uuid4().hex[:8]}.{extension}"
     path_relativo = f"comprobantes/{nombre}"
     path_absoluto = os.path.join(settings.uploads_dir, path_relativo)
