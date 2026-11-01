@@ -189,9 +189,9 @@ def obtener_producto(producto_id: int, db: Session = Depends(get_db)):
     return producto
 
 
-@router.post("/productos", response_model=schemas.ProductoOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_producto(data: schemas.ProductoCreate, db: Session = Depends(get_db)):
-    return service.crear_producto(db, data)
+@router.post("/productos", response_model=schemas.ProductoOut, status_code=201)
+def crear_producto(data: schemas.ProductoCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_producto(db, data, admin.empresa_id)
 
 
 @router.put("/productos/{producto_id}", response_model=schemas.ProductoOut, dependencies=[Depends(admin_only)])
@@ -240,7 +240,7 @@ def crear_mi_producto(
 ):
     if not usuario.proveedor_id:
         raise HTTPException(status_code=403, detail="El proveedor no tiene proveedor_id asignado")
-    return service.crear_producto_proveedor(db, data, usuario.proveedor_id)
+    return service.crear_producto_proveedor(db, data, usuario.proveedor_id, usuario.empresa_id)
 
 
 @router.put("/mis-productos/{producto_id}", response_model=schemas.ProductoOut)

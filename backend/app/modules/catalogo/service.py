@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.catalogo import models, schemas
+from app.modules.empresas import service as empresas_service
 from app.shared.core.config import settings
 from app.shared.utils.imagenes import validar_imagen
 
@@ -216,8 +217,15 @@ def obtener_producto(db: Session, producto_id: int) -> models.Producto | None:
     return db.query(models.Producto).filter(models.Producto.id == producto_id).first()
 
 
-def crear_producto(db: Session, data: schemas.ProductoCreate) -> models.Producto:
-    producto = models.Producto(**data.model_dump())
+def _verificar_limite_si_reactiva(db: Session, producto: models.Producto, data: schemas.ProductoUpdate) -> None:
+    """Reactivar un producto vuelve a ocupar un lugar del plan (CU4)."""
+    if data.activo is True and not producto.activo:
+        empresas_service.verificar_limite(db, producto.empresa_id, "productos")
+
+
+def crear_producto(db: Session, data: schemas.ProductoCreate, empresa_id: int) -> models.Producto:
+    empresas_service.verificar_limite(db, empresa_id, "productos")
+    producto = models.Producto(**data.model_dump(), empresa_id=empresa_id)
     db.add(producto)
     db.commit()
     db.refresh(producto)
@@ -228,6 +236,7 @@ def actualizar_producto(db: Session, producto_id: int, data: schemas.ProductoUpd
     producto = obtener_producto(db, producto_id)
     if not producto:
         return None
+    _verificar_limite_si_reactiva(db, producto, data)
     _aplicar_update(producto, data)
     db.commit()
     db.refresh(producto)
@@ -418,9 +427,13 @@ def listar_productos_por_proveedor(db: Session, proveedor_id: int, incluir_inact
     return query.order_by(models.Producto.nombre).all()
 
 
-def crear_producto_proveedor(db: Session, data: schemas.ProductoCreate, proveedor_id: int) -> models.Producto:
+def crear_producto_proveedor(
+    db: Session, data: schemas.ProductoCreate, proveedor_id: int, empresa_id: int
+) -> models.Producto:
     """Crea un producto asignándolo automáticamente al proveedor."""
+    empresas_service.verificar_limite(db, empresa_id, "productos")
     producto = models.Producto(
+        empresa_id=empresa_id,
         nombre=data.nombre,
         descripcion=data.descripcion,
         precio=data.precio,
@@ -443,6 +456,7 @@ def actualizar_producto_proveedor(db: Session, producto_id: int, data: schemas.P
         return None
     if producto.proveedor_id != proveedor_id:
         raise HTTPException(status_code=403, detail="No puede modificar productos de otro proveedor")
+    _verificar_limite_si_reactiva(db, producto, data)
 
     # Aplicar solo los campos permitidos (excluir proveedor_id)
     datos = data.model_dump(exclude_unset=True, exclude={'proveedor_id'})

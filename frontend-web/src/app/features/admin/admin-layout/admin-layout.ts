@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { AdminUiService } from '../../../core/services/admin-ui.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-admin-layout',
@@ -13,7 +14,7 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
         <div class="sidebar-backdrop" (click)="adminUi.toggleSidebar()"></div>
       }
       <aside class="admin-sidebar" [class.collapsed]="!adminUi.sidebarOpen()">
-        <h3>Panel Admin</h3>
+        <h3>{{ auth.currentUser()?.empresa_nombre || 'Panel Admin' }}</h3>
         <nav>
           <a routerLink="/admin" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="active">
             <app-icon name="home" [size]="18" /> <span>Inicio</span>
@@ -39,6 +40,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           </a>
           <a routerLink="/admin/ia-config" routerLinkActive="active">
             <app-icon name="sparkles" [size]="18" /> <span>Asistente IA</span>
+          </a>
+          <a routerLink="/admin/suscripcion" routerLinkActive="active">
+            <app-icon name="credit-card" [size]="18" /> <span>Mi suscripción</span>
           </a>
           <span class="nav-group">Catálogo maestro</span>
           <a routerLink="/admin/catalogo/productos" routerLinkActive="active">
@@ -71,4 +75,5 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
 })
 export class AdminLayout {
   adminUi = inject(AdminUiService);
+  auth = inject(AuthService);
 }

@@ -205,7 +205,11 @@ export class ProductosAdmin implements OnInit {
           this.mostrarToast('Producto creado');
           this.cargar();
         },
-        error: () => this.guardando.set(false),
+        error: (err) => {
+          this.guardando.set(false);
+          // 403 = límite de productos del plan (CU4)
+          this.mostrarToast(err.error?.detail || 'No se pudo crear el producto');
+        },
       });
   }
 

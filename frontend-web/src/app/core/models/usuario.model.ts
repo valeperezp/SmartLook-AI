@@ -1,10 +1,12 @@
-export type Rol = 'cliente' | 'administrador' | 'encargado_sucursal' | 'proveedor' | 'cajero';
+export type Rol = 'cliente' | 'administrador' | 'encargado_sucursal' | 'proveedor' | 'cajero' | 'superadmin';
 
 export interface Usuario {
   id: number;
   nombre: string;
   email: string;
   rol: Rol;
+  empresa_id?: number | null;
+  empresa_nombre?: string | null;
   sucursal_id?: number | null;
   sucursal_nombre?: string | null;
   proveedor_id?: number | null;

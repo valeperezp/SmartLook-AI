@@ -6,6 +6,7 @@ import { guestGuard } from './core/guards/guest.guard';
 import { homeGuard } from './core/guards/home.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { cajeroGuard } from './core/guards/cajero.guard';
+import { superadminGuard } from './core/guards/superadmin.guard';
 
 export const routes: Routes = [
   {
@@ -150,6 +151,31 @@ export const routes: Routes = [
           import('./features/admin/ia-config/ia-config-admin').then(
             (m) => m.IaConfigAdmin
           ),
+      },
+      {
+        path: 'suscripcion',
+        loadComponent: () =>
+          import('./features/admin/suscripcion/mi-suscripcion').then((m) => m.MiSuscripcion),
+      },
+    ],
+  },
+  {
+    path: 'plataforma',
+    loadComponent: () =>
+      import('./features/plataforma/plataforma-layout/plataforma-layout').then(
+        (m) => m.PlataformaLayout
+      ),
+    canActivate: [superadminGuard],
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/plataforma/empresas/empresas-admin').then((m) => m.EmpresasAdmin),
+      },
+      {
+        path: 'planes',
+        loadComponent: () =>
+          import('./features/plataforma/planes/planes-admin').then((m) => m.PlanesAdmin),
       },
     ],
   },

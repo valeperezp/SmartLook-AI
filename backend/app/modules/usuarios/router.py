@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
 from app.modules.usuarios import schemas, service
+from app.modules.usuarios.models import Usuario
 from app.shared.db.session import get_db
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
@@ -24,11 +25,11 @@ def obtener_usuario(usuario_id: int, db: Session = Depends(get_db)):
     return usuario
 
 
-@router.post("", response_model=schemas.UsuarioOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_usuario(data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=schemas.UsuarioOut, status_code=201)
+def crear_usuario(data: schemas.UsuarioCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
     if service.obtener_usuario_por_email(db, data.email):
         raise HTTPException(status_code=400, detail="Ese email ya está registrado")
-    return service.crear_usuario(db, data)
+    return service.crear_usuario(db, data, admin.empresa_id)
 
 
 @router.patch("/{usuario_id}", response_model=schemas.UsuarioOut, dependencies=[Depends(admin_only)])

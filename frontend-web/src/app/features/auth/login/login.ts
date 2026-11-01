@@ -1,8 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { EmpresasService } from '../../../core/services/empresas.service';
 import { IconComponent } from '../../../core/components/icon/icon';
 
 @Component({
@@ -38,6 +40,22 @@ import { IconComponent } from '../../../core/components/icon/icon';
 
           <form (ngSubmit)="submit()" class="auth-form">
             <div class="form-group">
+              <label>Empresa <span class="label-hint">(opcional)</span></label>
+              <input
+                type="text"
+                [(ngModel)]="empresa"
+                name="empresa"
+                placeholder="ej: smartlook"
+                autocomplete="organization"
+                (blur)="buscarEmpresa()"
+              />
+              @if (empresaNombre()) {
+                <small class="empresa-ok">Ingresando a <b>{{ empresaNombre() }}</b></small>
+              } @else if (empresaNoExiste()) {
+                <small class="empresa-error">No existe una empresa con ese identificador</small>
+              }
+            </div>
+            <div class="form-group">
               <label>Email</label>
               <input type="email" [(ngModel)]="email" name="email" required autocomplete="email" />
             </div>
@@ -57,27 +75,58 @@ import { IconComponent } from '../../../core/components/icon/icon';
   `,
   styleUrl: './login.scss',
 })
-export class Login {
+export class Login implements OnInit {
   private auth = inject(AuthService);
+  private empresas = inject(EmpresasService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
+  empresa = '';
   email = '';
   password = '';
   loading = signal(false);
   error = signal<string | null>(null);
+  empresaNombre = signal<string | null>(null);
+  empresaNoExiste = signal(false);
+
+  ngOnInit() {
+    // Permite compartir un link de login propio de cada empresa: /login?empresa=smartlook
+    const slug = this.route.snapshot.queryParamMap.get('empresa');
+    if (slug) {
+      this.empresa = slug;
+      this.buscarEmpresa();
+    }
+  }
+
+  private slug(): string {
+    return this.empresa.trim().toLowerCase();
+  }
+
+  buscarEmpresa() {
+    this.empresaNombre.set(null);
+    this.empresaNoExiste.set(false);
+    const slug = this.slug();
+    if (!slug) return;
+    this.empresas.empresaPublica(slug).subscribe({
+      next: (e) => this.empresaNombre.set(e.nombre),
+      error: () => this.empresaNoExiste.set(true),
+    });
+  }
 
   submit() {
     this.loading.set(true);
     this.error.set(null);
 
-    this.auth.login(this.email, this.password).subscribe({
+    this.auth.login(this.email, this.password, this.slug() || null).subscribe({
       next: () => {
         this.loading.set(false);
         this.router.navigate([this.auth.getHomeRoute()]);
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
-        this.error.set('Email o contraseña incorrectos');
+        // 403: empresa dada de baja o suscripción vencida; 404: empresa inexistente.
+        const detalle = err.status === 403 || err.status === 404 ? err.error?.detail : null;
+        this.error.set(detalle || 'Email o contraseña incorrectos');
       },
     });
   }

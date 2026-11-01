@@ -1,4 +1,24 @@
 services:
+  # Postgres local para desarrollo. Para usarlo, en backend/.env:
+  # DATABASE_URL=postgresql://smartlook:smartlook@db:5432/smartlook_ai
+  # Si tu .env apunta a Supabase, este contenedor queda prendido pero sin usarse.
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: smartlook
+      POSTGRES_PASSWORD: smartlook
+      POSTGRES_DB: smartlook_ai
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartlook -d smartlook_ai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build: ./backend
     ports:
@@ -7,9 +27,13 @@ services:
       - ./backend/.env
     volumes:
       - ./backend/app:/app/app
+      - ./backend/seeds:/app/seeds
       - uploads_data:/app/uploads
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -28,3 +52,4 @@ services:
 
 volumes:
   uploads_data:
+  pg_data:

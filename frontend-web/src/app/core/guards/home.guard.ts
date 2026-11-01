@@ -13,8 +13,8 @@ export const homeGuard: CanActivateFn = () => {
       if (!auth.isLoggedIn()) {
         return true;
       }
-      // Admin, encargado, proveedor y cajero van a sus paneles
-      if (auth.isAdmin() || auth.isEncargado() || auth.isProveedor() || auth.isCajero()) {
+      // Superadmin, admin, encargado, proveedor y cajero van a sus paneles
+      if (auth.isSuperadmin() || auth.isAdmin() || auth.isEncargado() || auth.isProveedor() || auth.isCajero()) {
         router.navigate([auth.getHomeRoute()]);
         return false;
       }

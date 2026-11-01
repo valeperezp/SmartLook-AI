@@ -13,6 +13,8 @@ class UsuarioOut(BaseModel):
     nombre: str
     email: str
     rol: str
+    empresa_id: int | None = None
+    empresa_nombre: str | None = None
     sucursal_id: int | None = None
     sucursal_nombre: str | None = None
     proveedor_id: int | None = None

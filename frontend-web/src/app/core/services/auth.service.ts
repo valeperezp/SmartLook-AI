@@ -25,10 +25,12 @@ export class AuthService {
   isProveedor = computed(() => this.currentUser()?.rol === 'proveedor');
   isCliente = computed(() => this.currentUser()?.rol === 'cliente');
   isCajero = computed(() => this.currentUser()?.rol === 'cajero');
+  isSuperadmin = computed(() => this.currentUser()?.rol === 'superadmin');
 
   getHomeRoute(): string {
     const user = this.currentUser();
     if (!user) return '/login';
+    if (user.rol === 'superadmin') return '/plataforma';
     if (user.rol === 'administrador') return '/admin';
     if (user.rol === 'encargado_sucursal') return '/encargado';
     if (user.rol === 'proveedor') return '/proveedor';
@@ -48,11 +50,15 @@ export class AuthService {
     localStorage.removeItem(TOKEN_KEY);
   }
 
-  /** Login + obtiene el usuario logueado. Devuelve el Usuario ya con la sesión guardada. */
-  login(email: string, password: string) {
+  /**
+   * Login + obtiene el usuario logueado. Devuelve el Usuario ya con la sesión guardada.
+   * `empresa` (slug) es opcional: si viene, el usuario tiene que pertenecer a esa empresa (CU1).
+   */
+  login(email: string, password: string, empresa?: string | null) {
     const body = new URLSearchParams();
     body.set('username', email);
     body.set('password', password);
+    if (empresa) body.set('empresa', empresa);
 
     return this.http
       .post<TokenResponse>(`${this.apiUrl}/auth/login`, body.toString(), {

@@ -42,7 +42,12 @@ export class App {
   /** El botón de colapsar módulos solo tiene sentido dentro de un panel con sidebar. */
   showSidebarToggle = computed(() => {
     const url = this.currentUrl();
-    return url.startsWith('/admin') || url.startsWith('/encargado') || url.startsWith('/proveedor');
+    return (
+      url.startsWith('/admin') ||
+      url.startsWith('/encargado') ||
+      url.startsWith('/proveedor') ||
+      url.startsWith('/plataforma')
+    );
   });
 
   constructor() {

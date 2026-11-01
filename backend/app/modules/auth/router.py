@@ -19,27 +19,31 @@ def registrar(data: schemas.RegistroRequest, db: Session = Depends(get_db)):
 async def login(request: Request, db: Session = Depends(get_db)):
     username = None
     password = None
-    
+    empresa = None  # slug opcional: iniciar sesión en el contexto de esa empresa (CU1)
+
     try:
         body = await request.json()
         if isinstance(body, dict):
             username = body.get("username") or body.get("email")
             password = body.get("password")
+            empresa = body.get("empresa")
     except Exception:
         pass
-    
+
     if not username or not password:
         try:
             form = await request.form()
             username = form.get("username") or form.get("email")
             password = form.get("password")
+            empresa = form.get("empresa")
         except Exception:
             pass
 
     if not username or not password:
         raise HTTPException(status_code=422, detail="Email y contraseña son requeridos")
 
-    usuario = service.autenticar_usuario(db, str(username).strip(), str(password))
+    empresa = str(empresa).strip() if empresa else None
+    usuario = service.autenticar_usuario(db, str(username).strip(), str(password), empresa)
     if not usuario:
         raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
     return schemas.TokenResponse(access_token=service.emitir_token(usuario))

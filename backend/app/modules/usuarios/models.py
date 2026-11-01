@@ -2,6 +2,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+from app.modules.empresas.models import Empresa
 from app.modules.proveedores.models import Proveedor
 from app.modules.sucursales.models import Sucursal
 from app.shared.db.session import Base
@@ -15,13 +16,20 @@ class Usuario(Base):
     email = Column(String(150), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=True)
     rol = Column(String(50), default="cliente")
+    # NULL solo para el superadmin de la plataforma.
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=True, index=True)
     sucursal_id = Column(Integer, ForeignKey("sucursales.id"), nullable=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
     activo = Column(Boolean, default=True)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
+    empresa = relationship("Empresa")
     sucursal = relationship("Sucursal")
     proveedor = relationship("Proveedor")
+
+    @property
+    def empresa_nombre(self) -> str | None:
+        return self.empresa.nombre if self.empresa else None
 
     @property
     def sucursal_nombre(self) -> str | None:

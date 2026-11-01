@@ -53,6 +53,7 @@ class Producto(Base):
     __tablename__ = "productos"
 
     id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=True, index=True)
     nombre = Column(String(150), nullable=False)
     descripcion = Column(String(500))
     precio = Column(Numeric(10, 2), nullable=False)

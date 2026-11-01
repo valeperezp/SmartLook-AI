@@ -6,6 +6,7 @@ class RegistroRequest(BaseModel):
     nombre: str
     email: str
     password: str
+    empresa: str | None = None  # slug de la tienda; None = empresa por defecto
 
 
 class TokenResponse(BaseModel):

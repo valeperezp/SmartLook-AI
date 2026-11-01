@@ -152,6 +152,26 @@
   }
 }
 
+.label-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.empresa-ok,
+.empresa-error {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.empresa-ok {
+  color: var(--success);
+}
+
+.empresa-error {
+  color: var(--danger);
+}
+
 .auth-footer {
   margin-top: 1.75rem;
   text-align: center;

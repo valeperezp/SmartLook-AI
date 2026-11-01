@@ -1,0 +1,117 @@
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.form-title {
+  font-size: 1rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.empresas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.empresa {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  transition: border-color 0.2s ease;
+
+  &.inactiva {
+    opacity: 0.65;
+  }
+
+  &.seleccionada {
+    border-color: var(--border-glow);
+  }
+}
+
+.empresa-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+
+  h3 {
+    font-size: 1.1rem;
+    margin: 0 0 0.2rem;
+  }
+}
+
+.slug {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.plan-linea {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.usos {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.empresa-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  section + section {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1.25rem;
+  }
+}
+
+.detalle-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.35rem;
+  }
+}
+
+.historial-title {
+  font-size: 0.9rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.inline-form-actions {
+  flex-wrap: wrap;
+}

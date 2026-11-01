@@ -107,9 +107,10 @@ export class SucursalesAdmin implements OnInit {
         this.mostrarToast('Sucursal creada con éxito');
         this.cargar();
       },
-      error: () => {
+      error: (err) => {
         this.guardando.set(false);
-        this.mostrarToast('Error al crear la sucursal', true);
+        // 403 = límite del plan alcanzado (CU4): el backend explica cuál.
+        this.mostrarToast(err.error?.detail || 'Error al crear la sucursal', true);
       },
     });
   }

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
+from app.modules.empresas import service as empresas_service
 from app.modules.sucursales import models, schemas
 from app.modules.sucursales.models import Sucursal, SucursalQR
 from app.shared.core.config import settings
@@ -18,8 +19,9 @@ def obtener_sucursal(db: Session, sucursal_id: int) -> models.Sucursal | None:
     return db.query(models.Sucursal).filter(models.Sucursal.id == sucursal_id).first()
 
 
-def crear_sucursal(db: Session, data: schemas.SucursalCreate) -> models.Sucursal:
-    sucursal = models.Sucursal(**data.model_dump())
+def crear_sucursal(db: Session, data: schemas.SucursalCreate, empresa_id: int) -> models.Sucursal:
+    empresas_service.verificar_limite(db, empresa_id, "sucursales")
+    sucursal = models.Sucursal(**data.model_dump(), empresa_id=empresa_id)
     db.add(sucursal)
     db.commit()
     db.refresh(sucursal)
@@ -30,7 +32,10 @@ def actualizar_sucursal(db: Session, sucursal_id: int, data: schemas.SucursalUpd
     sucursal = obtener_sucursal(db, sucursal_id)
     if not sucursal:
         return None
-    for campo, valor in data.model_dump(exclude_unset=True).items():
+    cambios = data.model_dump(exclude_unset=True)
+    if cambios.get("activa") is True and not sucursal.activa:
+        empresas_service.verificar_limite(db, sucursal.empresa_id, "sucursales")
+    for campo, valor in cambios.items():
         setattr(sucursal, campo, valor)
     db.commit()
     db.refresh(sucursal)

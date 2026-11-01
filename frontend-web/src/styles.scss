@@ -375,6 +375,18 @@ a {
     color: var(--text-muted);
     border: 1px solid var(--border-color);
   }
+
+  &.badge-warning {
+    background: rgba(179, 132, 63, 0.15);
+    color: var(--warning);
+    border: 1px solid rgba(179, 132, 63, 0.35);
+  }
+
+  &.badge-danger {
+    background: rgba(163, 64, 47, 0.12);
+    color: var(--danger);
+    border: 1px solid rgba(163, 64, 47, 0.3);
+  }
 }
 
 .toast-notification {

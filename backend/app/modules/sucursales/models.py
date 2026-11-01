@@ -9,6 +9,7 @@ class Sucursal(Base):
     __tablename__ = "sucursales"
 
     id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=True, index=True)
     nombre = Column(String(100), nullable=False)
     direccion = Column(String(255), nullable=False)
     ciudad = Column(String(100), nullable=True)

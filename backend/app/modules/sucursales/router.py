@@ -26,9 +26,9 @@ def obtener_sucursal(sucursal_id: int, db: Session = Depends(get_db)):
     return sucursal
 
 
-@router.post("", response_model=schemas.SucursalOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_sucursal(data: schemas.SucursalCreate, db: Session = Depends(get_db)):
-    return service.crear_sucursal(db, data)
+@router.post("", response_model=schemas.SucursalOut, status_code=201)
+def crear_sucursal(data: schemas.SucursalCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_sucursal(db, data, admin.empresa_id)
 
 
 @router.put("/{sucursal_id}", response_model=schemas.SucursalOut, dependencies=[Depends(admin_only)])

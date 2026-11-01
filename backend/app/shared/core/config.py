@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
+    # Multi-empresa (CU1): tienda donde caen los registros que no indican empresa
+    # (por ejemplo, la app móvil de clientes).
+    empresa_por_defecto: str = "smartlook"
+
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
     uploads_base_url: str = "http://localhost:8000"

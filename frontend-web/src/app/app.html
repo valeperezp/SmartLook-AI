@@ -44,12 +44,14 @@
             <app-icon name="camera" [size]="16" /> Vestidor Virtual
           </a>
         }
-        <a routerLink="/mis-compras" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
-          <app-icon name="receipt" [size]="16" /> Mis Compras
-        </a>
-        <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
-          <app-icon name="package" [size]="16" /> Mis Reservas
-        </a>
+        @if (!auth.isSuperadmin()) {
+          <a routerLink="/mis-compras" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+            <app-icon name="receipt" [size]="16" /> Mis Compras
+          </a>
+          <a routerLink="/mis-reservas" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
+            <app-icon name="package" [size]="16" /> Mis Reservas
+          </a>
+        }
         <span class="user-chip"><app-icon name="user" [size]="15" /> {{ auth.currentUser()?.nombre }}</span>
         <button class="icon-btn btn-logout" (click)="logout()" aria-label="Cerrar sesión">
           <app-icon name="logout" [size]="18" />
