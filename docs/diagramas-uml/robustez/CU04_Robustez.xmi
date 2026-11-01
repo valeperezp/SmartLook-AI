@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<xmi:XMI xmi:version="2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1">
+	<xmi:Documentation exporter="Enterprise Architect" exporterVersion="6.5"/>
+	<uml:Model xmi:type="uml:Model" name="EA_Model" xmi:id="MX_EA_Model">
+		<packagedElement xmi:type="uml:Package" xmi:id="EAID_2B37448CA2A758B4" name="Robustez CU04 - Gestionar suscripcion de una empresa">
+			<packagedElement xmi:type="uml:Package" xmi:id="EAID_DF0AB33DB36A547B" name="CU04 - Gestionar suscripcion de una empresa">
+				<packagedElement xmi:type="uml:Actor" xmi:id="EAID_A56F8A7C24035206" name="Super Administrador"/>
+				<packagedElement xmi:type="uml:Actor" xmi:id="EAID_C277CF1DDE405AFD" name="Administrador de Empresa"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_1DF1618FEAA65B91" name="PantallaSuscripcionEmpresa"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_870CDE47D4EB57F1" name="FormularioAsignacionPlan"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_E3B54190F7EA549E" name="PantallaMiSuscripcion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_F208FE986BFB5656" name="ControladorSuscripciones"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_7FBD4596A17E548F" name="ConsultorCatalogoPlanes"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_759BB6F3CEC956FD" name="CalculadorFechaVencimiento"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_C7FCFCC28C3F5B3B" name="ValidadorCapacidadSucursales"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_FABB288B4746542A" name="ActualizadorSuscripcion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_557605B56923593A" name="ExtensorVigenciaSuscripcion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_551548A96215542A" name="RegistradorBitacora"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_904B2B0A3952560E" name="Empresa"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_1E585606D4F55ABA" name="Plan"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_3FE7E00592D95105" name="Suscripcion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_769F72F329195E75" name="Sucursal"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_47A9317BAC935734" name="Bitacora"/>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_23CFDD21823D5BC4" name="Abre suscripcion de empresa">
+					<memberEnd xmi:idref="EAID_A56F8A7C24035206"/>
+					<memberEnd xmi:idref="EAID_1DF1618FEAA65B91"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_221C37FABE2F5700" name="Consultar estado e historial">
+					<memberEnd xmi:idref="EAID_1DF1618FEAA65B91"/>
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_9AA4C0D6963F5553" name="Obtener suscripcion vigente e historial">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_3FE7E00592D95105"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_1ADA7E304B3C5B8D" name="Presiona Asignar plan o Renovar">
+					<memberEnd xmi:idref="EAID_1DF1618FEAA65B91"/>
+					<memberEnd xmi:idref="EAID_870CDE47D4EB57F1"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_6483AAF0FE245181" name="Obtener planes disponibles">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_7FBD4596A17E548F"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_79711C250CC85248" name="Consultar planes">
+					<memberEnd xmi:idref="EAID_7FBD4596A17E548F"/>
+					<memberEnd xmi:idref="EAID_1E585606D4F55ABA"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_D30B6E1B48FF5C34" name="Selecciona plan y fecha inicio">
+					<memberEnd xmi:idref="EAID_A56F8A7C24035206"/>
+					<memberEnd xmi:idref="EAID_870CDE47D4EB57F1"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_60C21B55035A5B6F" name="Enviar asignacion">
+					<memberEnd xmi:idref="EAID_870CDE47D4EB57F1"/>
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_C710DDF0C9975EB9" name="Calcular vencimiento por duracion">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_759BB6F3CEC956FD"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_01D1A5CE842E5B9D" name="Validar sucursales activas vs limite">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_C7FCFCC28C3F5B3B"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_F1D7B2AE18B859D1" name="Contar sucursales activas del tenant">
+					<memberEnd xmi:idref="EAID_C7FCFCC28C3F5B3B"/>
+					<memberEnd xmi:idref="EAID_769F72F329195E75"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_A1D134EB5FA85976" name="Cerrar anterior y crear nueva">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_FABB288B4746542A"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_6B66706B343D5915" name="Insertar nueva suscripcion vigente">
+					<memberEnd xmi:idref="EAID_FABB288B4746542A"/>
+					<memberEnd xmi:idref="EAID_3FE7E00592D95105"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_4FFE8D571D0D5322" name="Extender fecha si es renovacion">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_557605B56923593A"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_849DC74B83B95C99" name="Auditar transaccion">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_551548A96215542A"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_52C88ED32FE95B8A" name="Guardar log en bitacora">
+					<memberEnd xmi:idref="EAID_551548A96215542A"/>
+					<memberEnd xmi:idref="EAID_47A9317BAC935734"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_11A9C7C79A1F56C3" name="Consulta estado en modo lectura">
+					<memberEnd xmi:idref="EAID_C277CF1DDE405AFD"/>
+					<memberEnd xmi:idref="EAID_E3B54190F7EA549E"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_A8140F2FE5AD5D0C" name="Solicitar datos de suscripcion propia">
+					<memberEnd xmi:idref="EAID_E3B54190F7EA549E"/>
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_C041E7353198584B" name="Mostrar plan, limites y dias restantes">
+					<memberEnd xmi:idref="EAID_F208FE986BFB5656"/>
+					<memberEnd xmi:idref="EAID_E3B54190F7EA549E"/>
+				</packagedElement>
+			</packagedElement>
+		</packagedElement>
+	</uml:Model>
+	<xmi:Extension extender="Enterprise Architect" extenderID="6.5">
+		<elements>
+			<element xmi:idref="EAID_A56F8A7C24035206" xmi:type="uml:Actor" name="Super Administrador" scope="public">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Actor" nType="0" scope="public"/>
+			</element>
+			<element xmi:idref="EAID_C277CF1DDE405AFD" xmi:type="uml:Actor" name="Administrador de Empresa" scope="public">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Actor" nType="0" scope="public"/>
+			</element>
+			<element xmi:idref="EAID_1DF1618FEAA65B91" xmi:type="uml:Boundary" name="PantallaSuscripcionEmpresa" scope="public" stereotype="boundary">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Boundary" nType="0" scope="public" stereotype="boundary"/>
+			</element>
+			<element xmi:idref="EAID_870CDE47D4EB57F1" xmi:type="uml:Boundary" name="FormularioAsignacionPlan" scope="public" stereotype="boundary">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Boundary" nType="0" scope="public" stereotype="boundary"/>
+			</element>
+			<element xmi:idref="EAID_E3B54190F7EA549E" xmi:type="uml:Boundary" name="PantallaMiSuscripcion" scope="public" stereotype="boundary">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Boundary" nType="0" scope="public" stereotype="boundary"/>
+			</element>
+			<element xmi:idref="EAID_F208FE986BFB5656" xmi:type="uml:Control" name="ControladorSuscripciones" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_7FBD4596A17E548F" xmi:type="uml:Control" name="ConsultorCatalogoPlanes" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_759BB6F3CEC956FD" xmi:type="uml:Control" name="CalculadorFechaVencimiento" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_C7FCFCC28C3F5B3B" xmi:type="uml:Control" name="ValidadorCapacidadSucursales" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_FABB288B4746542A" xmi:type="uml:Control" name="ActualizadorSuscripcion" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_557605B56923593A" xmi:type="uml:Control" name="ExtensorVigenciaSuscripcion" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_551548A96215542A" xmi:type="uml:Control" name="RegistradorBitacora" scope="public" stereotype="control">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_904B2B0A3952560E" xmi:type="uml:Entity" name="Empresa" scope="public" stereotype="entity">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_1E585606D4F55ABA" xmi:type="uml:Entity" name="Plan" scope="public" stereotype="entity">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_3FE7E00592D95105" xmi:type="uml:Entity" name="Suscripcion" scope="public" stereotype="entity">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_769F72F329195E75" xmi:type="uml:Entity" name="Sucursal" scope="public" stereotype="entity">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_47A9317BAC935734" xmi:type="uml:Entity" name="Bitacora" scope="public" stereotype="entity">
+				<model package="EAID_DF0AB33DB36A547B" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+		</elements>
+		<connectors>
+			<connector xmi:idref="EAID_23CFDD21823D5BC4">
+				<source xmi:idref="EAID_A56F8A7C24035206"/>
+				<target xmi:idref="EAID_1DF1618FEAA65B91"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Abre suscripcion de empresa"/>
+			</connector>
+			<connector xmi:idref="EAID_221C37FABE2F5700">
+				<source xmi:idref="EAID_1DF1618FEAA65B91"/>
+				<target xmi:idref="EAID_F208FE986BFB5656"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Consultar estado e historial"/>
+			</connector>
+			<connector xmi:idref="EAID_9AA4C0D6963F5553">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_3FE7E00592D95105"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Obtener suscripcion vigente e historial"/>
+			</connector>
+			<connector xmi:idref="EAID_1ADA7E304B3C5B8D">
+				<source xmi:idref="EAID_1DF1618FEAA65B91"/>
+				<target xmi:idref="EAID_870CDE47D4EB57F1"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Presiona Asignar plan o Renovar"/>
+			</connector>
+			<connector xmi:idref="EAID_6483AAF0FE245181">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_7FBD4596A17E548F"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Obtener planes disponibles"/>
+			</connector>
+			<connector xmi:idref="EAID_79711C250CC85248">
+				<source xmi:idref="EAID_7FBD4596A17E548F"/>
+				<target xmi:idref="EAID_1E585606D4F55ABA"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Consultar planes"/>
+			</connector>
+			<connector xmi:idref="EAID_D30B6E1B48FF5C34">
+				<source xmi:idref="EAID_A56F8A7C24035206"/>
+				<target xmi:idref="EAID_870CDE47D4EB57F1"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Selecciona plan y fecha inicio"/>
+			</connector>
+			<connector xmi:idref="EAID_60C21B55035A5B6F">
+				<source xmi:idref="EAID_870CDE47D4EB57F1"/>
+				<target xmi:idref="EAID_F208FE986BFB5656"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Enviar asignacion"/>
+			</connector>
+			<connector xmi:idref="EAID_C710DDF0C9975EB9">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_759BB6F3CEC956FD"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Calcular vencimiento por duracion"/>
+			</connector>
+			<connector xmi:idref="EAID_01D1A5CE842E5B9D">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_C7FCFCC28C3F5B3B"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Validar sucursales activas vs limite"/>
+			</connector>
+			<connector xmi:idref="EAID_F1D7B2AE18B859D1">
+				<source xmi:idref="EAID_C7FCFCC28C3F5B3B"/>
+				<target xmi:idref="EAID_769F72F329195E75"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Contar sucursales activas del tenant"/>
+			</connector>
+			<connector xmi:idref="EAID_A1D134EB5FA85976">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_FABB288B4746542A"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Cerrar anterior y crear nueva"/>
+			</connector>
+			<connector xmi:idref="EAID_6B66706B343D5915">
+				<source xmi:idref="EAID_FABB288B4746542A"/>
+				<target xmi:idref="EAID_3FE7E00592D95105"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Insertar nueva suscripcion vigente"/>
+			</connector>
+			<connector xmi:idref="EAID_4FFE8D571D0D5322">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_557605B56923593A"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Extender fecha si es renovacion"/>
+			</connector>
+			<connector xmi:idref="EAID_849DC74B83B95C99">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_551548A96215542A"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Auditar transaccion"/>
+			</connector>
+			<connector xmi:idref="EAID_52C88ED32FE95B8A">
+				<source xmi:idref="EAID_551548A96215542A"/>
+				<target xmi:idref="EAID_47A9317BAC935734"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Guardar log en bitacora"/>
+			</connector>
+			<connector xmi:idref="EAID_11A9C7C79A1F56C3">
+				<source xmi:idref="EAID_C277CF1DDE405AFD"/>
+				<target xmi:idref="EAID_E3B54190F7EA549E"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Consulta estado en modo lectura"/>
+			</connector>
+			<connector xmi:idref="EAID_A8140F2FE5AD5D0C">
+				<source xmi:idref="EAID_E3B54190F7EA549E"/>
+				<target xmi:idref="EAID_F208FE986BFB5656"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Solicitar datos de suscripcion propia"/>
+			</connector>
+			<connector xmi:idref="EAID_C041E7353198584B">
+				<source xmi:idref="EAID_F208FE986BFB5656"/>
+				<target xmi:idref="EAID_E3B54190F7EA549E"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Mostrar plan, limites y dias restantes"/>
+			</connector>
+		</connectors>
+		<diagrams>
+			<diagram xmi:id="EAID_66C7F9FAEED150B8">
+				<model package="EAID_DF0AB33DB36A547B" ea_localid="0"/>
+				<properties name="Diagrama de Robustez - CU04" type="Analysis"/>
+				<project author="SmartLook IA" version="1.0" created="2026-10-25 14:50:58" modified="2026-10-25 14:50:58"/>
+				<elements>
+					<element subject="EAID_A56F8A7C24035206" seq="1" style="DUID=EAID_A56;L=50;T=50;R=190;B=130;"/>
+					<element subject="EAID_C277CF1DDE405AFD" seq="2" style="DUID=EAID_C27;L=270;T=50;R=410;B=130;"/>
+					<element subject="EAID_1DF1618FEAA65B91" seq="3" style="DUID=EAID_1DF;L=490;T=50;R=630;B=130;"/>
+					<element subject="EAID_870CDE47D4EB57F1" seq="4" style="DUID=EAID_870;L=710;T=50;R=850;B=130;"/>
+					<element subject="EAID_E3B54190F7EA549E" seq="5" style="DUID=EAID_E3B;L=50;T=190;R=190;B=270;"/>
+					<element subject="EAID_F208FE986BFB5656" seq="6" style="DUID=EAID_F20;L=270;T=190;R=410;B=270;"/>
+					<element subject="EAID_7FBD4596A17E548F" seq="7" style="DUID=EAID_7FB;L=490;T=190;R=630;B=270;"/>
+					<element subject="EAID_759BB6F3CEC956FD" seq="8" style="DUID=EAID_759;L=710;T=190;R=850;B=270;"/>
+					<element subject="EAID_C7FCFCC28C3F5B3B" seq="9" style="DUID=EAID_C7F;L=50;T=330;R=190;B=410;"/>
+					<element subject="EAID_FABB288B4746542A" seq="10" style="DUID=EAID_FAB;L=270;T=330;R=410;B=410;"/>
+					<element subject="EAID_557605B56923593A" seq="11" style="DUID=EAID_557;L=490;T=330;R=630;B=410;"/>
+					<element subject="EAID_551548A96215542A" seq="12" style="DUID=EAID_551;L=710;T=330;R=850;B=410;"/>
+					<element subject="EAID_904B2B0A3952560E" seq="13" style="DUID=EAID_904;L=50;T=470;R=190;B=550;"/>
+					<element subject="EAID_1E585606D4F55ABA" seq="14" style="DUID=EAID_1E5;L=270;T=470;R=410;B=550;"/>
+					<element subject="EAID_3FE7E00592D95105" seq="15" style="DUID=EAID_3FE;L=490;T=470;R=630;B=550;"/>
+					<element subject="EAID_769F72F329195E75" seq="16" style="DUID=EAID_769;L=710;T=470;R=850;B=550;"/>
+					<element subject="EAID_47A9317BAC935734" seq="17" style="DUID=EAID_47A;L=50;T=610;R=190;B=690;"/>
+				</elements>
+			</diagram>
+		</diagrams>
+	</xmi:Extension>
+</xmi:XMI>

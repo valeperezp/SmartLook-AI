@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<xmi:XMI xmi:version="2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1">
+	<xmi:Documentation exporter="Enterprise Architect" exporterVersion="6.5"/>
+	<uml:Model xmi:type="uml:Model" name="EA_Model" xmi:id="MX_EA_Model">
+		<packagedElement xmi:type="uml:Package" xmi:id="EAID_2DB3B59008025A4C" name="Robustez CU05 - Verificar plan y limites de la suscripcion">
+			<packagedElement xmi:type="uml:Package" xmi:id="EAID_85CDB77DA89658F9" name="CU05 - Verificar plan y limites de la suscripcion">
+				<packagedElement xmi:type="uml:Actor" xmi:id="EAID_3DAD3065886D53B1" name="Sistema Backend"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_C627F69B90B85D69" name="InterceptorPeticionAPI"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_E6A75520690C5B29" name="ControladorVerificacionPlan"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_39867E1B92575204" name="ExtractorTenantToken"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_FBE587727486571B" name="VerificadorVigenciaSuscripcion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_B61C93EF62655D3F" name="VerificadorFuncionalidadHabilitada"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_3F723C0A73CB570D" name="ContadorRecursosConsumidos"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_E0A1674E89CE5195" name="ValidadorTopeRecurso"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_101A5884546E5A50" name="GeneradorRespuestaAutorizacion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_FD71959C6EC159A3" name="TokenSesion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_C9107C7A38625C37" name="Empresa"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_CD6F9A38F3CB5540" name="Suscripcion"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_B1C485FA64C15ECA" name="Plan"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_89EF71C6C69E5526" name="Funcionalidad"/>
+				<packagedElement xmi:type="uml:Class" xmi:id="EAID_2B30B587ABF855B4" name="Sucursal"/>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_DEEB118CEA2B5007" name="Recibe peticion autenticada">
+					<memberEnd xmi:idref="EAID_3DAD3065886D53B1"/>
+					<memberEnd xmi:idref="EAID_C627F69B90B85D69"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_1971A8B7067752E0" name="Solicita autorizacion de operacion">
+					<memberEnd xmi:idref="EAID_C627F69B90B85D69"/>
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_FCFC825934835432" name="Extraer tenant_id y roles">
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+					<memberEnd xmi:idref="EAID_39867E1B92575204"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_926E628BB127594C" name="Decodificar JWT">
+					<memberEnd xmi:idref="EAID_39867E1B92575204"/>
+					<memberEnd xmi:idref="EAID_FD71959C6EC159A3"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_1FB54072FD1657F0" name="Validar fecha vencimiento">
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+					<memberEnd xmi:idref="EAID_FBE587727486571B"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_22E8A856AFBA559C" name="Consultar vigencia de empresa">
+					<memberEnd xmi:idref="EAID_FBE587727486571B"/>
+					<memberEnd xmi:idref="EAID_CD6F9A38F3CB5540"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_7CAC323D2F9D54FC" name="Validar permiso funcional">
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+					<memberEnd xmi:idref="EAID_B61C93EF62655D3F"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_5CDB18C9268D5C20" name="Consultar plan contratado">
+					<memberEnd xmi:idref="EAID_B61C93EF62655D3F"/>
+					<memberEnd xmi:idref="EAID_B1C485FA64C15ECA"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_E5A56D34D4695A22" name="Verificar si funcionalidad esta activa">
+					<memberEnd xmi:idref="EAID_B1C485FA64C15ECA"/>
+					<memberEnd xmi:idref="EAID_89EF71C6C69E5526"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_30A06C215D225D85" name="Contar sucursales si aplica">
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+					<memberEnd xmi:idref="EAID_3F723C0A73CB570D"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_D7404AEAAABB53FF" name="Contar sucursales activas">
+					<memberEnd xmi:idref="EAID_3F723C0A73CB570D"/>
+					<memberEnd xmi:idref="EAID_2B30B587ABF855B4"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_28293D5EA9CE5F67" name="Comparar sucursales vs limite_sucursales">
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+					<memberEnd xmi:idref="EAID_E0A1674E89CE5195"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_A340E56FAF1A5F3A" name="Generar resultado autorizacion">
+					<memberEnd xmi:idref="EAID_E6A75520690C5B29"/>
+					<memberEnd xmi:idref="EAID_101A5884546E5A50"/>
+				</packagedElement>
+				<packagedElement xmi:type="uml:Association" xmi:id="EAID_1AC2E58EFD755A3A" name="Retornar OK o mensaje de bloqueo">
+					<memberEnd xmi:idref="EAID_101A5884546E5A50"/>
+					<memberEnd xmi:idref="EAID_C627F69B90B85D69"/>
+				</packagedElement>
+			</packagedElement>
+		</packagedElement>
+	</uml:Model>
+	<xmi:Extension extender="Enterprise Architect" extenderID="6.5">
+		<elements>
+			<element xmi:idref="EAID_3DAD3065886D53B1" xmi:type="uml:Actor" name="Sistema Backend" scope="public">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Actor" nType="0" scope="public"/>
+			</element>
+			<element xmi:idref="EAID_C627F69B90B85D69" xmi:type="uml:Boundary" name="InterceptorPeticionAPI" scope="public" stereotype="boundary">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Boundary" nType="0" scope="public" stereotype="boundary"/>
+			</element>
+			<element xmi:idref="EAID_E6A75520690C5B29" xmi:type="uml:Control" name="ControladorVerificacionPlan" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_39867E1B92575204" xmi:type="uml:Control" name="ExtractorTenantToken" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_FBE587727486571B" xmi:type="uml:Control" name="VerificadorVigenciaSuscripcion" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_B61C93EF62655D3F" xmi:type="uml:Control" name="VerificadorFuncionalidadHabilitada" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_3F723C0A73CB570D" xmi:type="uml:Control" name="ContadorRecursosConsumidos" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_E0A1674E89CE5195" xmi:type="uml:Control" name="ValidadorTopeRecurso" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_101A5884546E5A50" xmi:type="uml:Control" name="GeneradorRespuestaAutorizacion" scope="public" stereotype="control">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Control" nType="0" scope="public" stereotype="control"/>
+			</element>
+			<element xmi:idref="EAID_FD71959C6EC159A3" xmi:type="uml:Entity" name="TokenSesion" scope="public" stereotype="entity">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_C9107C7A38625C37" xmi:type="uml:Entity" name="Empresa" scope="public" stereotype="entity">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_CD6F9A38F3CB5540" xmi:type="uml:Entity" name="Suscripcion" scope="public" stereotype="entity">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_B1C485FA64C15ECA" xmi:type="uml:Entity" name="Plan" scope="public" stereotype="entity">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_89EF71C6C69E5526" xmi:type="uml:Entity" name="Funcionalidad" scope="public" stereotype="entity">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+			<element xmi:idref="EAID_2B30B587ABF855B4" xmi:type="uml:Entity" name="Sucursal" scope="public" stereotype="entity">
+				<model package="EAID_85CDB77DA89658F9" tpos="0" ea_localid="0" ea_eleType="element"/>
+				<properties isSpecification="false" sType="Entity" nType="0" scope="public" stereotype="entity"/>
+			</element>
+		</elements>
+		<connectors>
+			<connector xmi:idref="EAID_DEEB118CEA2B5007">
+				<source xmi:idref="EAID_3DAD3065886D53B1"/>
+				<target xmi:idref="EAID_C627F69B90B85D69"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Recibe peticion autenticada"/>
+			</connector>
+			<connector xmi:idref="EAID_1971A8B7067752E0">
+				<source xmi:idref="EAID_C627F69B90B85D69"/>
+				<target xmi:idref="EAID_E6A75520690C5B29"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Solicita autorizacion de operacion"/>
+			</connector>
+			<connector xmi:idref="EAID_FCFC825934835432">
+				<source xmi:idref="EAID_E6A75520690C5B29"/>
+				<target xmi:idref="EAID_39867E1B92575204"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Extraer tenant_id y roles"/>
+			</connector>
+			<connector xmi:idref="EAID_926E628BB127594C">
+				<source xmi:idref="EAID_39867E1B92575204"/>
+				<target xmi:idref="EAID_FD71959C6EC159A3"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Decodificar JWT"/>
+			</connector>
+			<connector xmi:idref="EAID_1FB54072FD1657F0">
+				<source xmi:idref="EAID_E6A75520690C5B29"/>
+				<target xmi:idref="EAID_FBE587727486571B"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Validar fecha vencimiento"/>
+			</connector>
+			<connector xmi:idref="EAID_22E8A856AFBA559C">
+				<source xmi:idref="EAID_FBE587727486571B"/>
+				<target xmi:idref="EAID_CD6F9A38F3CB5540"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Consultar vigencia de empresa"/>
+			</connector>
+			<connector xmi:idref="EAID_7CAC323D2F9D54FC">
+				<source xmi:idref="EAID_E6A75520690C5B29"/>
+				<target xmi:idref="EAID_B61C93EF62655D3F"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Validar permiso funcional"/>
+			</connector>
+			<connector xmi:idref="EAID_5CDB18C9268D5C20">
+				<source xmi:idref="EAID_B61C93EF62655D3F"/>
+				<target xmi:idref="EAID_B1C485FA64C15ECA"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Consultar plan contratado"/>
+			</connector>
+			<connector xmi:idref="EAID_E5A56D34D4695A22">
+				<source xmi:idref="EAID_B1C485FA64C15ECA"/>
+				<target xmi:idref="EAID_89EF71C6C69E5526"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Verificar si funcionalidad esta activa"/>
+			</connector>
+			<connector xmi:idref="EAID_30A06C215D225D85">
+				<source xmi:idref="EAID_E6A75520690C5B29"/>
+				<target xmi:idref="EAID_3F723C0A73CB570D"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Contar sucursales si aplica"/>
+			</connector>
+			<connector xmi:idref="EAID_D7404AEAAABB53FF">
+				<source xmi:idref="EAID_3F723C0A73CB570D"/>
+				<target xmi:idref="EAID_2B30B587ABF855B4"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Contar sucursales activas"/>
+			</connector>
+			<connector xmi:idref="EAID_28293D5EA9CE5F67">
+				<source xmi:idref="EAID_E6A75520690C5B29"/>
+				<target xmi:idref="EAID_E0A1674E89CE5195"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Comparar sucursales vs limite_sucursales"/>
+			</connector>
+			<connector xmi:idref="EAID_A340E56FAF1A5F3A">
+				<source xmi:idref="EAID_E6A75520690C5B29"/>
+				<target xmi:idref="EAID_101A5884546E5A50"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Generar resultado autorizacion"/>
+			</connector>
+			<connector xmi:idref="EAID_1AC2E58EFD755A3A">
+				<source xmi:idref="EAID_101A5884546E5A50"/>
+				<target xmi:idref="EAID_C627F69B90B85D69"/>
+				<properties ea_type="Association" direction="Source -&gt; Destination"/>
+				<labels mb="Retornar OK o mensaje de bloqueo"/>
+			</connector>
+		</connectors>
+		<diagrams>
+			<diagram xmi:id="EAID_4A9CD50380515406">
+				<model package="EAID_85CDB77DA89658F9" ea_localid="0"/>
+				<properties name="Diagrama de Robustez - CU05" type="Analysis"/>
+				<project author="SmartLook IA" version="1.0" created="2026-10-25 14:50:58" modified="2026-10-25 14:50:58"/>
+				<elements>
+					<element subject="EAID_3DAD3065886D53B1" seq="1" style="DUID=EAID_3DA;L=50;T=50;R=190;B=130;"/>
+					<element subject="EAID_C627F69B90B85D69" seq="2" style="DUID=EAID_C62;L=270;T=50;R=410;B=130;"/>
+					<element subject="EAID_E6A75520690C5B29" seq="3" style="DUID=EAID_E6A;L=490;T=50;R=630;B=130;"/>
+					<element subject="EAID_39867E1B92575204" seq="4" style="DUID=EAID_398;L=710;T=50;R=850;B=130;"/>
+					<element subject="EAID_FBE587727486571B" seq="5" style="DUID=EAID_FBE;L=50;T=190;R=190;B=270;"/>
+					<element subject="EAID_B61C93EF62655D3F" seq="6" style="DUID=EAID_B61;L=270;T=190;R=410;B=270;"/>
+					<element subject="EAID_3F723C0A73CB570D" seq="7" style="DUID=EAID_3F7;L=490;T=190;R=630;B=270;"/>
+					<element subject="EAID_E0A1674E89CE5195" seq="8" style="DUID=EAID_E0A;L=710;T=190;R=850;B=270;"/>
+					<element subject="EAID_101A5884546E5A50" seq="9" style="DUID=EAID_101;L=50;T=330;R=190;B=410;"/>
+					<element subject="EAID_FD71959C6EC159A3" seq="10" style="DUID=EAID_FD7;L=270;T=330;R=410;B=410;"/>
+					<element subject="EAID_C9107C7A38625C37" seq="11" style="DUID=EAID_C91;L=490;T=330;R=630;B=410;"/>
+					<element subject="EAID_CD6F9A38F3CB5540" seq="12" style="DUID=EAID_CD6;L=710;T=330;R=850;B=410;"/>
+					<element subject="EAID_B1C485FA64C15ECA" seq="13" style="DUID=EAID_B1C;L=50;T=470;R=190;B=550;"/>
+					<element subject="EAID_89EF71C6C69E5526" seq="14" style="DUID=EAID_89E;L=270;T=470;R=410;B=550;"/>
+					<element subject="EAID_2B30B587ABF855B4" seq="15" style="DUID=EAID_2B3;L=490;T=470;R=630;B=550;"/>
+				</elements>
+			</diagram>
+		</diagrams>
+	</xmi:Extension>
+</xmi:XMI>
