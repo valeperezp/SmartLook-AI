@@ -11,12 +11,22 @@ from app.modules.sucursales.models import Sucursal, SucursalQR
 from app.shared.core.config import settings
 
 
-def listar_sucursales(db: Session) -> list[models.Sucursal]:
-    return db.query(models.Sucursal).order_by(models.Sucursal.id).all()
+def listar_sucursales(db: Session, empresa_id: int) -> list[models.Sucursal]:
+    return (
+        db.query(models.Sucursal)
+        .filter(models.Sucursal.empresa_id == empresa_id)
+        .order_by(models.Sucursal.id)
+        .all()
+    )
 
 
-def obtener_sucursal(db: Session, sucursal_id: int) -> models.Sucursal | None:
-    return db.query(models.Sucursal).filter(models.Sucursal.id == sucursal_id).first()
+def obtener_sucursal(db: Session, sucursal_id: int, empresa_id: int) -> models.Sucursal | None:
+    """Una sucursal de otra empresa se trata como inexistente."""
+    return (
+        db.query(models.Sucursal)
+        .filter(models.Sucursal.id == sucursal_id, models.Sucursal.empresa_id == empresa_id)
+        .first()
+    )
 
 
 def crear_sucursal(db: Session, data: schemas.SucursalCreate, empresa_id: int) -> models.Sucursal:
@@ -28,8 +38,10 @@ def crear_sucursal(db: Session, data: schemas.SucursalCreate, empresa_id: int) -
     return sucursal
 
 
-def actualizar_sucursal(db: Session, sucursal_id: int, data: schemas.SucursalUpdate) -> models.Sucursal | None:
-    sucursal = obtener_sucursal(db, sucursal_id)
+def actualizar_sucursal(
+    db: Session, sucursal_id: int, data: schemas.SucursalUpdate, empresa_id: int
+) -> models.Sucursal | None:
+    sucursal = obtener_sucursal(db, sucursal_id, empresa_id)
     if not sucursal:
         return None
     cambios = data.model_dump(exclude_unset=True)
@@ -42,8 +54,8 @@ def actualizar_sucursal(db: Session, sucursal_id: int, data: schemas.SucursalUpd
     return sucursal
 
 
-def eliminar_sucursal(db: Session, sucursal_id: int) -> models.Sucursal | None:
-    sucursal = obtener_sucursal(db, sucursal_id)
+def eliminar_sucursal(db: Session, sucursal_id: int, empresa_id: int) -> models.Sucursal | None:
+    sucursal = obtener_sucursal(db, sucursal_id, empresa_id)
     if not sucursal:
         return None
     sucursal.activa = False
@@ -56,7 +68,7 @@ ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 MAX_QR_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
-async def subir_qr_sucursal(db: Session, sucursal_id: int, archivo: UploadFile) -> dict:
+async def subir_qr_sucursal(db: Session, sucursal_id: int, archivo: UploadFile, empresa_id: int) -> dict:
     """Sube un QR para la sucursal, desactivando el anterior."""
     # Validar tipo
     if archivo.content_type not in ALLOWED_IMAGE_TYPES:
@@ -67,8 +79,8 @@ async def subir_qr_sucursal(db: Session, sucursal_id: int, archivo: UploadFile) 
     if len(contenido) > MAX_QR_SIZE:
         raise HTTPException(status_code=400, detail="El archivo supera los 5 MB")
     
-    # Verificar que la sucursal existe
-    sucursal = db.query(Sucursal).filter(Sucursal.id == sucursal_id).first()
+    # Verificar que la sucursal existe y es de la empresa
+    sucursal = obtener_sucursal(db, sucursal_id, empresa_id)
     if not sucursal:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
     
@@ -113,11 +125,12 @@ async def subir_qr_sucursal(db: Session, sucursal_id: int, archivo: UploadFile) 
     }
 
 
-def obtener_qr_activo(db: Session, sucursal_id: int) -> dict | None:
+def obtener_qr_activo(db: Session, sucursal_id: int, empresa_id: int) -> dict | None:
     """Obtiene el QR activo de una sucursal."""
-    qr = db.query(SucursalQR).filter(
+    qr = db.query(SucursalQR).join(Sucursal).filter(
         SucursalQR.sucursal_id == sucursal_id,
-        SucursalQR.activo.is_(True)
+        SucursalQR.activo.is_(True),
+        Sucursal.empresa_id == empresa_id,
     ).first()
     
     if not qr:
@@ -134,11 +147,12 @@ def obtener_qr_activo(db: Session, sucursal_id: int) -> dict | None:
     }
 
 
-def desactivar_qr(db: Session, sucursal_id: int) -> bool:
+def desactivar_qr(db: Session, sucursal_id: int, empresa_id: int) -> bool:
     """Desactiva el QR activo de la sucursal."""
-    qr = db.query(SucursalQR).filter(
+    qr = db.query(SucursalQR).join(Sucursal).filter(
         SucursalQR.sucursal_id == sucursal_id,
-        SucursalQR.activo.is_(True)
+        SucursalQR.activo.is_(True),
+        Sucursal.empresa_id == empresa_id,
     ).first()
     
     if not qr:

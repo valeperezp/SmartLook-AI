@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 import { Usuario } from '../models/usuario.model';
 
 const TOKEN_KEY = 'smartlook_token';
+const EMPRESA_KEY = 'smartlook_empresa';
 
 interface TokenResponse {
   access_token: string;
@@ -42,6 +43,24 @@ export class AuthService {
     return localStorage.getItem(TOKEN_KEY);
   }
 
+  /** Tienda (slug) que el visitante eligió con /login?empresa=..., para navegar sin sesión. */
+  getEmpresaVisitada(): string | null {
+    try {
+      return localStorage.getItem(EMPRESA_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  setEmpresaVisitada(slug: string | null) {
+    try {
+      if (slug) localStorage.setItem(EMPRESA_KEY, slug);
+      else localStorage.removeItem(EMPRESA_KEY);
+    } catch {
+      // almacenamiento bloqueado: se usa la tienda por defecto
+    }
+  }
+
   private setToken(token: string) {
     localStorage.setItem(TOKEN_KEY, token);
   }
@@ -72,7 +91,9 @@ export class AuthService {
   }
 
   registrar(nombre: string, email: string, password: string) {
-    return this.http.post<Usuario>(`${this.apiUrl}/auth/registro`, { nombre, email, password });
+    // El cliente queda registrado en la tienda que está visitando (o la tienda por defecto).
+    const empresa = this.getEmpresaVisitada();
+    return this.http.post<Usuario>(`${this.apiUrl}/auth/registro`, { nombre, email, password, empresa });
   }
 
   refrescarUsuario() {

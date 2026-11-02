@@ -108,7 +108,10 @@ export class Login implements OnInit {
     const slug = this.slug();
     if (!slug) return;
     this.empresas.empresaPublica(slug).subscribe({
-      next: (e) => this.empresaNombre.set(e.nombre),
+      next: (e) => {
+        this.empresaNombre.set(e.nombre);
+        this.auth.setEmpresaVisitada(e.slug);
+      },
       error: () => this.empresaNoExiste.set(true),
     });
   }

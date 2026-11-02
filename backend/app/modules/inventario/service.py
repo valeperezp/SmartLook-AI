@@ -1,11 +1,16 @@
-"""Lógica de negocio del módulo Inventario (lectura, escritura y movimientos de sucursal)."""
+"""Lógica de negocio del módulo Inventario (lectura, escritura y movimientos de sucursal).
+
+Multi-empresa (CU7): un registro de inventario pertenece a una sucursal, y la sucursal
+a una empresa; por eso todas las consultas filtran por Sucursal.empresa_id.
+"""
 from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.modules.catalogo.models import Producto
+from app.modules.catalogo.models import Color, Producto, Talla
 from app.modules.inventario import models, schemas
 from app.modules.sucursales.models import Sucursal
+from app.shared.db.tenant import asegurar_de_empresa
 
 
 def _calcular_estado(inventario: models.Inventario) -> str:
@@ -22,6 +27,7 @@ def _calcular_estado(inventario: models.Inventario) -> str:
 # =========================================================================
 def listar_inventario(
     db: Session,
+    empresa_id: int,
     sucursal_id: int | None = None,
     producto_id: int | None = None,
     categoria_id: int | None = None,
@@ -34,13 +40,14 @@ def listar_inventario(
     query = (
         db.query(models.Inventario)
         .join(models.Inventario.producto)
+        .join(models.Inventario.sucursal)
         .options(
             joinedload(models.Inventario.producto),
             joinedload(models.Inventario.sucursal),
             joinedload(models.Inventario.talla),
             joinedload(models.Inventario.color),
         )
-        .filter(models.Inventario.activo.is_(True))
+        .filter(models.Inventario.activo.is_(True), Sucursal.empresa_id == empresa_id)
     )
 
     if sucursal_id is not None:
@@ -61,34 +68,41 @@ def listar_inventario(
     return query.order_by(Producto.nombre, models.Inventario.id).all()
 
 
-def inventario_por_sucursal(db: Session, sucursal_id: int) -> list[models.Inventario]:
+def inventario_por_sucursal(db: Session, sucursal_id: int, empresa_id: int) -> list[models.Inventario]:
     """Obtiene el inventario filtrado por sucursal."""
-    return listar_inventario(db, sucursal_id=sucursal_id)
+    return listar_inventario(db, empresa_id, sucursal_id=sucursal_id)
 
 
-def inventario_por_producto(db: Session, producto_id: int) -> list[models.Inventario]:
+def inventario_por_producto(db: Session, producto_id: int, empresa_id: int) -> list[models.Inventario]:
     """Obtiene la distribución del inventario de un producto en todas las sucursales."""
-    return listar_inventario(db, producto_id=producto_id)
+    return listar_inventario(db, empresa_id, producto_id=producto_id)
 
 
-def obtener_inventario(db: Session, inventario_id: int) -> models.Inventario | None:
-    """Obtiene un registro de inventario con sus relaciones cargadas."""
+def obtener_inventario(db: Session, inventario_id: int, empresa_id: int) -> models.Inventario | None:
+    """Obtiene un registro de inventario con sus relaciones cargadas (None si es de otra empresa)."""
     return (
         db.query(models.Inventario)
+        .join(models.Inventario.sucursal)
         .options(
             joinedload(models.Inventario.producto),
             joinedload(models.Inventario.sucursal),
             joinedload(models.Inventario.talla),
             joinedload(models.Inventario.color),
         )
-        .filter(models.Inventario.id == inventario_id, models.Inventario.activo.is_(True))
+        .filter(
+            models.Inventario.id == inventario_id,
+            models.Inventario.activo.is_(True),
+            Sucursal.empresa_id == empresa_id,
+        )
         .first()
     )
 
 
-def resumen_global(db: Session, sucursal_id: int | None = None) -> dict:
-    """Calcula totales globales o de una sucursal específica."""
+def resumen_global(db: Session, sucursal_id: int | None = None, empresa_id: int | None = None) -> dict:
+    """Calcula totales globales (de la empresa) o de una sucursal específica."""
     query_base = db.query(models.Inventario).filter(models.Inventario.activo.is_(True))
+    if empresa_id is not None:
+        query_base = query_base.join(models.Inventario.sucursal).filter(Sucursal.empresa_id == empresa_id)
     if sucursal_id is not None:
         query_base = query_base.filter(models.Inventario.sucursal_id == sucursal_id)
 
@@ -123,7 +137,10 @@ def resumen_global(db: Session, sucursal_id: int | None = None) -> dict:
     if sucursal_id is not None:
         total_sucursales = 1
     else:
-        total_sucursales = db.query(func.count(Sucursal.id)).filter(Sucursal.activa.is_(True)).scalar() or 0
+        query_sucursales = db.query(func.count(Sucursal.id)).filter(Sucursal.activa.is_(True))
+        if empresa_id is not None:
+            query_sucursales = query_sucursales.filter(Sucursal.empresa_id == empresa_id)
+        total_sucursales = query_sucursales.scalar() or 0
 
     return {
         "total_disponibles": int(total_disponibles),
@@ -135,10 +152,11 @@ def resumen_global(db: Session, sucursal_id: int | None = None) -> dict:
     }
 
 
-def alertas_stock_bajo(db: Session, sucursal_id: int | None = None) -> list[dict]:
+def alertas_stock_bajo(db: Session, empresa_id: int, sucursal_id: int | None = None) -> list[dict]:
     """Devuelve alertas para aquellos registros con existencia menor o igual al stock mínimo."""
     query = (
         db.query(models.Inventario)
+        .join(models.Inventario.sucursal)
         .options(
             joinedload(models.Inventario.producto),
             joinedload(models.Inventario.sucursal),
@@ -146,6 +164,7 @@ def alertas_stock_bajo(db: Session, sucursal_id: int | None = None) -> list[dict
         .filter(
             models.Inventario.activo.is_(True),
             models.Inventario.cantidad_disponible <= models.Inventario.stock_minimo,
+            Sucursal.empresa_id == empresa_id,
         )
     )
 
@@ -179,9 +198,15 @@ def alertas_stock_bajo(db: Session, sucursal_id: int | None = None) -> list[dict
 # GESTIÓN Y MOVIMIENTOS DE INVENTARIO (ESCRITURA - CU15)
 # =========================================================================
 def crear_o_inicializar_inventario(
-    db: Session, data: schemas.InventarioCreate, usuario_id: int | None = None
+    db: Session, data: schemas.InventarioCreate, empresa_id: int, usuario_id: int | None = None
 ) -> models.Inventario:
     """Crea un nuevo registro de inventario o inicializa stock si aún no existía."""
+    # Producto, sucursal, talla y color tienen que ser todos de la misma empresa.
+    asegurar_de_empresa(db, Sucursal, data.sucursal_id, empresa_id, "Sucursal")
+    asegurar_de_empresa(db, Producto, data.producto_id, empresa_id, "Producto")
+    asegurar_de_empresa(db, Talla, data.talla_id, empresa_id, "Talla")
+    asegurar_de_empresa(db, Color, data.color_id, empresa_id, "Color")
+
     existente = (
         db.query(models.Inventario)
         .filter(
@@ -222,7 +247,7 @@ def crear_o_inicializar_inventario(
         db.add(mov)
         db.commit()
 
-    return obtener_inventario(db, nuevo_inv.id)
+    return obtener_inventario(db, nuevo_inv.id, empresa_id)
 
 
 def registrar_movimiento(
@@ -267,7 +292,7 @@ def registrar_movimiento(
 
 
 def ajustar_stock(
-    db: Session, data: schemas.AjusteStockCreate, usuario_id: int | None = None
+    db: Session, data: schemas.AjusteStockCreate, empresa_id: int, usuario_id: int | None = None
 ) -> models.Inventario:
     """Ajusta la cantidad disponible a un conteo físico real y genera un movimiento de tipo 'ajuste'."""
     inv = db.query(models.Inventario).filter(models.Inventario.id == data.inventario_id).with_for_update().populate_existing().first()
@@ -286,11 +311,11 @@ def ajustar_stock(
     )
     db.add(mov)
     db.commit()
-    return obtener_inventario(db, inv.id)
+    return obtener_inventario(db, inv.id, empresa_id)
 
 
 def actualizar_stock_minimo(
-    db: Session, inventario_id: int, data: schemas.StockMinimoUpdate
+    db: Session, inventario_id: int, data: schemas.StockMinimoUpdate, empresa_id: int
 ) -> models.Inventario:
     """Actualiza el umbral de stock mínimo para un registro de inventario."""
     inv = db.query(models.Inventario).filter(models.Inventario.id == inventario_id).first()
@@ -299,11 +324,12 @@ def actualizar_stock_minimo(
 
     inv.stock_minimo = data.stock_minimo
     db.commit()
-    return obtener_inventario(db, inv.id)
+    return obtener_inventario(db, inv.id, empresa_id)
 
 
 def listar_movimientos(
     db: Session,
+    empresa_id: int,
     sucursal_id: int | None = None,
     inventario_id: int | None = None,
     tipo: str | None = None,
@@ -313,11 +339,13 @@ def listar_movimientos(
     query = (
         db.query(models.MovimientoInventario)
         .join(models.MovimientoInventario.inventario)
+        .join(models.Inventario.sucursal)
         .options(
             joinedload(models.MovimientoInventario.inventario).joinedload(models.Inventario.producto),
             joinedload(models.MovimientoInventario.inventario).joinedload(models.Inventario.sucursal),
             joinedload(models.MovimientoInventario.usuario),
         )
+        .filter(Sucursal.empresa_id == empresa_id)
     )
 
     if inventario_id is not None:

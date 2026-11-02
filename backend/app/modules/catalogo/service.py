@@ -1,13 +1,20 @@
-"""Lógica de negocio del módulo Catálogo (independiente de FastAPI/HTTP)."""
+"""Lógica de negocio del módulo Catálogo (independiente de FastAPI/HTTP).
+
+CU7 — cada empresa tiene su propio catálogo maestro y sus productos. Todas las
+funciones reciben `empresa_id`; un registro de otra empresa se trata como inexistente.
+"""
 import uuid
 
 import httpx
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.modules.catalogo import models, schemas
 from app.modules.empresas import service as empresas_service
+from app.modules.proveedores.models import Proveedor
 from app.shared.core.config import settings
+from app.shared.db.tenant import asegurar_de_empresa
 from app.shared.utils.imagenes import validar_imagen
 
 
@@ -16,205 +23,203 @@ def _aplicar_update(instancia, data) -> None:
         setattr(instancia, campo, valor)
 
 
+# ---------- Catálogo maestro: helpers comunes ----------
+def _listar(db: Session, modelo, empresa_id: int, orden):
+    return db.query(modelo).filter(modelo.empresa_id == empresa_id).order_by(orden).all()
+
+
+def _obtener(db: Session, modelo, registro_id: int, empresa_id: int):
+    return db.query(modelo).filter(modelo.id == registro_id, modelo.empresa_id == empresa_id).first()
+
+
+def _validar_nombre_unico(db: Session, modelo, nombre: str | None, empresa_id: int, excluir_id: int | None = None) -> None:
+    if nombre is None:
+        return
+    query = db.query(modelo.id).filter(
+        modelo.empresa_id == empresa_id, func.lower(modelo.nombre) == nombre.strip().lower()
+    )
+    if excluir_id is not None:
+        query = query.filter(modelo.id != excluir_id)
+    if query.first():
+        raise HTTPException(status_code=400, detail=f"Ya existe '{nombre}' en tu catálogo")
+
+
+def _crear(db: Session, modelo, data, empresa_id: int):
+    _validar_nombre_unico(db, modelo, data.nombre, empresa_id)
+    instancia = modelo(**data.model_dump(), empresa_id=empresa_id)
+    db.add(instancia)
+    db.commit()
+    db.refresh(instancia)
+    return instancia
+
+
+def _actualizar(db: Session, modelo, registro_id: int, data, empresa_id: int):
+    instancia = _obtener(db, modelo, registro_id, empresa_id)
+    if not instancia:
+        return None
+    _validar_nombre_unico(db, modelo, data.model_dump(exclude_unset=True).get("nombre"), empresa_id, instancia.id)
+    _aplicar_update(instancia, data)
+    db.commit()
+    db.refresh(instancia)
+    return instancia
+
+
+def _desactivar(db: Session, modelo, registro_id: int, empresa_id: int):
+    instancia = _obtener(db, modelo, registro_id, empresa_id)
+    if not instancia:
+        return None
+    instancia.activo = False
+    db.commit()
+    db.refresh(instancia)
+    return instancia
+
+
 # ---------- Categoría ----------
-def listar_categorias(db: Session) -> list[models.Categoria]:
-    return db.query(models.Categoria).order_by(models.Categoria.nombre).all()
+def listar_categorias(db: Session, empresa_id: int) -> list[models.Categoria]:
+    return _listar(db, models.Categoria, empresa_id, models.Categoria.nombre)
 
 
-def obtener_categoria(db: Session, categoria_id: int) -> models.Categoria | None:
-    return db.query(models.Categoria).filter(models.Categoria.id == categoria_id).first()
+def obtener_categoria(db: Session, categoria_id: int, empresa_id: int) -> models.Categoria | None:
+    return _obtener(db, models.Categoria, categoria_id, empresa_id)
 
 
-def crear_categoria(db: Session, data: schemas.CategoriaCreate) -> models.Categoria:
-    categoria = models.Categoria(**data.model_dump())
-    db.add(categoria)
-    db.commit()
-    db.refresh(categoria)
-    return categoria
+def crear_categoria(db: Session, data: schemas.CategoriaCreate, empresa_id: int) -> models.Categoria:
+    return _crear(db, models.Categoria, data, empresa_id)
 
 
-def actualizar_categoria(db: Session, categoria_id: int, data: schemas.CategoriaUpdate) -> models.Categoria | None:
-    categoria = obtener_categoria(db, categoria_id)
-    if not categoria:
-        return None
-    _aplicar_update(categoria, data)
-    db.commit()
-    db.refresh(categoria)
-    return categoria
+def actualizar_categoria(
+    db: Session, categoria_id: int, data: schemas.CategoriaUpdate, empresa_id: int
+) -> models.Categoria | None:
+    return _actualizar(db, models.Categoria, categoria_id, data, empresa_id)
 
 
-def eliminar_categoria(db: Session, categoria_id: int) -> models.Categoria | None:
-    categoria = obtener_categoria(db, categoria_id)
-    if not categoria:
-        return None
-    categoria.activo = False
-    db.commit()
-    db.refresh(categoria)
-    return categoria
+def eliminar_categoria(db: Session, categoria_id: int, empresa_id: int) -> models.Categoria | None:
+    return _desactivar(db, models.Categoria, categoria_id, empresa_id)
 
 
 # ---------- Talla ----------
-def listar_tallas(db: Session) -> list[models.Talla]:
-    return db.query(models.Talla).order_by(models.Talla.id).all()
+def listar_tallas(db: Session, empresa_id: int) -> list[models.Talla]:
+    return _listar(db, models.Talla, empresa_id, models.Talla.id)
 
 
-def obtener_talla(db: Session, talla_id: int) -> models.Talla | None:
-    return db.query(models.Talla).filter(models.Talla.id == talla_id).first()
+def obtener_talla(db: Session, talla_id: int, empresa_id: int) -> models.Talla | None:
+    return _obtener(db, models.Talla, talla_id, empresa_id)
 
 
-def crear_talla(db: Session, data: schemas.TallaCreate) -> models.Talla:
-    talla = models.Talla(**data.model_dump())
-    db.add(talla)
-    db.commit()
-    db.refresh(talla)
-    return talla
+def crear_talla(db: Session, data: schemas.TallaCreate, empresa_id: int) -> models.Talla:
+    return _crear(db, models.Talla, data, empresa_id)
 
 
-def actualizar_talla(db: Session, talla_id: int, data: schemas.TallaUpdate) -> models.Talla | None:
-    talla = obtener_talla(db, talla_id)
-    if not talla:
-        return None
-    _aplicar_update(talla, data)
-    db.commit()
-    db.refresh(talla)
-    return talla
+def actualizar_talla(db: Session, talla_id: int, data: schemas.TallaUpdate, empresa_id: int) -> models.Talla | None:
+    return _actualizar(db, models.Talla, talla_id, data, empresa_id)
 
 
-def eliminar_talla(db: Session, talla_id: int) -> models.Talla | None:
-    talla = obtener_talla(db, talla_id)
-    if not talla:
-        return None
-    talla.activo = False
-    db.commit()
-    db.refresh(talla)
-    return talla
+def eliminar_talla(db: Session, talla_id: int, empresa_id: int) -> models.Talla | None:
+    return _desactivar(db, models.Talla, talla_id, empresa_id)
 
 
 # ---------- Color ----------
-def listar_colores(db: Session) -> list[models.Color]:
-    return db.query(models.Color).order_by(models.Color.id).all()
+def listar_colores(db: Session, empresa_id: int) -> list[models.Color]:
+    return _listar(db, models.Color, empresa_id, models.Color.id)
 
 
-def obtener_color(db: Session, color_id: int) -> models.Color | None:
-    return db.query(models.Color).filter(models.Color.id == color_id).first()
+def obtener_color(db: Session, color_id: int, empresa_id: int) -> models.Color | None:
+    return _obtener(db, models.Color, color_id, empresa_id)
 
 
-def crear_color(db: Session, data: schemas.ColorCreate) -> models.Color:
-    color = models.Color(**data.model_dump())
-    db.add(color)
-    db.commit()
-    db.refresh(color)
-    return color
+def crear_color(db: Session, data: schemas.ColorCreate, empresa_id: int) -> models.Color:
+    return _crear(db, models.Color, data, empresa_id)
 
 
-def actualizar_color(db: Session, color_id: int, data: schemas.ColorUpdate) -> models.Color | None:
-    color = obtener_color(db, color_id)
-    if not color:
-        return None
-    _aplicar_update(color, data)
-    db.commit()
-    db.refresh(color)
-    return color
+def actualizar_color(db: Session, color_id: int, data: schemas.ColorUpdate, empresa_id: int) -> models.Color | None:
+    return _actualizar(db, models.Color, color_id, data, empresa_id)
 
 
-def eliminar_color(db: Session, color_id: int) -> models.Color | None:
-    color = obtener_color(db, color_id)
-    if not color:
-        return None
-    color.activo = False
-    db.commit()
-    db.refresh(color)
-    return color
+def eliminar_color(db: Session, color_id: int, empresa_id: int) -> models.Color | None:
+    return _desactivar(db, models.Color, color_id, empresa_id)
 
 
 # ---------- Temporada ----------
-def listar_temporadas(db: Session) -> list[models.Temporada]:
-    return db.query(models.Temporada).order_by(models.Temporada.id).all()
+def listar_temporadas(db: Session, empresa_id: int) -> list[models.Temporada]:
+    return _listar(db, models.Temporada, empresa_id, models.Temporada.id)
 
 
-def obtener_temporada(db: Session, temporada_id: int) -> models.Temporada | None:
-    return db.query(models.Temporada).filter(models.Temporada.id == temporada_id).first()
+def obtener_temporada(db: Session, temporada_id: int, empresa_id: int) -> models.Temporada | None:
+    return _obtener(db, models.Temporada, temporada_id, empresa_id)
 
 
-def crear_temporada(db: Session, data: schemas.TemporadaCreate) -> models.Temporada:
-    temporada = models.Temporada(**data.model_dump())
-    db.add(temporada)
-    db.commit()
-    db.refresh(temporada)
-    return temporada
+def crear_temporada(db: Session, data: schemas.TemporadaCreate, empresa_id: int) -> models.Temporada:
+    return _crear(db, models.Temporada, data, empresa_id)
 
 
-def actualizar_temporada(db: Session, temporada_id: int, data: schemas.TemporadaUpdate) -> models.Temporada | None:
-    temporada = obtener_temporada(db, temporada_id)
-    if not temporada:
-        return None
-    _aplicar_update(temporada, data)
-    db.commit()
-    db.refresh(temporada)
-    return temporada
+def actualizar_temporada(
+    db: Session, temporada_id: int, data: schemas.TemporadaUpdate, empresa_id: int
+) -> models.Temporada | None:
+    return _actualizar(db, models.Temporada, temporada_id, data, empresa_id)
 
 
-def eliminar_temporada(db: Session, temporada_id: int) -> models.Temporada | None:
-    temporada = obtener_temporada(db, temporada_id)
-    if not temporada:
-        return None
-    temporada.activo = False
-    db.commit()
-    db.refresh(temporada)
-    return temporada
+def eliminar_temporada(db: Session, temporada_id: int, empresa_id: int) -> models.Temporada | None:
+    return _desactivar(db, models.Temporada, temporada_id, empresa_id)
 
 
 # ---------- Colección ----------
-def listar_colecciones(db: Session) -> list[models.Coleccion]:
-    return db.query(models.Coleccion).order_by(models.Coleccion.id).all()
+def listar_colecciones(db: Session, empresa_id: int) -> list[models.Coleccion]:
+    return _listar(db, models.Coleccion, empresa_id, models.Coleccion.id)
 
 
-def obtener_coleccion(db: Session, coleccion_id: int) -> models.Coleccion | None:
-    return db.query(models.Coleccion).filter(models.Coleccion.id == coleccion_id).first()
+def obtener_coleccion(db: Session, coleccion_id: int, empresa_id: int) -> models.Coleccion | None:
+    return _obtener(db, models.Coleccion, coleccion_id, empresa_id)
 
 
-def crear_coleccion(db: Session, data: schemas.ColeccionCreate) -> models.Coleccion:
-    coleccion = models.Coleccion(**data.model_dump())
+def crear_coleccion(db: Session, data: schemas.ColeccionCreate, empresa_id: int) -> models.Coleccion:
+    asegurar_de_empresa(db, models.Temporada, data.temporada_id, empresa_id, "Temporada")
+    coleccion = models.Coleccion(**data.model_dump(), empresa_id=empresa_id)
     db.add(coleccion)
     db.commit()
     db.refresh(coleccion)
     return coleccion
 
 
-def actualizar_coleccion(db: Session, coleccion_id: int, data: schemas.ColeccionUpdate) -> models.Coleccion | None:
-    coleccion = obtener_coleccion(db, coleccion_id)
+def actualizar_coleccion(
+    db: Session, coleccion_id: int, data: schemas.ColeccionUpdate, empresa_id: int
+) -> models.Coleccion | None:
+    coleccion = obtener_coleccion(db, coleccion_id, empresa_id)
     if not coleccion:
         return None
+    asegurar_de_empresa(db, models.Temporada, data.temporada_id, empresa_id, "Temporada")
     _aplicar_update(coleccion, data)
     db.commit()
     db.refresh(coleccion)
     return coleccion
 
 
-def eliminar_coleccion(db: Session, coleccion_id: int) -> models.Coleccion | None:
-    coleccion = obtener_coleccion(db, coleccion_id)
-    if not coleccion:
-        return None
-    coleccion.activo = False
-    db.commit()
-    db.refresh(coleccion)
-    return coleccion
+def eliminar_coleccion(db: Session, coleccion_id: int, empresa_id: int) -> models.Coleccion | None:
+    return _desactivar(db, models.Coleccion, coleccion_id, empresa_id)
 
 
 # ---------- Producto ----------
 def listar_productos(
-    db: Session, categoria_id: int | None = None, incluir_inactivos: bool = False
+    db: Session, empresa_id: int, categoria_id: int | None = None, incluir_inactivos: bool = False
 ) -> list[models.Producto]:
-    query = db.query(models.Producto)
+    query = db.query(models.Producto).filter(models.Producto.empresa_id == empresa_id)
     if not incluir_inactivos:
         query = query.filter(models.Producto.activo.is_(True))
     if categoria_id:
         query = query.filter(models.Producto.categoria_id == categoria_id)
-    return query.all()
+    return query.order_by(models.Producto.id).all()
 
 
-def obtener_producto(db: Session, producto_id: int) -> models.Producto | None:
-    return db.query(models.Producto).filter(models.Producto.id == producto_id).first()
+def obtener_producto(db: Session, producto_id: int, empresa_id: int) -> models.Producto | None:
+    return _obtener(db, models.Producto, producto_id, empresa_id)
+
+
+def _validar_referencias_producto(db: Session, data, empresa_id: int) -> None:
+    """Categoría, temporada, colección y proveedor tienen que ser de la misma empresa."""
+    campos = data.model_dump(exclude_unset=True)
+    asegurar_de_empresa(db, models.Categoria, campos.get("categoria_id"), empresa_id, "Categoría")
+    asegurar_de_empresa(db, models.Temporada, campos.get("temporada_id"), empresa_id, "Temporada")
+    asegurar_de_empresa(db, models.Coleccion, campos.get("coleccion_id"), empresa_id, "Colección")
+    asegurar_de_empresa(db, Proveedor, campos.get("proveedor_id"), empresa_id, "Proveedor")
 
 
 def _verificar_limite_si_reactiva(db: Session, producto: models.Producto, data: schemas.ProductoUpdate) -> None:
@@ -224,6 +229,7 @@ def _verificar_limite_si_reactiva(db: Session, producto: models.Producto, data: 
 
 
 def crear_producto(db: Session, data: schemas.ProductoCreate, empresa_id: int) -> models.Producto:
+    _validar_referencias_producto(db, data, empresa_id)
     empresas_service.verificar_limite(db, empresa_id, "productos")
     producto = models.Producto(**data.model_dump(), empresa_id=empresa_id)
     db.add(producto)
@@ -232,10 +238,13 @@ def crear_producto(db: Session, data: schemas.ProductoCreate, empresa_id: int) -
     return producto
 
 
-def actualizar_producto(db: Session, producto_id: int, data: schemas.ProductoUpdate) -> models.Producto | None:
-    producto = obtener_producto(db, producto_id)
+def actualizar_producto(
+    db: Session, producto_id: int, data: schemas.ProductoUpdate, empresa_id: int
+) -> models.Producto | None:
+    producto = obtener_producto(db, producto_id, empresa_id)
     if not producto:
         return None
+    _validar_referencias_producto(db, data, empresa_id)
     _verificar_limite_si_reactiva(db, producto, data)
     _aplicar_update(producto, data)
     db.commit()
@@ -243,18 +252,12 @@ def actualizar_producto(db: Session, producto_id: int, data: schemas.ProductoUpd
     return producto
 
 
-def eliminar_producto(db: Session, producto_id: int) -> models.Producto | None:
-    producto = obtener_producto(db, producto_id)
-    if not producto:
-        return None
-    producto.activo = False
-    db.commit()
-    db.refresh(producto)
-    return producto
+def eliminar_producto(db: Session, producto_id: int, empresa_id: int) -> models.Producto | None:
+    return _desactivar(db, models.Producto, producto_id, empresa_id)
 
 
 def subir_imagen_producto(
-    db: Session, producto_id: int, contenido: bytes, nombre_archivo: str, content_type: str
+    db: Session, producto_id: int, contenido: bytes, nombre_archivo: str, content_type: str, empresa_id: int
 ) -> models.Producto:
     """
     Sube el archivo a Supabase Storage (bucket público) usando la service_role key,
@@ -266,7 +269,7 @@ def subir_imagen_producto(
             detail="Supabase Storage no está configurado (faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).",
         )
 
-    producto = obtener_producto(db, producto_id)
+    producto = obtener_producto(db, producto_id, empresa_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
 
@@ -307,7 +310,7 @@ def _calcular_estado_disponibilidad(total: int, stock_minimo: int = 5) -> str:
     return "disponible"
 
 
-def obtener_disponibilidad_producto(db: Session, producto_id: int) -> dict | None:
+def obtener_disponibilidad_producto(db: Session, producto_id: int, empresa_id: int) -> dict | None:
     """
     Devuelve la disponibilidad de un producto agrupada por sucursal,
     con desglose por talla y color.
@@ -315,12 +318,17 @@ def obtener_disponibilidad_producto(db: Session, producto_id: int) -> dict | Non
     from app.modules.inventario.models import Inventario
     from app.modules.sucursales.models import Sucursal
 
-    producto = obtener_producto(db, producto_id)
+    producto = obtener_producto(db, producto_id, empresa_id)
     if not producto:
         return None
 
-    # Obtener todas las sucursales activas
-    sucursales = db.query(Sucursal).filter(Sucursal.activa.is_(True)).order_by(Sucursal.id).all()
+    # Obtener todas las sucursales activas de la empresa
+    sucursales = (
+        db.query(Sucursal)
+        .filter(Sucursal.activa.is_(True), Sucursal.empresa_id == empresa_id)
+        .order_by(Sucursal.id)
+        .all()
+    )
 
     disponibilidad = []
     total_global = 0
@@ -378,6 +386,7 @@ def obtener_disponibilidad_producto(db: Session, producto_id: int) -> dict | Non
 
 def listar_productos_con_disponibilidad(
     db: Session,
+    empresa_id: int,
     categoria_id: int | None = None,
     sucursal_id: int | None = None,
 ) -> list[dict]:
@@ -387,7 +396,7 @@ def listar_productos_con_disponibilidad(
     """
     from app.modules.inventario.models import Inventario
 
-    productos = listar_productos(db, categoria_id=categoria_id)
+    productos = listar_productos(db, empresa_id, categoria_id=categoria_id)
     resultados = []
 
     for prod in productos:
@@ -431,6 +440,7 @@ def crear_producto_proveedor(
     db: Session, data: schemas.ProductoCreate, proveedor_id: int, empresa_id: int
 ) -> models.Producto:
     """Crea un producto asignándolo automáticamente al proveedor."""
+    _validar_referencias_producto(db, data.model_copy(update={"proveedor_id": None}), empresa_id)
     empresas_service.verificar_limite(db, empresa_id, "productos")
     producto = models.Producto(
         empresa_id=empresa_id,
@@ -456,6 +466,7 @@ def actualizar_producto_proveedor(db: Session, producto_id: int, data: schemas.P
         return None
     if producto.proveedor_id != proveedor_id:
         raise HTTPException(status_code=403, detail="No puede modificar productos de otro proveedor")
+    _validar_referencias_producto(db, data.model_copy(update={"proveedor_id": None}), producto.empresa_id)
     _verificar_limite_si_reactiva(db, producto, data)
 
     # Aplicar solo los campos permitidos (excluir proveedor_id)

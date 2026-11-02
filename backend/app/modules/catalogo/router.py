@@ -1,9 +1,13 @@
-"""Endpoints HTTP del módulo Catálogo. Lectura abierta, escritura admin."""
+"""Endpoints HTTP del módulo Catálogo (CU7). Lectura abierta, escritura admin.
+
+La lectura pública muestra el catálogo de la empresa del contexto (sesión, header
+X-Empresa o tienda por defecto); la escritura trabaja sobre la empresa del admin.
+"""
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-from app.modules.auth.service import require_roles
+from app.modules.auth.service import empresa_contexto, require_roles
 from app.modules.catalogo import schemas, service
 from app.modules.usuarios.models import Usuario
 from app.shared.db.session import get_db
@@ -14,139 +18,125 @@ admin_only = require_roles("administrador")
 proveedor_only = require_roles("proveedor")
 
 
+def _o_404(registro, mensaje: str):
+    if not registro:
+        raise HTTPException(status_code=404, detail=mensaje)
+    return registro
+
+
 # ---------- Categorías ----------
 @router.get("/categorias", response_model=list[schemas.CategoriaOut])
-def listar_categorias(db: Session = Depends(get_db)):
-    return service.listar_categorias(db)
+def listar_categorias(db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
+    return service.listar_categorias(db, empresa_id)
 
 
-@router.post("/categorias", response_model=schemas.CategoriaOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_categoria(data: schemas.CategoriaCreate, db: Session = Depends(get_db)):
-    return service.crear_categoria(db, data)
+@router.post("/categorias", response_model=schemas.CategoriaOut, status_code=201)
+def crear_categoria(data: schemas.CategoriaCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_categoria(db, data, admin.empresa_id)
 
 
-@router.put("/categorias/{categoria_id}", response_model=schemas.CategoriaOut, dependencies=[Depends(admin_only)])
-def actualizar_categoria(categoria_id: int, data: schemas.CategoriaUpdate, db: Session = Depends(get_db)):
-    categoria = service.actualizar_categoria(db, categoria_id, data)
-    if not categoria:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada")
-    return categoria
+@router.put("/categorias/{categoria_id}", response_model=schemas.CategoriaOut)
+def actualizar_categoria(
+    categoria_id: int, data: schemas.CategoriaUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.actualizar_categoria(db, categoria_id, data, admin.empresa_id), "Categoría no encontrada")
 
 
-@router.delete("/categorias/{categoria_id}", response_model=schemas.CategoriaOut, dependencies=[Depends(admin_only)])
-def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db)):
-    categoria = service.eliminar_categoria(db, categoria_id)
-    if not categoria:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada")
-    return categoria
+@router.delete("/categorias/{categoria_id}", response_model=schemas.CategoriaOut)
+def eliminar_categoria(categoria_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return _o_404(service.eliminar_categoria(db, categoria_id, admin.empresa_id), "Categoría no encontrada")
 
 
 # ---------- Tallas ----------
 @router.get("/tallas", response_model=list[schemas.TallaOut])
-def listar_tallas(db: Session = Depends(get_db)):
-    return service.listar_tallas(db)
+def listar_tallas(db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
+    return service.listar_tallas(db, empresa_id)
 
 
-@router.post("/tallas", response_model=schemas.TallaOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_talla(data: schemas.TallaCreate, db: Session = Depends(get_db)):
-    return service.crear_talla(db, data)
+@router.post("/tallas", response_model=schemas.TallaOut, status_code=201)
+def crear_talla(data: schemas.TallaCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_talla(db, data, admin.empresa_id)
 
 
-@router.put("/tallas/{talla_id}", response_model=schemas.TallaOut, dependencies=[Depends(admin_only)])
-def actualizar_talla(talla_id: int, data: schemas.TallaUpdate, db: Session = Depends(get_db)):
-    talla = service.actualizar_talla(db, talla_id, data)
-    if not talla:
-        raise HTTPException(status_code=404, detail="Talla no encontrada")
-    return talla
+@router.put("/tallas/{talla_id}", response_model=schemas.TallaOut)
+def actualizar_talla(
+    talla_id: int, data: schemas.TallaUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.actualizar_talla(db, talla_id, data, admin.empresa_id), "Talla no encontrada")
 
 
-@router.delete("/tallas/{talla_id}", response_model=schemas.TallaOut, dependencies=[Depends(admin_only)])
-def eliminar_talla(talla_id: int, db: Session = Depends(get_db)):
-    talla = service.eliminar_talla(db, talla_id)
-    if not talla:
-        raise HTTPException(status_code=404, detail="Talla no encontrada")
-    return talla
+@router.delete("/tallas/{talla_id}", response_model=schemas.TallaOut)
+def eliminar_talla(talla_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return _o_404(service.eliminar_talla(db, talla_id, admin.empresa_id), "Talla no encontrada")
 
 
 # ---------- Colores ----------
 @router.get("/colores", response_model=list[schemas.ColorOut])
-def listar_colores(db: Session = Depends(get_db)):
-    return service.listar_colores(db)
+def listar_colores(db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
+    return service.listar_colores(db, empresa_id)
 
 
-@router.post("/colores", response_model=schemas.ColorOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_color(data: schemas.ColorCreate, db: Session = Depends(get_db)):
-    return service.crear_color(db, data)
+@router.post("/colores", response_model=schemas.ColorOut, status_code=201)
+def crear_color(data: schemas.ColorCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_color(db, data, admin.empresa_id)
 
 
-@router.put("/colores/{color_id}", response_model=schemas.ColorOut, dependencies=[Depends(admin_only)])
-def actualizar_color(color_id: int, data: schemas.ColorUpdate, db: Session = Depends(get_db)):
-    color = service.actualizar_color(db, color_id, data)
-    if not color:
-        raise HTTPException(status_code=404, detail="Color no encontrado")
-    return color
+@router.put("/colores/{color_id}", response_model=schemas.ColorOut)
+def actualizar_color(
+    color_id: int, data: schemas.ColorUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.actualizar_color(db, color_id, data, admin.empresa_id), "Color no encontrado")
 
 
-@router.delete("/colores/{color_id}", response_model=schemas.ColorOut, dependencies=[Depends(admin_only)])
-def eliminar_color(color_id: int, db: Session = Depends(get_db)):
-    color = service.eliminar_color(db, color_id)
-    if not color:
-        raise HTTPException(status_code=404, detail="Color no encontrado")
-    return color
+@router.delete("/colores/{color_id}", response_model=schemas.ColorOut)
+def eliminar_color(color_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return _o_404(service.eliminar_color(db, color_id, admin.empresa_id), "Color no encontrado")
 
 
 # ---------- Temporadas ----------
 @router.get("/temporadas", response_model=list[schemas.TemporadaOut])
-def listar_temporadas(db: Session = Depends(get_db)):
-    return service.listar_temporadas(db)
+def listar_temporadas(db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
+    return service.listar_temporadas(db, empresa_id)
 
 
-@router.post("/temporadas", response_model=schemas.TemporadaOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_temporada(data: schemas.TemporadaCreate, db: Session = Depends(get_db)):
-    return service.crear_temporada(db, data)
+@router.post("/temporadas", response_model=schemas.TemporadaOut, status_code=201)
+def crear_temporada(data: schemas.TemporadaCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_temporada(db, data, admin.empresa_id)
 
 
-@router.put("/temporadas/{temporada_id}", response_model=schemas.TemporadaOut, dependencies=[Depends(admin_only)])
-def actualizar_temporada(temporada_id: int, data: schemas.TemporadaUpdate, db: Session = Depends(get_db)):
-    temporada = service.actualizar_temporada(db, temporada_id, data)
-    if not temporada:
-        raise HTTPException(status_code=404, detail="Temporada no encontrada")
-    return temporada
+@router.put("/temporadas/{temporada_id}", response_model=schemas.TemporadaOut)
+def actualizar_temporada(
+    temporada_id: int, data: schemas.TemporadaUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.actualizar_temporada(db, temporada_id, data, admin.empresa_id), "Temporada no encontrada")
 
 
-@router.delete("/temporadas/{temporada_id}", response_model=schemas.TemporadaOut, dependencies=[Depends(admin_only)])
-def eliminar_temporada(temporada_id: int, db: Session = Depends(get_db)):
-    temporada = service.eliminar_temporada(db, temporada_id)
-    if not temporada:
-        raise HTTPException(status_code=404, detail="Temporada no encontrada")
-    return temporada
+@router.delete("/temporadas/{temporada_id}", response_model=schemas.TemporadaOut)
+def eliminar_temporada(temporada_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return _o_404(service.eliminar_temporada(db, temporada_id, admin.empresa_id), "Temporada no encontrada")
 
 
 # ---------- Colecciones ----------
 @router.get("/colecciones", response_model=list[schemas.ColeccionOut])
-def listar_colecciones(db: Session = Depends(get_db)):
-    return service.listar_colecciones(db)
+def listar_colecciones(db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
+    return service.listar_colecciones(db, empresa_id)
 
 
-@router.post("/colecciones", response_model=schemas.ColeccionOut, status_code=201, dependencies=[Depends(admin_only)])
-def crear_coleccion(data: schemas.ColeccionCreate, db: Session = Depends(get_db)):
-    return service.crear_coleccion(db, data)
+@router.post("/colecciones", response_model=schemas.ColeccionOut, status_code=201)
+def crear_coleccion(data: schemas.ColeccionCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return service.crear_coleccion(db, data, admin.empresa_id)
 
 
-@router.put("/colecciones/{coleccion_id}", response_model=schemas.ColeccionOut, dependencies=[Depends(admin_only)])
-def actualizar_coleccion(coleccion_id: int, data: schemas.ColeccionUpdate, db: Session = Depends(get_db)):
-    coleccion = service.actualizar_coleccion(db, coleccion_id, data)
-    if not coleccion:
-        raise HTTPException(status_code=404, detail="Colección no encontrada")
-    return coleccion
+@router.put("/colecciones/{coleccion_id}", response_model=schemas.ColeccionOut)
+def actualizar_coleccion(
+    coleccion_id: int, data: schemas.ColeccionUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.actualizar_coleccion(db, coleccion_id, data, admin.empresa_id), "Colección no encontrada")
 
 
-@router.delete("/colecciones/{coleccion_id}", response_model=schemas.ColeccionOut, dependencies=[Depends(admin_only)])
-def eliminar_coleccion(coleccion_id: int, db: Session = Depends(get_db)):
-    coleccion = service.eliminar_coleccion(db, coleccion_id)
-    if not coleccion:
-        raise HTTPException(status_code=404, detail="Colección no encontrada")
-    return coleccion
+@router.delete("/colecciones/{coleccion_id}", response_model=schemas.ColeccionOut)
+def eliminar_coleccion(coleccion_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    return _o_404(service.eliminar_coleccion(db, coleccion_id, admin.empresa_id), "Colección no encontrada")
 
 
 # ---------- Productos ----------
@@ -155,10 +145,11 @@ def listar_productos(
     categoria_id: int | None = None,
     sucursal_id: int | None = Query(None, description="Filtrar productos con stock en esta sucursal"),
     db: Session = Depends(get_db),
+    empresa_id: int = Depends(empresa_contexto),
 ):
     """Lista productos con resumen de disponibilidad agregado."""
     items = service.listar_productos_con_disponibilidad(
-        db, categoria_id=categoria_id, sucursal_id=sucursal_id
+        db, empresa_id, categoria_id=categoria_id, sucursal_id=sucursal_id
     )
     resultado = []
     for item in items:
@@ -173,17 +164,17 @@ def listar_productos(
 
 
 @router.get("/productos/{producto_id}/disponibilidad", response_model=schemas.ProductoDisponibilidadOut)
-def obtener_disponibilidad(producto_id: int, db: Session = Depends(get_db)):
+def obtener_disponibilidad(producto_id: int, db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
     """Consulta la disponibilidad de un producto en todas las sucursales."""
-    result = service.obtener_disponibilidad_producto(db, producto_id)
+    result = service.obtener_disponibilidad_producto(db, producto_id, empresa_id)
     if not result:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return result
 
 
 @router.get("/productos/{producto_id}", response_model=schemas.ProductoOut)
-def obtener_producto(producto_id: int, db: Session = Depends(get_db)):
-    producto = service.obtener_producto(db, producto_id)
+def obtener_producto(producto_id: int, db: Session = Depends(get_db), empresa_id: int = Depends(empresa_contexto)):
+    producto = service.obtener_producto(db, producto_id, empresa_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
@@ -194,29 +185,37 @@ def crear_producto(data: schemas.ProductoCreate, db: Session = Depends(get_db), 
     return service.crear_producto(db, data, admin.empresa_id)
 
 
-@router.put("/productos/{producto_id}", response_model=schemas.ProductoOut, dependencies=[Depends(admin_only)])
-def actualizar_producto(producto_id: int, data: schemas.ProductoUpdate, db: Session = Depends(get_db)):
-    producto = service.actualizar_producto(db, producto_id, data)
+@router.put("/productos/{producto_id}", response_model=schemas.ProductoOut)
+def actualizar_producto(
+    producto_id: int, data: schemas.ProductoUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    producto = service.actualizar_producto(db, producto_id, data, admin.empresa_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
 
 
-@router.delete("/productos/{producto_id}", response_model=schemas.ProductoOut, dependencies=[Depends(admin_only)])
-def eliminar_producto(producto_id: int, db: Session = Depends(get_db)):
-    producto = service.eliminar_producto(db, producto_id)
+@router.delete("/productos/{producto_id}", response_model=schemas.ProductoOut)
+def eliminar_producto(producto_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
+    producto = service.eliminar_producto(db, producto_id, admin.empresa_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
 
 
-@router.post("/productos/{producto_id}/imagen", response_model=schemas.ProductoOut, dependencies=[Depends(admin_only)])
-async def subir_imagen_producto(producto_id: int, archivo: UploadFile = File(...), db: Session = Depends(get_db)):
+@router.post("/productos/{producto_id}/imagen", response_model=schemas.ProductoOut)
+async def subir_imagen_producto(
+    producto_id: int,
+    archivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(admin_only),
+):
     """Sube una imagen a Supabase Storage y la asocia al producto."""
     contenido = await archivo.read()
     return await run_in_threadpool(
         service.subir_imagen_producto,
         db, producto_id, contenido, archivo.filename or "imagen.jpg", archivo.content_type or "image/jpeg",
+        admin.empresa_id,
     )
 
 
@@ -270,4 +269,3 @@ def eliminar_mi_producto(
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
-

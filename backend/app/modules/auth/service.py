@@ -3,7 +3,8 @@
 CU1 — Iniciar sesión en el contexto de una empresa: el token lleva el empresa_id
 del usuario y cada request verifica que la empresa siga activa y con suscripción vigente.
 """
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 
@@ -119,6 +120,31 @@ def empresa_actual_id(usuario: Usuario = Depends(get_current_user)) -> int:
     if usuario.empresa_id is None:
         raise HTTPException(status_code=403, detail="Esta acción requiere pertenecer a una empresa")
     return usuario.empresa_id
+
+
+_oauth2_opcional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+
+def empresa_contexto(
+    request: Request,
+    token: str | None = Depends(_oauth2_opcional),
+    db: Session = Depends(get_db),
+) -> int:
+    """Dependencia para endpoints públicos (catálogo, sucursales): ¿de qué tienda son los datos?
+
+    1. Con sesión: la empresa del usuario.
+    2. Sin sesión: el header X-Empresa (slug).
+    3. Si no viene nada: la tienda por defecto (la app móvil de clientes).
+    """
+    if token:
+        usuario = get_current_user(token, db)
+        if usuario.empresa_id is not None:
+            return usuario.empresa_id
+    slug = request.headers.get("X-Empresa") or settings.empresa_por_defecto
+    empresa = _empresa_por_slug_o_404(db, slug)
+    if not empresa.activa:
+        raise HTTPException(status_code=404, detail="No existe una empresa con ese identificador")
+    return empresa.id
 
 
 def require_roles(*roles: str):

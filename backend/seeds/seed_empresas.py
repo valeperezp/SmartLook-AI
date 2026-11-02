@@ -13,7 +13,7 @@ Uso (con los contenedores levantados):
 Todos los usuarios de prueba usan la contraseña: Demo1234!
 """
 import sys
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -22,8 +22,10 @@ import app.main  # noqa: F401  registra todos los modelos y crea las tablas
 from app.modules.catalogo.models import Categoria, Color, Producto, Talla
 from app.modules.empresas.models import Empresa, Plan, Suscripcion
 from app.modules.inventario.models import Inventario, MovimientoInventario
+from app.modules.proveedores.models import Proveedor
 from app.modules.sucursales.models import Sucursal
 from app.modules.usuarios.models import Usuario
+from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
 from app.shared.db.session import Base, SessionLocal, engine
 from app.shared.security import hash_password
 
@@ -87,7 +89,8 @@ for nombre, desc, precio, max_suc, max_usr, max_prod in [
 print("== Superadmin de la plataforma")
 usuario("superadmin@smartlook.bo", "Superadmin SmartLook", "superadmin")
 
-hoy = date.today()
+# Misma zona que usa el backend para decidir si una suscripción está vigente (no la UTC del contenedor).
+hoy = datetime.now(ZONA_HORARIA_LOCAL).date()
 
 print("== Empresa: smartlook (Profesional)")
 smartlook, _ = get_or_create(
@@ -127,12 +130,30 @@ retro, _ = get_or_create(
 suscribir(retro, planes["Básico"], hoy - timedelta(days=60), hoy - timedelta(days=1))
 usuario("admin@modaretro.bo", "Admin Retro", "administrador", retro)
 
-print("== Catálogo base (compartido)")
-tallas = {n: get_or_create(Talla, nombre=n)[0] for n in ["XS", "S", "M", "L", "XL"]}
-colores = {n: get_or_create(Color, nombre=n, defaults={"hex": h})[0]
-           for n, h in [("Negro", "#000000"), ("Blanco", "#FFFFFF"), ("Azul", "#1E40AF"), ("Rojo", "#B91C1C")]}
-categorias = {n: get_or_create(Categoria, nombre=n)[0]
-              for n in ["Camisetas", "Pantalones", "Chaquetas", "Camisas", "Vestidos"]}
+print("== Catálogo maestro (uno por empresa)")
+
+
+def catalogo_maestro(empresa):
+    e = empresa.id
+    return {
+        "tallas": {n: get_or_create(Talla, nombre=n, empresa_id=e)[0] for n in ["XS", "S", "M", "L", "XL"]},
+        "colores": {n: get_or_create(Color, nombre=n, empresa_id=e, defaults={"hex": h})[0]
+                    for n, h in [("Negro", "#000000"), ("Blanco", "#FFFFFF"), ("Azul", "#1E40AF"), ("Rojo", "#B91C1C")]},
+        "categorias": {n: get_or_create(Categoria, nombre=n, empresa_id=e)[0]
+                       for n in ["Camisetas", "Pantalones", "Chaquetas", "Camisas", "Vestidos"]},
+    }
+
+
+maestro = {emp.slug: catalogo_maestro(emp) for emp in (smartlook, urban, retro)}
+print("  smartlook, urbanstyle, modaretro: tallas, colores y categorías")
+
+print("== Proveedores")
+prov_smartlook, _ = get_or_create(Proveedor, nombre="Textiles Andinos", empresa_id=smartlook.id,
+                                  defaults={"contacto": "Rosa Quispe", "email": "ventas@textilesandinos.bo"})
+prov_urban, _ = get_or_create(Proveedor, nombre="Street Supply", empresa_id=urban.id,
+                              defaults={"contacto": "Marco Rivas", "email": "marco@streetsupply.bo"})
+usuario("proveedor@smartlook.bo", "Proveedor Textiles", "proveedor", smartlook)
+db.query(Usuario).filter_by(email="proveedor@smartlook.bo").update({"proveedor_id": prov_smartlook.id})
 
 print("== Productos e inventario")
 productos_smartlook = [
@@ -154,11 +175,12 @@ productos_urban = [
 ]
 
 
-def cargar_productos(empresa, lista):
+def cargar_productos(empresa, lista, proveedor):
+    categorias = maestro[empresa.slug]["categorias"]
     creados = []
     for nombre, desc, precio, cat in lista:
         p, _ = get_or_create(Producto, nombre=nombre, empresa_id=empresa.id,
-                             defaults={"descripcion": desc, "precio": precio,
+                             defaults={"descripcion": desc, "precio": precio, "proveedor_id": proveedor.id,
                                        "categoria_id": categorias[cat].id, "activo": True})
         creados.append(p)
     print(f"  {empresa.slug}: {len(creados)} productos")
@@ -166,6 +188,8 @@ def cargar_productos(empresa, lista):
 
 
 def stock(producto, sucursal, talla, color, disponible, vendida=0):
+    tallas = maestro_por_id[producto.empresa_id]["tallas"]
+    colores = maestro_por_id[producto.empresa_id]["colores"]
     inv, creado = get_or_create(
         Inventario, producto_id=producto.id, sucursal_id=sucursal.id,
         talla_id=tallas[talla].id, color_id=colores[color].id,
@@ -177,8 +201,9 @@ def stock(producto, sucursal, talla, color, disponible, vendida=0):
                                     motivo="Carga inicial de inventario (seed)"))
 
 
-ps = cargar_productos(smartlook, productos_smartlook)
-pu = cargar_productos(urban, productos_urban)
+maestro_por_id = {smartlook.id: maestro["smartlook"], urban.id: maestro["urbanstyle"]}
+ps = cargar_productos(smartlook, productos_smartlook, prov_smartlook)
+pu = cargar_productos(urban, productos_urban, prov_urban)
 
 # Mezcla de stock disponible, bajo (<= 5) y agotado para que se vean los tres estados.
 for i, p in enumerate(ps):

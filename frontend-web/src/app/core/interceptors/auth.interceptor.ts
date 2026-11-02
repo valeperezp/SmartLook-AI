@@ -11,7 +11,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const token = auth.getToken();
 
-  if (!token) return next(req);
+  if (!token) {
+    // Sin sesión: el backend muestra el catálogo de la tienda indicada (o la tienda por defecto).
+    const empresa = auth.getEmpresaVisitada();
+    return next(empresa ? req.clone({ setHeaders: { 'X-Empresa': empresa } }) : req);
+  }
 
   return next(
     req.clone({

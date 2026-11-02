@@ -7,6 +7,7 @@ from app.modules.inventario import models, schemas, service
 from app.modules.sucursales.models import Sucursal
 from app.modules.usuarios.models import Usuario
 from app.shared.db.session import get_db
+from app.shared.db.tenant import asegurar_de_empresa
 
 router = APIRouter(prefix="/inventario", tags=["inventario"])
 
@@ -14,7 +15,7 @@ admin_only = require_roles("administrador")
 admin_or_encargado = require_roles("administrador", "encargado_sucursal")
 
 
-def _validar_sucursal_usuario(usuario: Usuario, sucursal_id: int | None) -> int | None:
+def _validar_sucursal_usuario(db: Session, usuario: Usuario, sucursal_id: int | None) -> int | None:
     """
     Valida y resuelve la sucursal permitida para el usuario.
     Si es encargado_sucursal, restringe forzosamente a su sucursal_id.
@@ -32,12 +33,14 @@ def _validar_sucursal_usuario(usuario: Usuario, sucursal_id: int | None) -> int 
                 detail="No tiene permisos para acceder o gestionar otra sucursal.",
             )
         return usuario.sucursal_id
+    # El admin puede elegir cualquier sucursal, pero solo de su empresa.
+    asegurar_de_empresa(db, Sucursal, sucursal_id, usuario.empresa_id, "Sucursal")
     return sucursal_id
 
 
 def _obtener_y_validar_inventario(db: Session, inventario_id: int, usuario: Usuario) -> models.Inventario:
     """Obtiene el registro de inventario y valida que pertenezca a la sucursal del encargado."""
-    inv = service.obtener_inventario(db, inventario_id)
+    inv = service.obtener_inventario(db, inventario_id, usuario.empresa_id)
     if not inv:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -69,9 +72,10 @@ def listar_inventario(
     db: Session = Depends(get_db),
 ):
     """Consulta de existencias de inventario con múltiples filtros (global o por sucursal)."""
-    sucursal_efectiva = _validar_sucursal_usuario(usuario, sucursal_id)
+    sucursal_efectiva = _validar_sucursal_usuario(db, usuario, sucursal_id)
     return service.listar_inventario(
         db=db,
+        empresa_id=usuario.empresa_id,
         sucursal_id=sucursal_efectiva,
         producto_id=producto_id,
         categoria_id=categoria_id,
@@ -89,8 +93,8 @@ def obtener_resumen(
     db: Session = Depends(get_db),
 ):
     """Resumen consolidado de indicadores de inventario (global o de sucursal)."""
-    sucursal_efectiva = _validar_sucursal_usuario(usuario, sucursal_id)
-    return service.resumen_global(db, sucursal_id=sucursal_efectiva)
+    sucursal_efectiva = _validar_sucursal_usuario(db, usuario, sucursal_id)
+    return service.resumen_global(db, sucursal_id=sucursal_efectiva, empresa_id=usuario.empresa_id)
 
 
 @router.get("/alertas", response_model=list[schemas.AlertaStock])
@@ -100,8 +104,8 @@ def obtener_alertas_stock(
     db: Session = Depends(get_db),
 ):
     """Listado de alertas por productos con stock bajo o agotados."""
-    sucursal_efectiva = _validar_sucursal_usuario(usuario, sucursal_id)
-    return service.alertas_stock_bajo(db, sucursal_id=sucursal_efectiva)
+    sucursal_efectiva = _validar_sucursal_usuario(db, usuario, sucursal_id)
+    return service.alertas_stock_bajo(db, usuario.empresa_id, sucursal_id=sucursal_efectiva)
 
 
 @router.get("/mi-sucursal", response_model=list[schemas.InventarioOut])
@@ -122,12 +126,18 @@ def obtener_inventario_mi_sucursal(
         )
     sucursal_efectiva = usuario.sucursal_id
     if sucursal_efectiva is None:
-        primera = db.query(Sucursal).filter(Sucursal.activa.is_(True)).order_by(Sucursal.id).first()
+        primera = (
+            db.query(Sucursal)
+            .filter(Sucursal.activa.is_(True), Sucursal.empresa_id == usuario.empresa_id)
+            .order_by(Sucursal.id)
+            .first()
+        )
         if primera:
             sucursal_efectiva = primera.id
 
     return service.listar_inventario(
         db=db,
+        empresa_id=usuario.empresa_id,
         sucursal_id=sucursal_efectiva,
         producto_id=producto_id,
         talla_id=talla_id,
@@ -147,9 +157,10 @@ def listar_movimientos(
     db: Session = Depends(get_db),
 ):
     """Historial de movimientos de inventario (entradas, salidas, ajustes)."""
-    sucursal_efectiva = _validar_sucursal_usuario(usuario, sucursal_id)
+    sucursal_efectiva = _validar_sucursal_usuario(db, usuario, sucursal_id)
     return service.listar_movimientos(
         db=db,
+        empresa_id=usuario.empresa_id,
         sucursal_id=sucursal_efectiva,
         inventario_id=inventario_id,
         tipo=tipo,
@@ -168,8 +179,8 @@ def crear_inventario(
     db: Session = Depends(get_db),
 ):
     """Crea un nuevo registro de inventario con stock inicial para una sucursal."""
-    _validar_sucursal_usuario(usuario, data.sucursal_id)
-    return service.crear_o_inicializar_inventario(db, data, usuario_id=usuario.id)
+    _validar_sucursal_usuario(db, usuario, data.sucursal_id)
+    return service.crear_o_inicializar_inventario(db, data, usuario.empresa_id, usuario_id=usuario.id)
 
 
 @router.post("/movimientos", response_model=schemas.MovimientoInventarioOut, status_code=201)
@@ -191,7 +202,7 @@ def ajustar_stock(
 ):
     """Ajusta el stock físico de un producto tras auditoría o conteo físico."""
     _obtener_y_validar_inventario(db, data.inventario_id, usuario)
-    return service.ajustar_stock(db, data, usuario_id=usuario.id)
+    return service.ajustar_stock(db, data, usuario.empresa_id, usuario_id=usuario.id)
 
 
 @router.patch("/{inventario_id}/stock-minimo", response_model=schemas.InventarioOut)
@@ -203,7 +214,7 @@ def actualizar_stock_minimo(
 ):
     """Actualiza el nivel de stock mínimo para alertas en la sucursal."""
     _obtener_y_validar_inventario(db, inventario_id, usuario)
-    return service.actualizar_stock_minimo(db, inventario_id, data)
+    return service.actualizar_stock_minimo(db, inventario_id, data, usuario.empresa_id)
 
 
 @router.get("/sucursal/{sucursal_id}", response_model=list[schemas.InventarioOut])
@@ -213,14 +224,14 @@ def inventario_por_sucursal(
     db: Session = Depends(get_db),
 ):
     """Consulta de inventario para una sucursal específica."""
-    _validar_sucursal_usuario(usuario, sucursal_id)
-    return service.inventario_por_sucursal(db, sucursal_id)
+    _validar_sucursal_usuario(db, usuario, sucursal_id)
+    return service.inventario_por_sucursal(db, sucursal_id, usuario.empresa_id)
 
 
-@router.get("/producto/{producto_id}", response_model=list[schemas.InventarioOut], dependencies=[Depends(admin_only)])
-def inventario_por_producto(producto_id: int, db: Session = Depends(get_db)):
+@router.get("/producto/{producto_id}", response_model=list[schemas.InventarioOut])
+def inventario_por_producto(producto_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
     """Consulta de distribución de stock de un producto en todas las sucursales (admin)."""
-    return service.inventario_por_producto(db, producto_id)
+    return service.inventario_por_producto(db, producto_id, admin.empresa_id)
 
 
 @router.get("/{inventario_id}", response_model=schemas.InventarioOut)
