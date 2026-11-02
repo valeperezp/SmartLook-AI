@@ -539,6 +539,8 @@ def _completar_chat_openai(
     datos_disponibles: str,
     historial: list[dict] | None = None,
     system_prompt: str = _SYSTEM_PROMPT_CHAT,
+    timeout_s: float = 45.0,
+    max_tokens: int | None = None,
 ) -> str:
     """
     Llama a `{base_url}/chat/completions` siguiendo el estándar de la API de OpenAI
@@ -568,11 +570,14 @@ def _completar_chat_openai(
         "messages": messages,
         "temperature": 0.4,
     }
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
     respuesta = httpx.post(
         f"{config.base_url}/chat/completions",
         headers=headers,
         json=payload,
-        timeout=45.0,
+        # Tiempo para que el modelo redacte, pero si nadie atiende en 5 s se pasa al respaldo por reglas.
+        timeout=httpx.Timeout(timeout_s, connect=5.0),
     )
     respuesta.raise_for_status()
     data = respuesta.json()
@@ -619,6 +624,8 @@ def _generar_respuesta_ia(
     datos_disponibles: str,
     historial: list[dict] | None = None,
     system_prompt: str = _SYSTEM_PROMPT_CHAT,
+    timeout_s: float = 45.0,
+    max_tokens: int | None = None,
 ) -> str | None:
     """
     Le pide al proveedor de IA configurado (Ollama local, OpenAI, etc. — ver ConfiguracionIA)
@@ -630,7 +637,9 @@ def _generar_respuesta_ia(
     config = SimpleNamespace(base_url=config.base_url, api_key=config.api_key, modelo=config.modelo)
     db.commit()  # libera la conexion del pool antes de la llamada lenta al LLM
     try:
-        texto = _completar_chat_openai(config, mensaje_usuario, datos_disponibles, historial, system_prompt)
+        texto = _completar_chat_openai(
+            config, mensaje_usuario, datos_disponibles, historial, system_prompt, timeout_s, max_tokens
+        )
         return texto or None
     except Exception:
         # Proveedor caído, modelo inexistente, api_key inválida, timeout, etc.: degradar sin romper el chat.
@@ -718,56 +727,9 @@ def _construir_datos_reportes(
     db: Session, usuario: Usuario, sucursal_id: int | None
 ) -> tuple[str, dict, str]:
     """Arma el bloque de datos reales (grounding) que se le pasa a la IA, con el mismo alcance
-    por sucursal que ya aplica el resto del módulo de reportes."""
-    es_admin = usuario.rol == "administrador"
-    efectiva = reportes_service.sucursal_efectiva(usuario, sucursal_id)
-    nombre_sucursal = reportes_service.nombre_sucursal(db, efectiva)
-
-    resumen = reportes_service.resumen_general(db, sucursal_id=efectiva)
-    por_estado = reportes_service.reservas_por_estado(db, sucursal_id=efectiva)
-    top_productos = reportes_service.productos_mas_reservados(db, sucursal_id=efectiva, limit=10)
-    por_dia = reportes_service.reservas_por_dia(db, sucursal_id=efectiva, dias=30)
-    por_sucursal = reportes_service.reservas_por_sucursal(db) if es_admin and efectiva is None else []
-
-    ahora = datetime.now(ZONA_HORARIA_LOCAL)
-    lineas = [
-        f"Fecha y hora actual: {ahora.strftime('%d/%m/%Y, %H:%M')} (hora de Bolivia)",
-        f"Quién pregunta: {'Administrador' if es_admin else 'Encargado de sucursal'} — alcance de datos: {nombre_sucursal}",
-        "",
-        "== Resumen general ==",
-        f"Reservas totales: {resumen['total_reservas']}",
-        f"Unidades reservadas: {resumen['total_unidades_reservadas']}",
-        f"Inventario disponible: {resumen['inventario_disponible']} unidades",
-        f"Inventario reservado: {resumen['inventario_reservado']} unidades",
-        f"Productos con stock bajo: {resumen['productos_stock_bajo']}",
-        f"Productos agotados: {resumen['productos_agotados']}",
-    ]
-
-    if por_estado:
-        lineas.append("\n== Reservas por estado ==")
-        lineas += [f"{e['estado']}: {e['cantidad']}" for e in por_estado]
-
-    if top_productos:
-        lineas.append("\n== Productos más reservados (top 10) ==")
-        lineas += [
-            f"{p['nombre_producto']} ({p['nombre_categoria'] or 'sin categoría'}): "
-            f"{p['total_unidades']} unidades en {p['total_reservas']} reserva(s)"
-            for p in top_productos
-        ]
-
-    if por_dia:
-        lineas.append("\n== Reservas por día (últimos 30 días) ==")
-        lineas += [f"{d['fecha']}: {d['cantidad']}" for d in por_dia]
-
-    if por_sucursal:
-        lineas.append("\n== Comparativa entre sucursales ==")
-        lineas += [
-            f"{s['nombre_sucursal']}: {s['cantidad_reservas']} reservas, {s['total_unidades']} unidades"
-            for s in por_sucursal
-        ]
-
-    return "\n".join(lineas), resumen, nombre_sucursal
-
+    por empresa y sucursal que ya aplica el resto del módulo de reportes."""
+    datos, texto = reportes_service.contexto_reporte(db, usuario, sucursal_id, dias=30)
+    return texto, datos["resumen"], datos["nombre_sucursal"]
 
 _SUGERENCIAS_REPORTES_BASE = [
     "Generame un resumen del día",

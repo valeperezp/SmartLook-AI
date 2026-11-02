@@ -12,6 +12,7 @@ Uso (con los contenedores levantados):
 
 Todos los usuarios de prueba usan la contraseña: Demo1234!
 """
+import random
 import sys
 from datetime import datetime, timedelta
 
@@ -23,6 +24,8 @@ from app.modules.catalogo.models import Categoria, Color, Producto, Talla
 from app.modules.empresas.models import Empresa, Plan, Suscripcion
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.proveedores.models import Proveedor
+from app.modules.reservas.models import Reserva, ReservaItem
+from app.modules.ventas.models import Venta, VentaItem
 from app.modules.sucursales.models import Sucursal
 from app.modules.usuarios.models import Usuario
 from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
@@ -213,6 +216,64 @@ for i, p in enumerate(ps):
         stock(p, suc_equi, "S", "Azul", [24, 19, 32, 21, 16][i // 2], vendida=3 + i)
 for i, p in enumerate(pu):
     stock(p, suc_urban, "M", "Negro", [12, 3, 20][i], vendida=4)
+
+print("== Historial de ventas y reservas (45 días, para el dashboard)")
+
+
+def historial(empresa, productos, sucursales, cajero, clientes, ventas_por_dia):
+    """Ventas y reservas pasadas con semilla fija: el dashboard siempre muestra lo mismo."""
+    if db.query(Venta).join(Sucursal).filter(Sucursal.empresa_id == empresa.id).first():
+        print(f"  [=] {empresa.slug}: ya tiene historial")
+        return
+    rnd = random.Random(empresa.id * 7919)
+    tallas = maestro_por_id[empresa.id]["tallas"]
+    colores = maestro_por_id[empresa.id]["colores"]
+    ahora = datetime.now(ZONA_HORARIA_LOCAL)
+    n_ventas = n_reservas = 0
+    for dias_atras in range(44, -1, -1):
+        dia = ahora - timedelta(days=dias_atras)
+        # Más movimiento los fines de semana y una leve tendencia al alza.
+        base = ventas_por_dia + (2 if dia.weekday() >= 4 else 0) + (44 - dias_atras) // 15
+        for sucursal in sucursales:
+            for _ in range(rnd.randint(max(0, base - 2), base + 1)):
+                momento = dia.replace(hour=rnd.randint(9, 20), minute=rnd.randint(0, 59), second=0, microsecond=0)
+                if momento > ahora:
+                    continue
+                canal = "online" if rnd.random() < 0.3 else "presencial"
+                venta = Venta(sucursal_id=sucursal.id, canal=canal, estado="completada", total=0,
+                              cajero_id=cajero.id if cajero and canal == "presencial" else None,
+                              cliente_id=rnd.choice(clientes).id if canal == "online" else None,
+                              creada_en=momento)
+                total = 0
+                for producto in rnd.sample(productos, k=rnd.randint(1, min(3, len(productos)))):
+                    cantidad = rnd.choices([1, 2, 3], weights=[70, 25, 5])[0]
+                    venta.items.append(VentaItem(producto_id=producto.id, cantidad=cantidad,
+                                                 precio_unitario=producto.precio,
+                                                 talla_id=rnd.choice(list(tallas.values())).id,
+                                                 color_id=rnd.choice(list(colores.values())).id))
+                    total += float(producto.precio) * cantidad
+                venta.total = round(total, 2)
+                db.add(venta)
+                n_ventas += 1
+            if rnd.random() < 0.6:
+                reserva = Reserva(cliente_id=rnd.choice(clientes).id, sucursal_id=sucursal.id,
+                                  estado=rnd.choices(["atendida", "confirmada", "pendiente", "cancelada"],
+                                                     weights=[50, 20, 15, 15])[0],
+                                  creada_en=dia.replace(hour=rnd.randint(9, 20), minute=0, second=0, microsecond=0))
+                producto = rnd.choice(productos)
+                reserva.items.append(ReservaItem(producto_id=producto.id, cantidad=rnd.randint(1, 2),
+                                                 talla_id=rnd.choice(list(tallas.values())).id,
+                                                 color_id=rnd.choice(list(colores.values())).id))
+                db.add(reserva)
+                n_reservas += 1
+    print(f"  [+] {empresa.slug}: {n_ventas} ventas y {n_reservas} reservas")
+
+
+cajero_centro = db.query(Usuario).filter_by(email="cajero.centro@smartlook.bo").first()
+clientes_smartlook = db.query(Usuario).filter_by(empresa_id=smartlook.id, rol="cliente").all()
+clientes_urban = db.query(Usuario).filter_by(empresa_id=urban.id, rol="cliente").all()
+historial(smartlook, ps, [suc_centro, suc_norte, suc_equi], cajero_centro, clientes_smartlook, ventas_por_dia=3)
+historial(urban, pu, [suc_urban], None, clientes_urban, ventas_por_dia=2)
 
 db.commit()
 db.close()

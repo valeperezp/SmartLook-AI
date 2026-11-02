@@ -146,6 +146,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'reportes/reporte-ia',
+        loadComponent: () =>
+          import('./features/reportes/reporte-ia/reporte-ia').then((m) => m.ReporteIa),
+      },
+      {
         path: 'ia-config',
         loadComponent: () =>
           import('./features/admin/ia-config/ia-config-admin').then(
@@ -156,6 +161,11 @@ export const routes: Routes = [
         path: 'suscripcion',
         loadComponent: () =>
           import('./features/admin/suscripcion/mi-suscripcion').then((m) => m.MiSuscripcion),
+      },
+      {
+        path: 'transferencias',
+        loadComponent: () =>
+          import('./features/transferencias/transferencias-page').then((m) => m.TransferenciasPage),
       },
     ],
   },
@@ -223,8 +233,18 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'reportes/reporte-ia',
+        loadComponent: () =>
+          import('./features/reportes/reporte-ia/reporte-ia').then((m) => m.ReporteIa),
+      },
+      {
         path: 'mi-qr',
         loadComponent: () => import('./features/encargado/mi-qr/mi-qr').then((m) => m.MiQR),
+      },
+      {
+        path: 'transferencias',
+        loadComponent: () =>
+          import('./features/transferencias/transferencias-page').then((m) => m.TransferenciasPage),
       },
       {
         path: 'pagos-pendientes',

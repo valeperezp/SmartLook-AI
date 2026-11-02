@@ -1,6 +1,13 @@
-"""Generación de reportes exportables en PDF y Excel (CU13 — Consultar reportes y dashboards)."""
+"""Exportación de reportes a PDF y Excel (CU14 / CU15).
+
+Recibe los datos ya calculados (`service.contexto_reporte`) y, opcionalmente, el texto
+redactado por la IA para un reporte generativo. Las cifras de las tablas siempre salen
+de la base de datos, nunca del texto de la IA.
+"""
+import re
 from datetime import datetime
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -10,9 +17,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from sqlalchemy.orm import Session
 
-from app.modules.reportes import service
 from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
 
 COLOR_HEADER = "1F2937"
@@ -20,28 +25,151 @@ COLOR_ZEBRA = "F3F4F6"
 COLOR_MUTED = "6B7280"
 
 
-def _construir_datos(db: Session, sucursal_id: int | None, es_admin: bool) -> dict:
-    return {
-        "resumen": service.resumen_general(db, sucursal_id=sucursal_id),
-        "por_estado": service.reservas_por_estado(db, sucursal_id=sucursal_id),
-        "top_productos": service.productos_mas_reservados(db, sucursal_id=sucursal_id, limit=15),
-        "por_dia": service.reservas_por_dia(db, sucursal_id=sucursal_id, dias=30),
-        "por_sucursal": service.reservas_por_sucursal(db) if es_admin and sucursal_id is None else [],
-    }
+def _bs(valor: float) -> str:
+    return f"Bs {valor:,.2f}"
 
 
-def generar_excel(db: Session, sucursal_id: int | None, nombre_sucursal: str, es_admin: bool) -> bytes:
-    datos = _construir_datos(db, sucursal_id, es_admin)
-    resumen = datos["resumen"]
+def _secciones(datos: dict) -> list[tuple[str, list[str], list[list]]]:
+    """(título, encabezados, filas) de cada tabla del reporte, en el orden en que se muestran."""
+    v, r = datos["ventas"], datos["resumen"]
+    variacion = v["variacion_ingresos_pct"]
+    secciones = [
+        (
+            "Indicadores",
+            ["Indicador", "Valor"],
+            [
+                ["Ventas completadas", v["cantidad_ventas"]],
+                ["Ingresos", _bs(v["ingresos"])],
+                ["Ticket promedio", _bs(v["ticket_promedio"])],
+                ["Unidades vendidas", v["unidades_vendidas"]],
+                ["Variación de ingresos", f"{variacion}%" if variacion is not None else "—"],
+                ["Reservas totales", r["total_reservas"]],
+                ["Inventario disponible", r["inventario_disponible"]],
+                ["Prendas con stock bajo", r["productos_stock_bajo"]],
+                ["Prendas agotadas", r["productos_agotados"]],
+            ],
+        ),
+    ]
+    if datos["ventas_por_sucursal"]:
+        secciones.append((
+            "Ventas por sucursal",
+            ["Sucursal", "Ventas", "Ingresos"],
+            [[s["nombre_sucursal"], s["cantidad_ventas"], _bs(s["ingresos"])] for s in datos["ventas_por_sucursal"]],
+        ))
+    if datos["ventas_por_categoria"]:
+        secciones.append((
+            "Ventas por categoría",
+            ["Categoría", "Unidades", "Ingresos"],
+            [[c["categoria"], c["unidades"], _bs(c["ingresos"])] for c in datos["ventas_por_categoria"]],
+        ))
+    if datos["top_vendidos"]:
+        secciones.append((
+            "Productos más vendidos",
+            ["Producto", "Categoría", "Unidades", "Ingresos"],
+            [[p["nombre_producto"], p["nombre_categoria"] or "—", p["unidades"], _bs(p["ingresos"])]
+             for p in datos["top_vendidos"]],
+        ))
+    dias = [d for d in datos["ventas_por_dia"] if d["cantidad"]]
+    if dias:
+        secciones.append((
+            "Ventas por día",
+            ["Fecha", "Ventas", "Ingresos"],
+            [[d["fecha"], d["cantidad"], _bs(d["ingresos"])] for d in dias],
+        ))
+    if r["reservas_por_estado"]:
+        secciones.append((
+            "Reservas por estado",
+            ["Estado", "Cantidad"],
+            [[e["estado"].capitalize(), e["cantidad"]] for e in r["reservas_por_estado"]],
+        ))
+    if datos["top_reservados"]:
+        secciones.append((
+            "Productos más reservados",
+            ["Producto", "Unidades", "Reservas"],
+            [[p["nombre_producto"], p["total_unidades"], p["total_reservas"]] for p in datos["top_reservados"]],
+        ))
+    if datos["alertas_stock"]:
+        secciones.append((
+            "Alertas de stock",
+            ["Prenda", "Sucursal", "Disponible", "Mínimo"],
+            [[a["nombre_producto"], a["nombre_sucursal"], a["cantidad_disponible"], a["stock_minimo"]]
+             for a in datos["alertas_stock"]],
+        ))
+    return secciones
 
+
+def _subtitulo(datos: dict) -> str:
+    empresa = f"{datos['empresa']} · " if datos.get("empresa") else ""
+    return (
+        f"{empresa}{datos['nombre_sucursal']} · últimos {datos['periodo_dias']} días · generado el "
+        f"{datetime.now(ZONA_HORARIA_LOCAL).strftime('%d/%m/%Y %H:%M')}"
+    )
+
+
+# ---------------------------------------------------------------- texto de la IA
+
+def _lineas_narrativa(narrativa: str) -> list[tuple[str, str]]:
+    """Convierte el markdown simple que devuelve la IA en (tipo, texto): titulo, vineta o parrafo."""
+    resultado = []
+    for cruda in narrativa.splitlines():
+        linea = cruda.strip()
+        if not linea:
+            continue
+        if linea.startswith("#"):
+            resultado.append(("titulo", linea.lstrip("#").strip()))
+        elif re.match(r"^([-*•]|\d+[.)])\s+", linea):
+            resultado.append(("vineta", re.sub(r"^([-*•]|\d+[.)])\s+", "", linea)))
+        else:
+            resultado.append(("parrafo", linea))
+    return resultado
+
+
+def _negritas_pdf(texto: str) -> str:
+    """Escapa el texto (no es HTML confiable) y convierte **negrita** en <b>."""
+    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escape(texto))
+
+
+def _sin_markdown(texto: str) -> str:
+    return re.sub(r"\*\*(.+?)\*\*", r"\1", texto)
+
+
+# ---------------------------------------------------------------- Excel
+
+def generar_excel(datos: dict, titulo: str, narrativa: str | None = None) -> bytes:
     wb = Workbook()
     header_fill = PatternFill(start_color=COLOR_HEADER, end_color=COLOR_HEADER, fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
     title_font = Font(bold=True, size=14, color=COLOR_HEADER)
+    muted_font = Font(italic=True, color=COLOR_MUTED)
 
-    def _hoja_tabla(ws, encabezados: list[str], filas: list[list], titulo: str):
+    primera = True
+    if narrativa:
+        ws = wb.active
+        ws.title = "Reporte"
+        primera = False
         ws["A1"] = titulo
         ws["A1"].font = title_font
+        ws["A2"] = _subtitulo(datos)
+        ws["A2"].font = muted_font
+        ws.column_dimensions["A"].width = 110
+        fila = 4
+        for tipo, texto in _lineas_narrativa(narrativa):
+            celda = ws.cell(row=fila, column=1, value=("• " if tipo == "vineta" else "") + _sin_markdown(texto))
+            celda.alignment = Alignment(wrap_text=True, vertical="top")
+            if tipo == "titulo":
+                celda.font = Font(bold=True, size=12, color=COLOR_HEADER)
+                fila += 1
+            fila += 1
+
+    for nombre, encabezados, filas in _secciones(datos):
+        ws = wb.active if primera else wb.create_sheet(nombre[:31])
+        if primera:
+            ws.title = nombre[:31]
+            primera = False
+        ws["A1"] = nombre
+        ws["A1"].font = title_font
+        ws["A2"] = _subtitulo(datos)
+        ws["A2"].font = muted_font
         ws.append([])
         ws.append(encabezados)
         fila_encabezado = ws.max_row
@@ -56,64 +184,14 @@ def generar_excel(db: Session, sucursal_id: int | None, nombre_sucursal: str, es
             anchos = [len(str(encabezados[col - 1]))] + [len(str(f[col - 1])) for f in filas]
             ws.column_dimensions[get_column_letter(col)].width = min(max(anchos) + 4, 42)
 
-    ws_resumen = wb.active
-    ws_resumen.title = "Resumen"
-    _hoja_tabla(
-        ws_resumen,
-        ["Indicador", "Valor"],
-        [
-            ["Reservas totales", resumen["total_reservas"]],
-            ["Unidades reservadas", resumen["total_unidades_reservadas"]],
-            ["Inventario disponible", resumen["inventario_disponible"]],
-            ["Inventario reservado", resumen["inventario_reservado"]],
-            ["Productos con stock bajo", resumen["productos_stock_bajo"]],
-            ["Productos agotados", resumen["productos_agotados"]],
-        ],
-        f"Resumen de reportes — {nombre_sucursal}",
-    )
-
-    _hoja_tabla(
-        wb.create_sheet("Reservas por estado"),
-        ["Estado", "Cantidad"],
-        [[e["estado"].capitalize(), e["cantidad"]] for e in datos["por_estado"]] or [["Sin datos", 0]],
-        "Reservas por estado",
-    )
-
-    _hoja_tabla(
-        wb.create_sheet("Productos mas reservados"),
-        ["Producto", "Categoría", "Unidades", "Reservas"],
-        [
-            [p["nombre_producto"], p["nombre_categoria"] or "Sin categoría", p["total_unidades"], p["total_reservas"]]
-            for p in datos["top_productos"]
-        ]
-        or [["Sin datos", "-", 0, 0]],
-        "Productos más reservados",
-    )
-
-    _hoja_tabla(
-        wb.create_sheet("Reservas por dia"),
-        ["Fecha", "Cantidad"],
-        [[d["fecha"], d["cantidad"]] for d in datos["por_dia"]] or [["Sin datos", 0]],
-        "Reservas por día (últimos 30 días)",
-    )
-
-    if datos["por_sucursal"]:
-        _hoja_tabla(
-            wb.create_sheet("Comparativa sucursales"),
-            ["Sucursal", "Reservas", "Unidades reservadas"],
-            [[s["nombre_sucursal"], s["cantidad_reservas"], s["total_unidades"]] for s in datos["por_sucursal"]],
-            "Comparativa entre sucursales",
-        )
-
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
 
 
-def generar_pdf(db: Session, sucursal_id: int | None, nombre_sucursal: str, es_admin: bool) -> bytes:
-    datos = _construir_datos(db, sucursal_id, es_admin)
-    resumen = datos["resumen"]
+# ---------------------------------------------------------------- PDF
 
+def generar_pdf(datos: dict, titulo: str, narrativa: str | None = None) -> bytes:
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -122,7 +200,7 @@ def generar_pdf(db: Session, sucursal_id: int | None, nombre_sucursal: str, es_a
         bottomMargin=1.5 * cm,
         leftMargin=1.5 * cm,
         rightMargin=1.5 * cm,
-        title="Reporte SmartLook-AI",
+        title=titulo,
     )
 
     styles = getSampleStyleSheet()
@@ -131,11 +209,13 @@ def generar_pdf(db: Session, sucursal_id: int | None, nombre_sucursal: str, es_a
         "Subtitulo", parent=styles["Normal"], textColor=colors.HexColor(f"#{COLOR_MUTED}"), spaceAfter=6
     )
     seccion_style = ParagraphStyle(
-        "Seccion", parent=styles["Heading2"], textColor=colors.HexColor(f"#{COLOR_HEADER}"), spaceBefore=16, spaceAfter=6
+        "Seccion", parent=styles["Heading2"], textColor=colors.HexColor(f"#{COLOR_HEADER}"), spaceBefore=14, spaceAfter=6
     )
+    parrafo_style = ParagraphStyle("Parrafo", parent=styles["Normal"], fontSize=10, leading=14, spaceAfter=4)
+    vineta_style = ParagraphStyle("Vineta", parent=parrafo_style, leftIndent=12, bulletIndent=2)
 
-    def _tabla(encabezados: list[str], filas: list[list[str]]) -> Table:
-        tabla = Table([encabezados] + filas, repeatRows=1)
+    def _tabla(encabezados: list[str], filas: list[list]) -> Table:
+        tabla = Table([encabezados] + [[str(c) for c in f] for f in filas], repeatRows=1)
         tabla.setStyle(
             TableStyle(
                 [
@@ -154,70 +234,24 @@ def generar_pdf(db: Session, sucursal_id: int | None, nombre_sucursal: str, es_a
         return tabla
 
     elementos = [
-        Paragraph("SmartLook-AI — Reporte de reservas e inventario", titulo_style),
-        Paragraph(
-            f"{nombre_sucursal} &bull; Generado el "
-            f"{datetime.now(ZONA_HORARIA_LOCAL).strftime('%d/%m/%Y %H:%M')}",
-            subtitulo_style,
-        ),
+        Paragraph(escape(titulo), titulo_style),
+        Paragraph(escape(_subtitulo(datos)), subtitulo_style),
         Spacer(1, 0.3 * cm),
-        Paragraph("Resumen general", seccion_style),
-        _tabla(
-            ["Indicador", "Valor"],
-            [
-                ["Reservas totales", str(resumen["total_reservas"])],
-                ["Unidades reservadas", str(resumen["total_unidades_reservadas"])],
-                ["Inventario disponible", str(resumen["inventario_disponible"])],
-                ["Inventario reservado", str(resumen["inventario_reservado"])],
-                ["Productos con stock bajo", str(resumen["productos_stock_bajo"])],
-                ["Productos agotados", str(resumen["productos_agotados"])],
-            ],
-        ),
     ]
 
-    if datos["por_estado"]:
-        elementos.append(Paragraph("Reservas por estado", seccion_style))
-        elementos.append(
-            _tabla(
-                ["Estado", "Cantidad"],
-                [[e["estado"].capitalize(), str(e["cantidad"])] for e in datos["por_estado"]],
-            )
-        )
+    if narrativa:
+        for tipo, texto in _lineas_narrativa(narrativa):
+            if tipo == "titulo":
+                elementos.append(Paragraph(_negritas_pdf(texto), seccion_style))
+            elif tipo == "vineta":
+                elementos.append(Paragraph(_negritas_pdf(texto), vineta_style, bulletText="•"))
+            else:
+                elementos.append(Paragraph(_negritas_pdf(texto), parrafo_style))
+        elementos.append(Paragraph("Datos del período", seccion_style))
 
-    if datos["por_sucursal"]:
-        elementos.append(Paragraph("Comparativa entre sucursales", seccion_style))
-        elementos.append(
-            _tabla(
-                ["Sucursal", "Reservas", "Unidades reservadas"],
-                [[s["nombre_sucursal"], str(s["cantidad_reservas"]), str(s["total_unidades"])] for s in datos["por_sucursal"]],
-            )
-        )
-
-    if datos["top_productos"]:
-        elementos.append(Paragraph("Productos más reservados", seccion_style))
-        elementos.append(
-            _tabla(
-                ["Producto", "Categoría", "Unidades", "Reservas"],
-                [
-                    [
-                        p["nombre_producto"],
-                        p["nombre_categoria"] or "Sin categoría",
-                        str(p["total_unidades"]),
-                        str(p["total_reservas"]),
-                    ]
-                    for p in datos["top_productos"]
-                ],
-            )
-        )
-
-    if datos["por_dia"]:
-        elementos.append(Paragraph("Reservas por día (últimos 30 días)", seccion_style))
-        elementos.append(
-            _tabla(
-                ["Fecha", "Cantidad"],
-                [[d["fecha"], str(d["cantidad"])] for d in datos["por_dia"]],
-            )
-        )
+    for nombre, encabezados, filas in _secciones(datos):
+        elementos.append(Paragraph(escape(nombre), seccion_style))
+        elementos.append(_tabla(encabezados, filas))
 
     doc.build(elementos)
     return buffer.getvalue()

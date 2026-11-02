@@ -35,6 +35,9 @@ import { AuthService } from '../../../core/services/auth.service';
           <a routerLink="/admin/inventario" routerLinkActive="active">
             <app-icon name="package" [size]="18" /> <span>Inventario</span>
           </a>
+          <a routerLink="/admin/transferencias" routerLinkActive="active">
+            <app-icon name="truck" [size]="18" /> <span>Transferencias</span>
+          </a>
           <a routerLink="/admin/reportes" routerLinkActive="active">
             <app-icon name="bar-chart" [size]="18" /> <span>Reportes</span>
           </a>

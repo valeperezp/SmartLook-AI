@@ -1,187 +1,238 @@
 <div class="reportes-header">
   <div>
-    <h1>Reportes y dashboards</h1>
-    <p>Indicadores de reservas e inventario {{ isAdmin() ? 'de toda la plataforma' : 'de tu sucursal' }}.</p>
+    <h1>Dashboard analítico</h1>
+    <p>
+      Ventas, reservas e inventario de
+      {{ sucursalId() || !isAdmin() ? datos()?.nombre_sucursal : 'toda la empresa' }}.
+    </p>
   </div>
+  <a routerLink="reporte-ia" class="btn-primary btn-ia">
+    <app-icon name="sparkles" [size]="16" />
+    <span>Reporte con IA</span>
+  </a>
+</div>
 
-  <div class="reportes-acciones">
-    @if (isAdmin()) {
-      <div class="filtro-sucursal">
-        <app-icon name="store" [size]="16" />
-        <select (change)="onSucursalChange($any($event.target).value)">
-          <option value="">Todas las sucursales</option>
-          @for (s of sucursales(); track s.id) {
-            <option [value]="s.id">{{ s.nombre }}</option>
-          }
-        </select>
-      </div>
+<div class="filtros" role="toolbar" aria-label="Filtros del dashboard">
+  <div class="segmentado" role="group" aria-label="Período">
+    @for (p of periodos; track p.dias) {
+      <button type="button" [class.activo]="dias() === p.dias" [attr.aria-pressed]="dias() === p.dias" (click)="cambiarPeriodo(p.dias)">
+        {{ p.texto }}
+      </button>
     }
+  </div>
 
-    <div class="exportar-botones">
-      <button
-        type="button"
-        class="btn-secondary"
-        [disabled]="exportando() !== null"
-        (click)="exportarPDF()"
-      >
-        <app-icon name="download" [size]="16" />
-        <span>{{ exportando() === 'pdf' ? 'Generando...' : 'Exportar PDF' }}</span>
-      </button>
-      <button
-        type="button"
-        class="btn-secondary"
-        [disabled]="exportando() !== null"
-        (click)="exportarExcel()"
-      >
-        <app-icon name="download" [size]="16" />
-        <span>{{ exportando() === 'excel' ? 'Generando...' : 'Exportar Excel' }}</span>
-      </button>
-      <button type="button" class="btn-secondary btn-reporte-ia" (click)="abrirReporteDinamico()">
-        <app-icon name="bar-chart" [size]="16" />
-        <span>Reporte dinámico (IA)</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-icon icon-primary"><app-icon name="calendar" [size]="22" /></div>
-    <div class="stat-info">
-      <strong>{{ resumen()?.total_reservas ?? 0 }}</strong>
-      <span>Reservas totales</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-muted"><app-icon name="shirt" [size]="22" /></div>
-    <div class="stat-info">
-      <strong>{{ resumen()?.total_unidades_reservadas ?? 0 }}</strong>
-      <span>Unidades reservadas</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-success"><app-icon name="package" [size]="22" /></div>
-    <div class="stat-info">
-      <strong>{{ resumen()?.inventario_disponible ?? 0 }}</strong>
-      <span>Unidades disponibles</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-warning"><app-icon name="alert-circle" [size]="22" /></div>
-    <div class="stat-info">
-      <strong>{{ resumen()?.productos_stock_bajo ?? 0 }}</strong>
-      <span>Alertas de stock bajo</span>
-    </div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon icon-danger"><app-icon name="alert-circle" [size]="22" /></div>
-    <div class="stat-info">
-      <strong>{{ resumen()?.productos_agotados ?? 0 }}</strong>
-      <span>Artículos agotados</span>
-    </div>
-  </div>
-</div>
-
-<div class="dashboard-columns">
-  <div class="card column-card">
-    <div class="column-header">
-      <h3><app-icon name="check-circle" [size]="18" /><span>Reservas por estado</span></h3>
-    </div>
-
-    @if (porEstado().length === 0) {
-      <p class="empty-state">Todavía no hay reservas registradas.</p>
-    } @else {
-      <div class="estado-list">
-        @for (e of porEstado(); track e.estado) {
-          <div class="estado-row">
-            <div class="estado-label">
-              <span class="badge" [ngClass]="estadoClass(e.estado)">{{ e.estado | titlecase }}</span>
-              <span class="estado-cantidad">{{ e.cantidad }}</span>
-            </div>
-            <div class="estado-bar-track">
-              <div class="estado-bar-fill" [ngClass]="estadoClass(e.estado)" [style.transform]="'scaleX(' + (estadoPct(e.cantidad) / 100) + ')'"></div>
-            </div>
-          </div>
+  @if (isAdmin()) {
+    <label class="filtro-sucursal">
+      <app-icon name="store" [size]="16" />
+      <span class="sr-only">Sucursal</span>
+      <select (change)="cambiarSucursal($any($event.target).value)">
+        <option value="">Todas las sucursales</option>
+        @for (s of sucursales(); track s.id) {
+          <option [value]="s.id">{{ s.nombre }}</option>
         }
-      </div>
-    }
-  </div>
+      </select>
+    </label>
+  }
 
-  <div class="card column-card">
-    <div class="column-header">
-      <h3><app-icon name="truck" [size]="18" /><span>Reservas de los últimos 14 días</span></h3>
-    </div>
-
-    @if (porDia().length === 0) {
-      <p class="empty-state">No hay reservas recientes en este período.</p>
-    } @else {
-      <div class="dia-chart">
-        @for (d of porDia(); track d.fecha) {
-          <div class="dia-col">
-            <div class="dia-bar-track">
-              <div class="dia-bar-fill" [style.height.%]="(d.cantidad / maxPorDia()) * 100"></div>
-            </div>
-            <span class="dia-cantidad">{{ d.cantidad }}</span>
-            <span class="dia-fecha">{{ formatFecha(d.fecha) }}</span>
-          </div>
-        }
-      </div>
-    }
+  <div class="exportar">
+    <button type="button" class="btn-secondary" [disabled]="exportando() !== null" (click)="exportar('pdf')">
+      <app-icon name="download" [size]="16" />
+      <span>{{ exportando() === 'pdf' ? 'Generando…' : 'PDF' }}</span>
+    </button>
+    <button type="button" class="btn-secondary" [disabled]="exportando() !== null" (click)="exportar('excel')">
+      <app-icon name="download" [size]="16" />
+      <span>{{ exportando() === 'excel' ? 'Generando…' : 'Excel' }}</span>
+    </button>
   </div>
 </div>
 
-@if (isAdmin()) {
-  <div class="card column-card full-width">
-    <div class="column-header">
-      <h3><app-icon name="store" [size]="18" /><span>Comparativa entre sucursales</span></h3>
-    </div>
-
-    @if (porSucursal().length === 0) {
-      <p class="empty-state">No hay datos de sucursales disponibles.</p>
-    } @else {
-      <table class="reporte-table">
-        <thead>
-          <tr>
-            <th>Sucursal</th>
-            <th>Reservas</th>
-            <th>Unidades reservadas</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (s of porSucursal(); track s.sucursal_id) {
-            <tr>
-              <td>{{ s.nombre_sucursal }}</td>
-              <td>{{ s.cantidad_reservas }}</td>
-              <td>{{ s.total_unidades }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    }
-  </div>
+@if (error()) {
+  <div class="card aviso-error">{{ error() }}</div>
 }
 
-<div class="card column-card full-width">
-  <div class="column-header">
-    <h3><app-icon name="shirt" [size]="18" /><span>Productos más reservados</span></h3>
-  </div>
-
-  @if (topProductos().length === 0) {
-    <p class="empty-state">Todavía no hay suficientes reservas para generar un ranking.</p>
-  } @else {
-    <div class="top-productos-list">
-      @for (p of topProductos(); track p.producto_id) {
-        <div class="top-producto-row">
-          <div class="top-producto-info">
-            <strong>{{ p.nombre_producto }}</strong>
-            <span>{{ p.nombre_categoria || 'Sin categoría' }} &bull; {{ p.total_reservas }} reserva(s)</span>
-          </div>
-          <div class="top-producto-bar-track">
-            <div class="top-producto-bar-fill" [style.width.%]="(p.total_unidades / maxUnidadesTop()) * 100"></div>
-          </div>
-          <span class="top-producto-unidades">{{ p.total_unidades }} un.</span>
-        </div>
+@if (datos(); as d) {
+  <div class="kpis" [class.cargando]="cargando()">
+    <div class="kpi kpi-hero">
+      <span class="kpi-label">Ingresos</span>
+      <strong class="kpi-valor">{{ bs(d.ventas.ingresos) }}</strong>
+      @if (d.ventas.variacion_ingresos_pct !== null) {
+        <span class="kpi-delta" [class.baja]="d.ventas.variacion_ingresos_pct < 0">
+          {{ d.ventas.variacion_ingresos_pct >= 0 ? '▲' : '▼' }}
+          {{ d.ventas.variacion_ingresos_pct | number: '1.0-1' }}% vs. {{ d.periodo_dias }} días anteriores
+        </span>
+      } @else {
+        <span class="kpi-sub">Sin período anterior para comparar</span>
       }
     </div>
+    <div class="kpi">
+      <span class="kpi-label">Ventas</span>
+      <strong class="kpi-valor">{{ num(d.ventas.cantidad_ventas) }}</strong>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Ticket promedio</span>
+      <strong class="kpi-valor">{{ bs(d.ventas.ticket_promedio) }}</strong>
+    </div>
+    <div class="kpi">
+      <span class="kpi-label">Unidades vendidas</span>
+      <strong class="kpi-valor">{{ num(d.ventas.unidades_vendidas) }}</strong>
+    </div>
+  </div>
+
+  <section class="card panel" [class.cargando]="cargando()">
+    <header class="panel-head">
+      <h2>Ingresos por día</h2>
+      <button type="button" class="link-btn" (click)="verTabla.set(!verTabla())">
+        {{ verTabla() ? 'Ver gráfico' : 'Ver tabla' }}
+      </button>
+    </header>
+
+    @if (verTabla()) {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>Fecha</th><th class="num">Ventas</th><th class="num">Ingresos</th></tr>
+          </thead>
+          <tbody>
+            @for (dia of serie(); track dia.fecha) {
+              <tr>
+                <td>{{ fechaCorta(dia.fecha) }}</td>
+                <td class="num">{{ dia.cantidad }}</td>
+                <td class="num">{{ bs(dia.ingresos) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="columnas-chart" (mouseleave)="hover.set(null)">
+        <div class="eje-y" aria-hidden="true">
+          @for (g of guias(); track g.pct) {
+            <span [style.bottom.%]="g.pct">{{ bsCorto(g.valor) }}</span>
+          }
+          <span style="bottom: 0">0</span>
+        </div>
+        <div class="area" role="img" [attr.aria-label]="'Ingresos diarios de los últimos ' + d.periodo_dias + ' días'">
+          @for (g of guias(); track g.pct) {
+            <div class="guia" [style.bottom.%]="g.pct"></div>
+          }
+          <div class="barras" [class.densas]="serie().length > 40">
+            @for (dia of serie(); track dia.fecha; let i = $index) {
+              <div
+                class="col"
+                [class.activa]="hover() === i"
+                [class.atenuada]="hover() !== null && hover() !== i"
+                (mouseenter)="hover.set(i)"
+                (focus)="hover.set(i)"
+                tabindex="0"
+                [attr.aria-label]="fechaCorta(dia.fecha) + ': ' + bs(dia.ingresos)"
+              >
+                <div class="barra" [style.height.%]="(dia.ingresos / maxIngresos()) * 100"></div>
+              </div>
+            }
+          </div>
+          @if (diaHover(); as h) {
+            <div
+              class="tooltip"
+              [style.left.%]="((hover()! + 0.5) / serie().length) * 100"
+              [class.izq]="hover()! > serie().length * 0.7"
+              [class.der]="hover()! < serie().length * 0.3"
+            >
+              <span class="tt-fecha">{{ fechaLarga(h.fecha) }}</span>
+              <span class="tt-valor">{{ bs(h.ingresos) }}</span>
+              <span class="tt-sub">{{ h.cantidad }} venta(s)</span>
+            </div>
+          }
+        </div>
+        <div class="eje-x" aria-hidden="true">
+          @for (dia of serie(); track dia.fecha; let i = $index) {
+            <span>{{ i % pasoEtiquetas() === 0 ? fechaCorta(dia.fecha) : '' }}</span>
+          }
+        </div>
+      </div>
+    }
+  </section>
+
+  <div class="grilla">
+    @if (porSucursal().length) {
+      <section class="card panel">
+        <header class="panel-head"><h2>Ingresos por sucursal</h2></header>
+        <ng-container *ngTemplateOutlet="ranking; context: { filas: porSucursal() }" />
+      </section>
+    }
+    <section class="card panel">
+      <header class="panel-head"><h2>Ingresos por categoría</h2></header>
+      <ng-container *ngTemplateOutlet="ranking; context: { filas: porCategoria() }" />
+    </section>
+    <section class="card panel">
+      <header class="panel-head"><h2>Ingresos por canal</h2></header>
+      <ng-container *ngTemplateOutlet="ranking; context: { filas: porCanal() }" />
+    </section>
+    <section class="card panel">
+      <header class="panel-head"><h2>Productos más vendidos</h2></header>
+      <ng-container *ngTemplateOutlet="ranking; context: { filas: topVendidos() }" />
+    </section>
+  </div>
+
+  <div class="grilla">
+    <section class="card panel">
+      <header class="panel-head">
+        <h2>Inventario</h2>
+        <span class="muted">{{ num(d.resumen.inventario_disponible) }} unidades disponibles</span>
+      </header>
+      @if (d.alertas_stock.length) {
+        <ul class="alertas">
+          @for (a of d.alertas_stock; track a.inventario_id) {
+            <li [class.critica]="a.cantidad_disponible === 0">
+              <app-icon name="alert-circle" [size]="16" />
+              <span class="alerta-estado">{{ a.cantidad_disponible === 0 ? 'Agotado' : 'Stock bajo' }}</span>
+              <span class="alerta-texto">{{ a.nombre_producto }} <span class="muted">· {{ a.nombre_sucursal }}</span></span>
+              <span class="alerta-num">{{ a.cantidad_disponible }} / {{ a.stock_minimo }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="vacio"><app-icon name="check-circle" [size]="16" /> Sin alertas de stock.</p>
+      }
+    </section>
+
+    <section class="card panel">
+      <header class="panel-head">
+        <h2>Reservas</h2>
+        <span class="muted">{{ d.resumen.total_reservas }} en total</span>
+      </header>
+      @if (d.resumen.reservas_por_estado.length) {
+        <ul class="estados">
+          @for (e of d.resumen.reservas_por_estado; track e.estado) {
+            <li>
+              <span class="badge" [ngClass]="estadoClass(e.estado)">{{ e.estado | titlecase }}</span>
+              <span class="num">{{ e.cantidad }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="vacio">Todavía no hay reservas.</p>
+      }
+    </section>
+  </div>
+} @else if (cargando()) {
+  <p class="vacio">Cargando dashboard…</p>
+}
+
+<ng-template #ranking let-filas="filas">
+  @if (filas.length) {
+    <ul class="ranking">
+      @for (f of filas; track f.etiqueta) {
+        <li>
+          <div class="rk-texto">
+            <span class="rk-etiqueta">{{ f.etiqueta }}</span>
+            @if (f.detalle) { <span class="muted">{{ f.detalle }}</span> }
+          </div>
+          <div class="rk-track"><div class="rk-barra" [style.width.%]="pctBarra(f.valor, filas)"></div></div>
+          <span class="rk-valor">{{ f.texto }}</span>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="vacio">Sin ventas en este período.</p>
   }
-</div>
+</ng-template>

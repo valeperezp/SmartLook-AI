@@ -47,7 +47,10 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
             <app-icon name="calendar" [size]="18" /> <span>Reservas</span>
           </a>
           <a routerLink="/encargado/movimientos" routerLinkActive="active">
-            <app-icon name="truck" [size]="18" /> <span>Movimientos</span>
+            <app-icon name="list" [size]="18" /> <span>Movimientos</span>
+          </a>
+          <a routerLink="/encargado/transferencias" routerLinkActive="active">
+            <app-icon name="truck" [size]="18" /> <span>Transferencias</span>
           </a>
           <a routerLink="/encargado/reportes" routerLinkActive="active">
             <app-icon name="bar-chart" [size]="18" /> <span>Reportes</span>

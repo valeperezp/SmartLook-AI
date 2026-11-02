@@ -1,0 +1,131 @@
+<a routerLink=".." class="volver"><app-icon name="chevron-left" [size]="16" /> Volver al dashboard</a>
+
+<div class="page-header">
+  <h1>Reporte con IA</h1>
+  <p>
+    Pedí el reporte que necesitás con tus palabras. Se redacta con los datos reales de
+    {{ isAdmin() ? 'tu empresa' : 'tu sucursal' }} y lo podés descargar en PDF o Excel.
+  </p>
+</div>
+
+<form class="card pedido" (ngSubmit)="generar()">
+  <label for="solicitud" class="sr-only">¿Qué reporte necesitás?</label>
+  <textarea
+    id="solicitud"
+    name="solicitud"
+    rows="3"
+    maxlength="500"
+    [(ngModel)]="solicitud"
+    placeholder="ej: Resumen de ventas de la última semana con las prendas que conviene reponer"
+    (keydown.control.enter)="generar()"
+  ></textarea>
+
+  <div class="opciones">
+    <label>
+      <span>Período</span>
+      <select [(ngModel)]="dias" name="dias">
+        @for (p of periodos; track p.texto) {
+          <option [ngValue]="p.valor">{{ p.texto }}</option>
+        }
+      </select>
+    </label>
+    @if (isAdmin()) {
+      <label>
+        <span>Sucursal</span>
+        <select [(ngModel)]="sucursalId" name="sucursal">
+          <option [ngValue]="null">Todas</option>
+          @for (s of sucursales(); track s.id) {
+            <option [ngValue]="s.id">{{ s.nombre }}</option>
+          }
+        </select>
+      </label>
+    }
+    <button type="submit" class="btn-primary generar" [disabled]="generando() || solicitud.trim().length < 3">
+      <app-icon name="sparkles" [size]="16" />
+      {{ generando() ? 'Redactando…' : 'Generar reporte' }}
+    </button>
+  </div>
+
+  @if (!reporte() && !generando()) {
+    <div class="sugerencias">
+      <span class="muted">Ideas:</span>
+      @for (s of sugerencias; track s) {
+        <button type="button" class="chip" (click)="usarSugerencia(s)">{{ s }}</button>
+      }
+    </div>
+  }
+</form>
+
+@if (error()) {
+  <div class="card aviso-error" role="alert">{{ error() }}</div>
+}
+
+@if (generando()) {
+  <div class="card esqueleto" aria-busy="true" aria-live="polite">
+    <span class="sr-only">Redactando el reporte…</span>
+    <div class="linea ancha"></div>
+    <div class="linea"></div>
+    <div class="linea"></div>
+    <div class="linea corta"></div>
+    <p class="muted">
+      Analizando los datos del período… Con un modelo de IA local puede tardar uno o dos minutos.
+    </p>
+  </div>
+}
+
+@if (reporte(); as r) {
+  @if (!generando()) {
+    <article class="card documento">
+      <header class="doc-meta">
+        <span class="origen" [class.reglas]="!r.generado_con_ia">
+          <app-icon [name]="r.generado_con_ia ? 'sparkles' : 'list'" [size]="14" />
+          {{ r.generado_con_ia ? 'Redactado con IA' : 'Generado automáticamente (la IA no está disponible)' }}
+        </span>
+        <span class="muted">
+          {{ r.nombre_sucursal }} · últimos {{ r.periodo_dias }} días · {{ r.generado_en | date: 'dd/MM/yyyy HH:mm' }}
+        </span>
+      </header>
+
+      @if (editando()) {
+        <textarea class="editor" rows="18" [(ngModel)]="textoEditado" name="editor" aria-label="Texto del reporte"></textarea>
+        <div class="doc-acciones">
+          <button type="button" class="btn-secondary" (click)="editando.set(false)">Descartar cambios</button>
+          <button type="button" class="btn-primary" (click)="guardarEdicion()">Guardar texto</button>
+        </div>
+      } @else {
+        <div class="cuerpo">
+          @for (b of bloques(); track $index) {
+            @switch (b.tipo) {
+              @case ('titulo') {
+                <h2>@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</h2>
+              }
+              @case ('subtitulo') {
+                <h3>@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</h3>
+              }
+              @case ('vineta') {
+                <p class="vineta">@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</p>
+              }
+              @default {
+                <p>@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</p>
+              }
+            }
+          }
+        </div>
+
+        <footer class="doc-acciones">
+          <button type="button" class="btn-secondary" (click)="editar()">
+            <app-icon name="pencil" [size]="15" /> Editar texto
+          </button>
+          <span class="espacio"></span>
+          <button type="button" class="btn-secondary" [disabled]="exportando() !== null" (click)="exportar('excel')">
+            <app-icon name="download" [size]="15" /> {{ exportando() === 'excel' ? 'Generando…' : 'Excel' }}
+          </button>
+          <button type="button" class="btn-primary" [disabled]="exportando() !== null" (click)="exportar('pdf')">
+            <app-icon name="download" [size]="15" /> {{ exportando() === 'pdf' ? 'Generando…' : 'Descargar PDF' }}
+          </button>
+        </footer>
+        <p class="muted nota">El PDF y el Excel incluyen este texto y las tablas con los datos del período.</p>
+      }
+    </article>
+  }
+}

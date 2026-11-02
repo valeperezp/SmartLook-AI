@@ -1,0 +1,180 @@
+<div class="page-header header-row">
+  <div>
+    <h1>Transferencias entre sucursales</h1>
+    <p>
+      Pedí o enviá mercadería entre sucursales. El stock sale del origen al despacharla y
+      llega al destino cuando se confirma la recepción.
+    </p>
+  </div>
+  <button class="btn-primary" (click)="abrirAlta()">
+    {{ mostrarAlta() ? 'Cerrar' : 'Nueva transferencia' }}
+  </button>
+</div>
+
+@if (toast()) {
+  <div class="toast-notification" [class.toast-error]="toastIsError()">{{ toast() }}</div>
+}
+
+@if (mostrarAlta()) {
+  <div class="card alta">
+    <div class="inline-form">
+      <div class="form-group">
+        <label>Desde (origen)</label>
+        <select [(ngModel)]="origenId" name="origen" (ngModelChange)="cambiarOrigen()">
+          <option [ngValue]="null">— Elegir —</option>
+          @for (s of sucursalesActivas(); track s.id) {
+            <option [ngValue]="s.id" [disabled]="s.id === destinoId">{{ s.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Hacia (destino)</label>
+        <select [(ngModel)]="destinoId" name="destino">
+          <option [ngValue]="null">— Elegir —</option>
+          @for (s of sucursalesActivas(); track s.id) {
+            <option [ngValue]="s.id" [disabled]="s.id === origenId">{{ s.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group motivo">
+        <label>Motivo</label>
+        <input type="text" [(ngModel)]="motivo" name="motivo" maxlength="255" placeholder="ej: reposición para el fin de semana" />
+      </div>
+    </div>
+
+    @if (origenId) {
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Prenda</th>
+              <th>Talla</th>
+              <th>Color</th>
+              <th class="num">Disponible</th>
+              <th class="num">A transferir</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of stockOrigen(); track i.id) {
+              <tr>
+                <td>{{ i.nombre_producto }}</td>
+                <td>{{ i.nombre_talla || '—' }}</td>
+                <td>{{ i.nombre_color || '—' }}</td>
+                <td class="num">{{ i.cantidad_disponible }}</td>
+                <td class="num">
+                  <input
+                    class="cantidad"
+                    type="number"
+                    min="0"
+                    [max]="i.cantidad_disponible"
+                    [(ngModel)]="cantidades[i.id]"
+                    [name]="'cant-' + i.id"
+                    placeholder="0"
+                  />
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="muted">Esta sucursal no tiene prendas con stock.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="inline-form-actions">
+      <span class="muted">{{ totalSeleccionado() }} unidades seleccionadas</span>
+      <button
+        class="btn-primary"
+        [disabled]="guardando() || !origenId || !destinoId || totalSeleccionado() === 0"
+        (click)="crear()"
+      >
+        Solicitar transferencia
+      </button>
+    </div>
+  </div>
+}
+
+<div class="filtros" role="group" aria-label="Filtrar por estado">
+  <button class="chip" [class.activo]="filtro() === null" (click)="filtrar(null)">Todas</button>
+  @for (e of estados; track e.valor) {
+    <button class="chip" [class.activo]="filtro() === e.valor" (click)="filtrar(e.valor)">{{ e.texto }}</button>
+  }
+</div>
+
+@if (pendientesDeMi() > 0) {
+  <p class="aviso">Tenés {{ pendientesDeMi() }} transferencia(s) esperando una acción tuya.</p>
+}
+
+<div class="lista">
+  @for (t of transferencias(); track t.id) {
+    <article class="card transferencia" [class.requiere]="t.acciones.length > 0">
+      <button class="resumen" (click)="toggle(t)" [attr.aria-expanded]="abierta() === t.id">
+        <span class="id">#{{ t.id }}</span>
+        <span class="ruta">
+          <b>{{ t.nombre_origen }}</b>
+          <span class="flecha" aria-hidden="true">→</span>
+          <b>{{ t.nombre_destino }}</b>
+        </span>
+        <span class="unidades">{{ t.total_unidades }} u.</span>
+        <span class="estado" [ngClass]="estadoInfo(t.estado).clase">{{ estadoInfo(t.estado).texto }}</span>
+        <span class="fecha">{{ t.creado_en | date: 'dd/MM HH:mm' }}</span>
+      </button>
+
+      @if (abierta() === t.id) {
+        <div class="detalle">
+          <div class="col">
+            <h4>Prendas</h4>
+            <ul class="items">
+              @for (i of t.items; track i.id) {
+                <li>
+                  <span>{{ i.nombre_producto }} <span class="muted">{{ i.nombre_talla }} {{ i.nombre_color }}</span></span>
+                  <b>× {{ i.cantidad }}</b>
+                </li>
+              }
+            </ul>
+            @if (t.motivo) {
+              <p class="muted">Motivo: {{ t.motivo }}</p>
+            }
+          </div>
+
+          <div class="col">
+            <h4>Historial</h4>
+            <ol class="timeline">
+              @for (h of t.historial; track $index) {
+                <li>
+                  <span class="punto" [ngClass]="estadoInfo(h.estado_nuevo).clase"></span>
+                  <div>
+                    <b>{{ estadoInfo(h.estado_nuevo).texto }}</b>
+                    <span class="muted"> · {{ h.nombre_usuario }} · {{ h.creado_en | date: 'dd/MM HH:mm' }}</span>
+                    @if (h.comentario) {
+                      <p class="comentario">"{{ h.comentario }}"</p>
+                    }
+                  </div>
+                </li>
+              }
+            </ol>
+          </div>
+
+          @if (t.acciones.length) {
+            <div class="acciones">
+              <input
+                type="text"
+                [(ngModel)]="comentarios[t.id]"
+                [name]="'com-' + t.id"
+                maxlength="255"
+                placeholder="Comentario (opcional)"
+              />
+              @for (a of t.acciones; track a) {
+                <button [class]="acciones[a].clase" [disabled]="procesando() === t.id" (click)="ejecutar(t, a)">
+                  {{ acciones[a].texto }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+    </article>
+  } @empty {
+    <p class="muted vacio">No hay transferencias {{ filtro() ? 'en este estado' : 'todavía' }}.</p>
+  }
+</div>
