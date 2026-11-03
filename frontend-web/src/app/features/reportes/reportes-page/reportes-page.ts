@@ -8,6 +8,8 @@ import { ReportesService } from '../../../core/services/reportes.service';
 import { SucursalesService } from '../../../core/services/sucursales.service';
 import { Sucursal } from '../../../core/models/sucursal.model';
 import { Dashboard, VentasPorDia } from '../../../core/models/reporte.model';
+import { Analitica } from '../../../core/models/analitica.model';
+import { AnaliticaService } from '../../../core/services/analitica.service';
 
 /** Fila de un ranking de barras horizontales (un solo tono: es una sola medida). */
 interface FilaRanking {
@@ -29,6 +31,7 @@ export class ReportesPage implements OnInit {
   private auth = inject(AuthService);
   private reportesService = inject(ReportesService);
   private sucursalesService = inject(SucursalesService);
+  private analiticaService = inject(AnaliticaService);
 
   readonly periodos = [
     { dias: 7, texto: '7 días' },
@@ -95,6 +98,39 @@ export class ReportesPage implements OnInit {
     }))
   );
 
+  // ---------- Machine Learning (CU15) ----------
+  ml = signal<Analitica | null>(null);
+  mlBloqueado = signal<string | null>(null); // RN-05: plan sin IA
+  entrenando = signal(false);
+  mlError = signal<string | null>(null);
+  hoverDemanda = signal<number | null>(null);
+
+  /** Últimos 30 días reales seguidos de los 30 predichos, en una sola serie temporal. */
+  serieDemanda = computed(() => {
+    const d = this.ml()?.demanda;
+    if (!d) return [];
+    return [
+      ...d.historico.map((p) => ({ ...p, predicho: false })),
+      ...d.prediccion.map((p) => ({ ...p, predicho: true })),
+    ];
+  });
+  maxDemanda = computed(() => this.escalaRedonda(Math.max(0, ...this.serieDemanda().map((p) => p.unidades))));
+  inicioPrediccion = computed(() => this.ml()?.demanda?.historico.length ?? 0);
+  puntoDemanda = computed(() => {
+    const i = this.hoverDemanda();
+    return i === null ? null : this.serieDemanda()[i] ?? null;
+  });
+  segmentosFilas = computed<FilaRanking[]>(() =>
+    (this.ml()?.segmentos?.segmentos ?? []).map((s) => ({
+      etiqueta: s.segmento,
+      detalle: `${s.pct_ingresos}% de los ingresos`,
+      valor: s.clientes,
+      texto: `${s.clientes} clientes`,
+    }))
+  );
+  modeloDemanda = computed(() => this.ml()?.modelos.find((m) => m.tipo === 'demanda') ?? null);
+  modeloSegmentos = computed(() => this.ml()?.modelos.find((m) => m.tipo === 'segmentacion') ?? null);
+
   ngOnInit() {
     if (this.isAdmin()) {
       this.sucursalesService.listar().subscribe((data) => this.sucursales.set(data));
@@ -102,7 +138,42 @@ export class ReportesPage implements OnInit {
     this.cargar();
   }
 
+  cargarML() {
+    this.mlError.set(null);
+    this.analiticaService.consultar(this.sucursalId()).subscribe({
+      next: (data) => {
+        this.ml.set(data);
+        this.mlBloqueado.set(null);
+      },
+      error: (err) => {
+        if (err.status === 403) this.mlBloqueado.set(err.error?.detail || 'Disponible en el plan Profesional');
+        else this.mlError.set('No se pudieron cargar los resultados de los modelos');
+      },
+    });
+  }
+
+  entrenar() {
+    if (this.entrenando()) return;
+    this.entrenando.set(true);
+    this.mlError.set(null);
+    this.analiticaService.entrenar().subscribe({
+      next: () => {
+        this.entrenando.set(false);
+        this.cargarML();
+      },
+      error: (err) => {
+        this.entrenando.set(false);
+        this.mlError.set(err.error?.detail || 'No se pudieron entrenar los modelos');
+      },
+    });
+  }
+
+  metrica(valor: number | null | undefined, decimales = 2): string {
+    return valor === null || valor === undefined ? '—' : valor.toLocaleString('es-BO', { maximumFractionDigits: decimales });
+  }
+
   cargar() {
+    this.cargarML();
     this.cargando.set(true);
     this.error.set(null);
     this.reportesService.dashboard(this.sucursalId(), this.dias()).subscribe({
@@ -192,7 +263,7 @@ export class ReportesPage implements OnInit {
   }
 
   /** Techo "redondo" para el eje (1, 2, 2.5 o 5 × 10^n), para que las guías tengan números legibles. */
-  private escalaRedonda(max: number): number {
+  escalaRedonda(max: number): number {
     if (max <= 0) return 1;
     const magnitud = Math.pow(10, Math.floor(Math.log10(max)));
     const paso = [1, 2, 2.5, 5, 10].find((p) => p * magnitud >= max) ?? 10;

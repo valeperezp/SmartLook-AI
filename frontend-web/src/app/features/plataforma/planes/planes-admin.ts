@@ -44,6 +44,10 @@ import { Plan, PlanCreate } from '../../../core/models/empresa.model';
             <input type="number" min="1" [(ngModel)]="form.max_productos" name="max_productos" placeholder="Ilimitado" />
           </div>
         </div>
+        <label class="check">
+          <input type="checkbox" [(ngModel)]="form.incluye_ia" name="incluye_ia" />
+          Incluye reportes con IA y analítica con Machine Learning (RN-05)
+        </label>
         <div class="form-group" style="margin-top: 1rem;">
           <label>Descripción</label>
           <input type="text" [(ngModel)]="form.descripcion" name="descripcion" />
@@ -68,6 +72,7 @@ import { Plan, PlanCreate } from '../../../core/models/empresa.model';
             <th class="num">Sucursales</th>
             <th class="num">Usuarios</th>
             <th class="num">Productos</th>
+            <th>IA</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
@@ -83,6 +88,7 @@ import { Plan, PlanCreate } from '../../../core/models/empresa.model';
               <td class="num">{{ p.max_sucursales ?? '∞' }}</td>
               <td class="num">{{ p.max_usuarios ?? '∞' }}</td>
               <td class="num">{{ p.max_productos ?? '∞' }}</td>
+              <td>{{ p.incluye_ia ? 'Sí' : 'No' }}</td>
               <td>
                 <span class="badge" [class.badge-success]="p.activo" [class.badge-muted]="!p.activo">
                   {{ p.activo ? 'Activo' : 'Inactivo' }}
@@ -98,7 +104,7 @@ import { Plan, PlanCreate } from '../../../core/models/empresa.model';
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="muted">Todavía no hay planes.</td></tr>
+            <tr><td colspan="8" class="muted">Todavía no hay planes.</td></tr>
           }
         </tbody>
       </table>
@@ -110,6 +116,7 @@ import { Plan, PlanCreate } from '../../../core/models/empresa.model';
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .acciones { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .table-wrap { overflow-x: auto; }
+    .check { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; font-size: 0.875rem; }
   `,
 })
 export class PlanesAdmin implements OnInit {
@@ -128,7 +135,7 @@ export class PlanesAdmin implements OnInit {
   }
 
   private vacio(): PlanCreate {
-    return { nombre: '', descripcion: '', precio_mensual: 0, max_sucursales: null, max_usuarios: null, max_productos: null };
+    return { nombre: '', descripcion: '', precio_mensual: 0, max_sucursales: null, max_usuarios: null, max_productos: null, incluye_ia: false };
   }
 
   cargar() {
@@ -174,6 +181,7 @@ export class PlanesAdmin implements OnInit {
       max_sucursales: p.max_sucursales,
       max_usuarios: p.max_usuarios,
       max_productos: p.max_productos,
+      incluye_ia: p.incluye_ia,
     };
   }
 

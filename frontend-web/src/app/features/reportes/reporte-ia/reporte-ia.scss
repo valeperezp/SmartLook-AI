@@ -1,6 +1,5 @@
 :host {
   display: block;
-  max-width: 860px;
 }
 
 .sr-only {
@@ -30,48 +29,66 @@
   }
 }
 
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 1.25rem;
+  align-items: start;
+
+  @media (max-width: 1000px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.principal {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
 .pedido {
   display: grid;
-  gap: 0.9rem;
-  margin-bottom: 1.25rem;
-
-  textarea {
-    width: 100%;
-    resize: vertical;
-    font: inherit;
-    font-size: 1rem;
-    line-height: 1.5;
-  }
-}
-
-.opciones {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
   gap: 0.75rem;
+}
 
-  label {
-    display: grid;
-    gap: 0.25rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
+.entrada {
+  display: flex;
+  gap: 0.5rem;
 
-  .generar {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-
-    @media (max-width: 560px) {
-      margin-left: 0;
-      width: 100%;
-      justify-content: center;
-    }
+  input {
+    flex: 1;
+    min-width: 0;
+    font-size: 1rem;
   }
 }
 
-.sugerencias {
+.btn-icono {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+
+  &.grabando {
+    color: #fff;
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+}
+
+.escuchando {
+  margin: 0;
+}
+
+.ejemplos {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -95,9 +112,25 @@
   }
 }
 
+.aviso {
+  display: grid;
+  gap: 0.6rem;
+
+  p {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+}
+
 .aviso-error {
   color: var(--danger);
-  margin-bottom: 1rem;
+}
+
+.aclaracion {
+  border-left: 3px solid var(--primary);
 }
 
 .esqueleto {
@@ -113,12 +146,12 @@
     animation: brillo 1.4s ease-in-out infinite;
 
     &.ancha {
-      width: 55%;
+      width: 45%;
       height: 1.3rem;
     }
 
     &.corta {
-      width: 40%;
+      width: 35%;
     }
   }
 
@@ -138,77 +171,102 @@
   }
 }
 
-.documento {
+.resultado {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
-.doc-meta {
+.res-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0 0 0.4rem;
+    font-size: 1.35rem;
+  }
+}
+
+.filtros {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.origen {
-  display: inline-flex;
-  align-items: center;
   gap: 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--success);
 
-  &.reglas {
+  li {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: var(--overlay-1);
     color: var(--text-secondary);
   }
 }
 
-.cuerpo {
-  line-height: 1.6;
+.descartados {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--warning);
+}
 
-  h2 {
-    font-family: var(--font-heading);
-    font-size: 1.6rem;
-    margin: 0 0 0.75rem;
-  }
+.origen {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 
-  h3 {
-    font-size: 1rem;
-    margin: 1.25rem 0 0.4rem;
-  }
+.selector-grafico {
+  display: inline-flex;
+  justify-self: start;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 
-  p {
-    margin: 0 0 0.5rem;
-    max-width: 72ch;
-  }
+  button {
+    border: 0;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.8rem;
+    padding: 0.35rem 0.85rem;
+    cursor: pointer;
 
-  .vineta {
-    position: relative;
-    padding-left: 1.1rem;
+    & + button {
+      border-left: 1px solid var(--border-color);
+    }
 
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0.2rem;
-      top: 0.65em;
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
+    &.activo {
       background: var(--primary);
+      color: #fff;
+      font-weight: 600;
     }
   }
 }
 
-.editor {
-  width: 100%;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85rem;
-  line-height: 1.5;
+.table-wrap {
+  overflow-x: auto;
+  max-height: 420px;
 }
 
-.doc-acciones {
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--border-strong);
+}
+
+.res-acciones {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -225,6 +283,88 @@
   }
 }
 
-.nota {
+.vacio {
   margin: 0;
+  color: var(--text-muted);
+}
+
+.convencional {
+  display: grid;
+  gap: 0.75rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.link-btn {
+  justify-self: start;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.historial {
+  position: sticky;
+  top: 1rem;
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+    max-height: 70vh;
+    overflow: auto;
+  }
+
+  button {
+    width: 100%;
+    display: grid;
+    gap: 0.1rem;
+    text-align: left;
+    padding: 0.55rem 0.6rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--overlay-1);
+    }
+  }
+
+  @media (max-width: 1000px) {
+    position: static;
+  }
+}
+
+.h-titulo {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.h-solicitud {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

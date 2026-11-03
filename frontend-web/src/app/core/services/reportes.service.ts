@@ -2,9 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import {
+  CatalogoReportes,
   Dashboard,
+  HistorialReporte,
+  IntencionReporte,
   ProductoMasReservado,
-  ReporteGenerativo,
+  ResultadoReporte,
   ReservasPorDia,
   ReservasPorEstado,
   ReservasPorSucursal,
@@ -66,25 +69,30 @@ export class ReportesService {
     return this.exportar('excel', sucursalId);
   }
 
-  /** CU14 — pide un reporte redactado (IA o reglas si la IA no está disponible). */
-  generarReporte(solicitud: string, sucursalId?: number, dias?: number | null) {
-    return this.http.post<ReporteGenerativo>(`${this.base}/generativo`, {
-      solicitud,
-      sucursal_id: sucursalId ?? null,
-      dias: dias ?? null,
-    });
+  // ---------- CU14: reporte generativo ----------
+
+  catalogo() {
+    return this.http.get<CatalogoReportes>(`${this.base}/catalogo`);
   }
 
-  exportarReporteGenerativo(formato: 'pdf' | 'excel', reporte: ReporteGenerativo, sucursalId?: number) {
+  /** La IA interpreta la frase; el backend valida y ejecuta un reporte del catálogo permitido. */
+  solicitar(solicitud: string) {
+    return this.http.post<ResultadoReporte>(`${this.base}/solicitar`, { solicitud });
+  }
+
+  /** Reporte convencional (sin IA) o re-ejecución desde el historial. */
+  ejecutar(intencion: IntencionReporte) {
+    return this.http.post<ResultadoReporte>(`${this.base}/ejecutar`, intencion);
+  }
+
+  historial() {
+    return this.http.get<HistorialReporte[]>(`${this.base}/historial`);
+  }
+
+  exportarReporte(formato: 'pdf' | 'excel', intencion: IntencionReporte, solicitud?: string | null) {
     return this.http.post(
-      `${this.base}/generativo/exportar`,
-      {
-        formato,
-        titulo: reporte.titulo,
-        contenido: reporte.contenido,
-        periodo_dias: reporte.periodo_dias,
-        sucursal_id: sucursalId ?? null,
-      },
+      `${this.base}/ejecutar/exportar`,
+      { formato, intencion, solicitud: solicitud || null },
       { responseType: 'blob' }
     );
   }

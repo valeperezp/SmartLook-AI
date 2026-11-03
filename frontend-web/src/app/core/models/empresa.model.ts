@@ -7,6 +7,8 @@ export interface Plan {
   max_sucursales: number | null;
   max_usuarios: number | null;
   max_productos: number | null;
+  /** RN-05: reportes generativos y analítica con ML */
+  incluye_ia: boolean;
   activo: boolean;
 }
 
@@ -44,6 +46,8 @@ export interface Empresa {
   email?: string | null;
   telefono?: string | null;
   direccion?: string | null;
+  /** RF-22: logotipo de los reportes exportados */
+  logo_url?: string | null;
   activa: boolean;
   creado_en?: string | null;
 }
@@ -52,6 +56,11 @@ export interface EmpresaDetalle extends Empresa {
   suscripcion: Suscripcion | null;
   suscripcion_vigente: boolean;
   uso: UsoEmpresa;
+  /** RN-08: negativo = ya venció; null = sin vencimiento */
+  dias_para_vencer: number | null;
+  aviso_vencimiento: boolean;
+  /** RN-06: suscripción vencida, solo consulta */
+  solo_lectura: boolean;
 }
 
 export interface EmpresaCreate {
@@ -61,6 +70,7 @@ export interface EmpresaCreate {
   email?: string | null;
   telefono?: string | null;
   direccion?: string | null;
+  logo_url?: string | null;
   plan_id: number;
   fecha_fin?: string | null;
   administrador: { nombre: string; email: string; password: string };

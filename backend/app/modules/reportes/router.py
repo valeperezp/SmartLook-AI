@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
+from app.modules.empresas import service as empresas_service
 from app.modules.reportes import exportador, generativo, schemas, service
 from app.modules.usuarios.models import Usuario
 from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
@@ -121,24 +122,59 @@ def exportar(
 
 # ---------------------------------------------------------------- CU14 generativo
 
-@router.post("/generativo", response_model=schemas.ReporteGenerativoOut)
-async def reporte_generativo(
-    data: schemas.ReporteGenerativoRequest,
+@router.get("/catalogo")
+def catalogo_reportes(usuario: Usuario = Depends(admin_or_encargado), db: Session = Depends(get_db)):
+    """Tipos de reporte permitidos (para el formulario convencional) y si el plan incluye IA (RN-05)."""
+    suscripcion = empresas_service.suscripcion_actual(db, usuario.empresa_id)
+    return {
+        "tipos": generativo.catalogo_para_ui(),
+        "ejemplos": generativo.ejemplos(),
+        "plan_incluye_ia": bool(suscripcion and suscripcion.plan.incluye_ia),
+    }
+
+
+@router.post("/solicitar")
+async def solicitar_reporte(
+    data: schemas.SolicitudReporte,
     usuario: Usuario = Depends(admin_or_encargado),
     db: Session = Depends(get_db),
 ):
-    """Redacta un reporte a pedido con IA (o por reglas si la IA no está disponible)."""
-    # La llamada al modelo puede tardar: se hace fuera del event loop.
-    return await run_in_threadpool(generativo.generar, db, usuario, data.solicitud, data.sucursal_id, data.dias)
+    """CU14: la IA interpreta la frase y el backend ejecuta un reporte del catálogo permitido."""
+    suscripcion = empresas_service.suscripcion_actual(db, usuario.empresa_id)
+    if not (suscripcion and suscripcion.plan.incluye_ia):  # 2a
+        return {"estado": "plan_sin_ia", "mensaje": "Los reportes generativos están disponibles en el plan Profesional",
+                "ejemplos": generativo.ejemplos()}
+    # La interpretación puede tardar (modelo local): fuera del event loop.
+    return await run_in_threadpool(generativo.solicitar, db, usuario, data.solicitud)
 
 
-@router.post("/generativo/exportar")
-def exportar_generativo(
-    data: schemas.ExportarGenerativoRequest,
+@router.post("/ejecutar")
+def ejecutar_reporte(
+    data: schemas.IntencionReporte,
     usuario: Usuario = Depends(admin_or_encargado),
     db: Session = Depends(get_db),
 ):
-    """Exporta el reporte redactado + las tablas con los datos reales del mismo período."""
-    datos, _ = service.contexto_reporte(db, usuario, data.sucursal_id, data.periodo_dias)
-    generar = exportador.generar_pdf if data.formato == "pdf" else exportador.generar_excel
-    return _archivo(generar(datos, data.titulo, data.contenido), data.formato, data.titulo)
+    """Reporte convencional (sin IA) o re-ejecución desde el historial; disponible en todos los planes."""
+    return generativo.ejecutar(db, usuario, data.model_dump(), None, "manual")
+
+
+@router.get("/historial")
+def historial_reportes(usuario: Usuario = Depends(admin_or_encargado), db: Session = Depends(get_db)):
+    return generativo.historial(db, usuario)
+
+
+@router.post("/ejecutar/exportar")
+def exportar_reporte(
+    data: schemas.ExportarReporteRequest,
+    usuario: Usuario = Depends(admin_or_encargado),
+    db: Session = Depends(get_db),
+):
+    """Exporta a PDF o Excel el reporte que el usuario tiene en pantalla, con el logotipo de la empresa (RF-22)."""
+    resultado = generativo.ejecutar(db, usuario, data.intencion.model_dump(), data.solicitud, "manual", guardar=False)
+    resultado["solicitud"] = data.solicitud
+    empresa = usuario.empresa
+    if data.formato == "pdf":
+        contenido = exportador.exportar_consulta_pdf(resultado, empresa.nombre, empresa.logo_url)
+    else:
+        contenido = exportador.exportar_consulta_excel(resultado, empresa.nombre)
+    return _archivo(contenido, data.formato, resultado["titulo"])

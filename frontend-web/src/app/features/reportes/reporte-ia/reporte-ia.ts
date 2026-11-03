@@ -1,122 +1,228 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { AuthService } from '../../../core/services/auth.service';
+import { CatalogoService } from '../../../core/services/catalogo.service';
 import { ReportesService } from '../../../core/services/reportes.service';
 import { SucursalesService } from '../../../core/services/sucursales.service';
 import { Sucursal } from '../../../core/models/sucursal.model';
-import { ReporteGenerativo } from '../../../core/models/reporte.model';
+import {
+  CatalogoReportes,
+  ColumnaReporte,
+  Grafico,
+  HistorialReporte,
+  IntencionReporte,
+  ResultadoReporte,
+} from '../../../core/models/reporte.model';
+import { GraficoReporte } from '../shared/grafico-reporte';
 
-interface Fragmento {
-  texto: string;
-  negrita: boolean;
-}
-
-interface Bloque {
-  tipo: 'titulo' | 'subtitulo' | 'vineta' | 'parrafo';
-  partes: Fragmento[];
-}
-
-const SUGERENCIAS = [
-  'Resumen de ventas de la última semana',
-  '¿Qué categorías venden más este mes y qué me recomendás reponer?',
-  'Reporte de inventario con las prendas en riesgo de agotarse',
-  'Compará el rendimiento de las sucursales en los últimos 30 días',
-];
-
-/** CU14 — Solicitar reporte generativo (IA) y exportarlo a PDF o Excel. */
+/** CU14 — Solicitar reporte generativo: frase (escrita o dictada) → IA → reporte del catálogo permitido. */
 @Component({
   selector: 'app-reporte-ia',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, GraficoReporte],
   templateUrl: './reporte-ia.html',
   styleUrl: './reporte-ia.scss',
 })
-export class ReporteIa implements OnInit {
+export class ReporteIa implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private reportesService = inject(ReportesService);
   private sucursalesService = inject(SucursalesService);
+  private catalogoService = inject(CatalogoService);
 
-  readonly sugerencias = SUGERENCIAS;
-  readonly periodos: { valor: number | null; texto: string }[] = [
-    { valor: null, texto: 'Según lo que pida' },
-    { valor: 7, texto: 'Últimos 7 días' },
-    { valor: 30, texto: 'Últimos 30 días' },
-    { valor: 90, texto: 'Últimos 90 días' },
+  readonly graficos: { id: Grafico; texto: string }[] = [
+    { id: 'barras', texto: 'Barras' },
+    { id: 'lineas', texto: 'Líneas' },
+    { id: 'torta', texto: 'Torta' },
   ];
 
   isAdmin = this.auth.isAdmin;
+  catalogo = signal<CatalogoReportes | null>(null);
   sucursales = signal<Sucursal[]>([]);
+  categorias = signal<{ id: number; nombre: string }[]>([]);
+  historial = signal<HistorialReporte[]>([]);
 
   solicitud = '';
-  sucursalId: number | null = null;
-  dias: number | null = null;
-
-  generando = signal(false);
+  respuestaAclaracion = '';
+  cargando = signal(false);
   exportando = signal<'pdf' | 'excel' | null>(null);
+  resultado = signal<ResultadoReporte | null>(null);
+  /** Frase con la que se generó el resultado en pantalla (para el PDF y para aclaraciones). */
+  ultimaSolicitud = signal<string | null>(null);
+  grafico = signal<Grafico>('barras');
+  mostrarConvencional = signal(false);
   error = signal<string | null>(null);
-  reporte = signal<ReporteGenerativo | null>(null);
-  editando = signal(false);
-  textoEditado = '';
 
-  bloques = computed<Bloque[]>(() => this.aBloques(this.reporte()?.contenido ?? ''));
+  // Dictado por voz (3a): Web Speech API del navegador.
+  escuchando = signal(false);
+  vozDisponible = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  private reconocimiento: any = null;
+
+  // Formulario de reportes convencionales (2a, 4a).
+  conv: IntencionReporte & { sucursal?: number | null; categoria?: number | null } = this.convVacio();
+
+  tipoConv = computed(() => this.catalogo()?.tipos.find((t) => t.id === this.convTipo()) ?? null);
+  private convTipo = signal('ventas_por_sucursal');
+
+  /** Puntos que dibuja el gráfico: la etiqueta y la medida principal del reporte. */
+  puntos = computed(() => {
+    const r = this.resultado();
+    if (!r?.filas || !r.medida) return [];
+    return r.filas.map((f) => ({ etiqueta: String(f['etiqueta']), valor: Number(f[r.medida!]) || 0 }));
+  });
+  columnaMedida = computed<ColumnaReporte | undefined>(() =>
+    this.resultado()?.columnas?.find((c) => c.clave === this.resultado()?.medida)
+  );
 
   ngOnInit() {
-    if (this.isAdmin()) {
-      this.sucursalesService.listar().subscribe((s) => this.sucursales.set(s.filter((x) => x.activa)));
-    }
+    this.reportesService.catalogo().subscribe((c) => {
+      this.catalogo.set(c);
+      if (!c.plan_incluye_ia) this.mostrarConvencional.set(true);
+    });
+    this.sucursalesService.listar().subscribe((s) => this.sucursales.set(s.filter((x) => x.activa)));
+    this.catalogoService.listarCategorias().subscribe((c: any[]) => this.categorias.set(c.filter((x) => x.activo !== false)));
+    this.cargarHistorial();
   }
 
-  usarSugerencia(texto: string) {
-    this.solicitud = texto;
-    this.generar();
+  ngOnDestroy() {
+    this.reconocimiento?.abort?.();
   }
 
-  generar() {
-    const solicitud = this.solicitud.trim();
-    if (solicitud.length < 3 || this.generando()) return;
-    this.generando.set(true);
+  private convVacio() {
+    const hoy = new Date();
+    const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return {
+      tipo: 'ventas_por_sucursal',
+      fecha_inicio: this.iso(inicio),
+      fecha_fin: this.iso(hoy),
+      sucursal: null,
+      categoria: null,
+      limite: 10,
+    };
+  }
+
+  private iso(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  cargarHistorial() {
+    this.reportesService.historial().subscribe((h) => this.historial.set(h));
+  }
+
+  // ---------- flujo con IA ----------
+  generar(texto?: string) {
+    const solicitud = (texto ?? this.solicitud).trim();
+    if (solicitud.length < 3 || this.cargando()) return;
+    this.solicitud = solicitud;
+    this.cargando.set(true);
     this.error.set(null);
-    this.editando.set(false);
-    this.reportesService.generarReporte(solicitud, this.sucursalId ?? undefined, this.dias).subscribe({
-      next: (r) => {
-        this.reporte.set(r);
-        this.generando.set(false);
-      },
+    this.reportesService.solicitar(solicitud).subscribe({
+      next: (r) => this.mostrar(r, solicitud),
       error: (err) => {
-        this.generando.set(false);
-        this.error.set(err.error?.detail || 'No se pudo generar el reporte. Probá de nuevo.');
+        this.cargando.set(false);
+        this.error.set(err.error?.detail || 'No se pudo generar el reporte');
       },
     });
   }
 
-  editar() {
-    this.textoEditado = this.reporte()?.contenido ?? '';
-    this.editando.set(true);
+  /** 5a: el usuario responde la pregunta de aclaración y se vuelve a interpretar todo junto. */
+  responderAclaracion() {
+    const respuesta = this.respuestaAclaracion.trim();
+    if (!respuesta) return;
+    this.respuestaAclaracion = '';
+    this.generar(`${this.ultimaSolicitud() ?? this.solicitud}, ${respuesta}`);
   }
 
-  guardarEdicion() {
-    const r = this.reporte();
-    if (!r) return;
-    this.reporte.set({ ...r, contenido: this.textoEditado });
-    this.editando.set(false);
+  usarEjemplo(ejemplo: string) {
+    this.solicitud = ejemplo;
+    this.generar();
   }
 
+  // ---------- reportes convencionales ----------
+  cambiarTipoConv(id: string) {
+    this.conv.tipo = id;
+    this.convTipo.set(id);
+  }
+
+  ejecutarConvencional() {
+    const tipo = this.tipoConv();
+    if (!tipo) return;
+    const intencion: IntencionReporte = {
+      tipo: tipo.id,
+      fecha_inicio: tipo.usa_fechas ? this.conv.fecha_inicio : null,
+      fecha_fin: tipo.usa_fechas ? this.conv.fecha_fin : null,
+      sucursal_ids: this.conv.sucursal ? [this.conv.sucursal] : [],
+      categoria_ids: tipo.usa_categorias && this.conv.categoria ? [this.conv.categoria] : [],
+      limite: tipo.usa_limite ? this.conv.limite : null,
+    };
+    this.ejecutarIntencion(intencion, null);
+  }
+
+  repetir(h: HistorialReporte) {
+    this.solicitud = h.solicitud ?? '';
+    this.ejecutarIntencion(h.intencion, h.solicitud);
+  }
+
+  private ejecutarIntencion(intencion: IntencionReporte, solicitud: string | null) {
+    this.cargando.set(true);
+    this.error.set(null);
+    this.reportesService.ejecutar(intencion).subscribe({
+      next: (r) => this.mostrar(r, solicitud),
+      error: (err) => {
+        this.cargando.set(false);
+        this.error.set(err.error?.detail || 'No se pudo generar el reporte');
+      },
+    });
+  }
+
+  private mostrar(r: ResultadoReporte, solicitud: string | null) {
+    this.cargando.set(false);
+    this.resultado.set(r);
+    this.ultimaSolicitud.set(solicitud);
+    if (r.grafico) this.grafico.set(r.grafico);
+    if (r.estado === 'ia_no_disponible' || r.estado === 'plan_sin_ia') this.mostrarConvencional.set(true);
+    if (r.estado === 'ok' || r.estado === 'sin_datos') this.cargarHistorial();
+  }
+
+  // ---------- voz ----------
+  dictar() {
+    if (!this.vozDisponible) return;
+    if (this.escuchando()) {
+      this.reconocimiento?.stop();
+      return;
+    }
+    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    this.reconocimiento = new Ctor();
+    this.reconocimiento.lang = 'es-BO';
+    this.reconocimiento.interimResults = false;
+    this.reconocimiento.onresult = (e: any) => {
+      // Se muestra el texto para que el usuario lo revise antes de generar (3a).
+      this.solicitud = Array.from(e.results).map((res: any) => res[0].transcript).join(' ');
+    };
+    this.reconocimiento.onend = () => this.escuchando.set(false);
+    this.reconocimiento.onerror = () => this.escuchando.set(false);
+    this.escuchando.set(true);
+    this.reconocimiento.start();
+  }
+
+  // ---------- exportar ----------
   exportar(formato: 'pdf' | 'excel') {
-    const r = this.reporte();
-    if (!r || this.exportando()) return;
+    const r = this.resultado();
+    if (!r?.intencion || this.exportando()) return;
     this.exportando.set(formato);
-    this.reportesService.exportarReporteGenerativo(formato, r, this.sucursalId ?? undefined).subscribe({
+    const intencion = { ...r.intencion, grafico: this.grafico() };
+    delete (intencion as any).descartados;
+    this.reportesService.exportarReporte(formato, intencion, this.ultimaSolicitud()).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${this.slug(r.titulo)}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${(r.titulo || 'reporte').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-')}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
         URL.revokeObjectURL(url);
         this.exportando.set(null);
       },
@@ -127,45 +233,11 @@ export class ReporteIa implements OnInit {
     });
   }
 
-  private slug(texto: string): string {
-    return (
-      texto
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 50) || 'reporte'
-    );
-  }
-
-  /** Markdown mínimo (#, ##, viñetas, **negrita**) a bloques. Sin innerHTML: el texto viene del modelo. */
-  private aBloques(contenido: string): Bloque[] {
-    const bloques: Bloque[] = [];
-    for (const cruda of contenido.split('\n')) {
-      const linea = cruda.trim();
-      if (!linea) continue;
-      let tipo: Bloque['tipo'] = 'parrafo';
-      let texto = linea;
-      if (/^#\s/.test(linea)) {
-        tipo = 'titulo';
-        texto = linea.replace(/^#+\s*/, '');
-      } else if (/^#{2,}/.test(linea)) {
-        tipo = 'subtitulo';
-        texto = linea.replace(/^#+\s*/, '');
-      } else if (/^([-*•]|\d+[.)])\s+/.test(linea)) {
-        tipo = 'vineta';
-        texto = linea.replace(/^([-*•]|\d+[.)])\s+/, '');
-      }
-      bloques.push({ tipo, partes: this.negritas(texto) });
-    }
-    return bloques;
-  }
-
-  private negritas(texto: string): Fragmento[] {
-    return texto
-      .split(/(\*\*[^*]+\*\*)/g)
-      .filter(Boolean)
-      .map((p) => (p.startsWith('**') && p.endsWith('**') ? { texto: p.slice(2, -2), negrita: true } : { texto: p, negrita: false }));
+  celda(col: ColumnaReporte, valor: any): string {
+    if (valor === null || valor === undefined || valor === '') return '';
+    if (col.tipo === 'moneda') return 'Bs ' + Number(valor).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (col.tipo === 'numero') return Number(valor).toLocaleString('es-BO');
+    if (col.tipo === 'fecha') return new Date(valor + 'T00:00:00').toLocaleDateString('es-BO', { weekday: 'short', day: '2-digit', month: 'short' });
+    return String(valor);
   }
 }

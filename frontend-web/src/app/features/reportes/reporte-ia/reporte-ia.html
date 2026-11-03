@@ -1,131 +1,261 @@
 <a routerLink=".." class="volver"><app-icon name="chevron-left" [size]="16" /> Volver al dashboard</a>
 
 <div class="page-header">
-  <h1>Reporte con IA</h1>
+  <h1>Reportes inteligentes</h1>
   <p>
-    Pedí el reporte que necesitás con tus palabras. Se redacta con los datos reales de
-    {{ isAdmin() ? 'tu empresa' : 'tu sucursal' }} y lo podés descargar en PDF o Excel.
+    Pedí un reporte con tus palabras, escribiendo o dictando. La IA interpreta qué necesitás y el sistema lo
+    arma con los datos reales de {{ isAdmin() ? 'tu empresa' : 'tu sucursal' }}.
   </p>
 </div>
 
-<form class="card pedido" (ngSubmit)="generar()">
-  <label for="solicitud" class="sr-only">¿Qué reporte necesitás?</label>
-  <textarea
-    id="solicitud"
-    name="solicitud"
-    rows="3"
-    maxlength="500"
-    [(ngModel)]="solicitud"
-    placeholder="ej: Resumen de ventas de la última semana con las prendas que conviene reponer"
-    (keydown.control.enter)="generar()"
-  ></textarea>
-
-  <div class="opciones">
-    <label>
-      <span>Período</span>
-      <select [(ngModel)]="dias" name="dias">
-        @for (p of periodos; track p.texto) {
-          <option [ngValue]="p.valor">{{ p.texto }}</option>
+<div class="layout">
+  <div class="principal">
+    @if (catalogo()?.plan_incluye_ia !== false) {
+      <form class="card pedido" (ngSubmit)="generar()">
+        <label for="solicitud" class="sr-only">¿Qué reporte necesitás?</label>
+        <div class="entrada">
+          <input
+            id="solicitud"
+            name="solicitud"
+            type="text"
+            maxlength="500"
+            autocomplete="off"
+            [(ngModel)]="solicitud"
+            placeholder="ej: Mostrame las ventas de septiembre agrupadas por sucursal"
+          />
+          @if (vozDisponible) {
+            <button
+              type="button"
+              class="btn-icono"
+              [class.grabando]="escuchando()"
+              (click)="dictar()"
+              [attr.aria-pressed]="escuchando()"
+              [title]="escuchando() ? 'Detener dictado' : 'Dictar la solicitud'"
+            >
+              <app-icon name="mic" [size]="18" />
+              <span class="sr-only">{{ escuchando() ? 'Detener dictado' : 'Dictar' }}</span>
+            </button>
+          }
+          <button type="submit" class="btn-primary" [disabled]="cargando() || solicitud.trim().length < 3">
+            {{ cargando() ? 'Generando…' : 'Generar' }}
+          </button>
+        </div>
+        @if (escuchando()) {
+          <p class="muted escuchando" aria-live="polite">Escuchando… hablá y después revisá el texto.</p>
         }
-      </select>
-    </label>
-    @if (isAdmin()) {
-      <label>
-        <span>Sucursal</span>
-        <select [(ngModel)]="sucursalId" name="sucursal">
-          <option [ngValue]="null">Todas</option>
-          @for (s of sucursales(); track s.id) {
-            <option [ngValue]="s.id">{{ s.nombre }}</option>
-          }
-        </select>
-      </label>
-    }
-    <button type="submit" class="btn-primary generar" [disabled]="generando() || solicitud.trim().length < 3">
-      <app-icon name="sparkles" [size]="16" />
-      {{ generando() ? 'Redactando…' : 'Generar reporte' }}
-    </button>
-  </div>
-
-  @if (!reporte() && !generando()) {
-    <div class="sugerencias">
-      <span class="muted">Ideas:</span>
-      @for (s of sugerencias; track s) {
-        <button type="button" class="chip" (click)="usarSugerencia(s)">{{ s }}</button>
-      }
-    </div>
-  }
-</form>
-
-@if (error()) {
-  <div class="card aviso-error" role="alert">{{ error() }}</div>
-}
-
-@if (generando()) {
-  <div class="card esqueleto" aria-busy="true" aria-live="polite">
-    <span class="sr-only">Redactando el reporte…</span>
-    <div class="linea ancha"></div>
-    <div class="linea"></div>
-    <div class="linea"></div>
-    <div class="linea corta"></div>
-    <p class="muted">
-      Analizando los datos del período… Con un modelo de IA local puede tardar uno o dos minutos.
-    </p>
-  </div>
-}
-
-@if (reporte(); as r) {
-  @if (!generando()) {
-    <article class="card documento">
-      <header class="doc-meta">
-        <span class="origen" [class.reglas]="!r.generado_con_ia">
-          <app-icon [name]="r.generado_con_ia ? 'sparkles' : 'list'" [size]="14" />
-          {{ r.generado_con_ia ? 'Redactado con IA' : 'Generado automáticamente (la IA no está disponible)' }}
-        </span>
-        <span class="muted">
-          {{ r.nombre_sucursal }} · últimos {{ r.periodo_dias }} días · {{ r.generado_en | date: 'dd/MM/yyyy HH:mm' }}
-        </span>
-      </header>
-
-      @if (editando()) {
-        <textarea class="editor" rows="18" [(ngModel)]="textoEditado" name="editor" aria-label="Texto del reporte"></textarea>
-        <div class="doc-acciones">
-          <button type="button" class="btn-secondary" (click)="editando.set(false)">Descartar cambios</button>
-          <button type="button" class="btn-primary" (click)="guardarEdicion()">Guardar texto</button>
-        </div>
-      } @else {
-        <div class="cuerpo">
-          @for (b of bloques(); track $index) {
-            @switch (b.tipo) {
-              @case ('titulo') {
-                <h2>@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</h2>
-              }
-              @case ('subtitulo') {
-                <h3>@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</h3>
-              }
-              @case ('vineta') {
-                <p class="vineta">@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</p>
-              }
-              @default {
-                <p>@for (p of b.partes; track $index) { @if (p.negrita) { <b>{{ p.texto }}</b> } @else { {{ p.texto }} } }</p>
-              }
+        @if (!resultado() && catalogo(); as c) {
+          <div class="ejemplos">
+            <span class="muted">Ejemplos:</span>
+            @for (e of c.ejemplos; track e) {
+              <button type="button" class="chip" (click)="usarEjemplo(e)">{{ e }}</button>
             }
+          </div>
+        }
+      </form>
+    }
+
+    @if (error()) {
+      <div class="card aviso aviso-error" role="alert">{{ error() }}</div>
+    }
+
+    @if (cargando()) {
+      <div class="card esqueleto" aria-busy="true" aria-live="polite">
+        <span class="sr-only">Generando el reporte…</span>
+        <div class="linea ancha"></div>
+        <div class="linea"></div>
+        <div class="linea corta"></div>
+        <p class="muted">Interpretando la solicitud… con un modelo de IA local puede tardar unos segundos.</p>
+      </div>
+    } @else if (resultado(); as r) {
+      @switch (r.estado) {
+        @case ('aclaracion') {
+          <form class="card aviso aclaracion" (ngSubmit)="responderAclaracion()">
+            <p><app-icon name="message-circle" [size]="16" /> <b>{{ r.pregunta }}</b></p>
+            <div class="entrada">
+              <input name="aclaracion" [(ngModel)]="respuestaAclaracion" placeholder="ej: del mes pasado" autocomplete="off" />
+              <button type="submit" class="btn-primary" [disabled]="!respuestaAclaracion.trim()">Responder</button>
+            </div>
+          </form>
+        }
+        @case ('no_soportado') {
+          <div class="card aviso">
+            <p><app-icon name="alert-circle" [size]="16" /> <b>{{ r.mensaje }}</b></p>
+            <p class="muted">Podés pedir, por ejemplo:</p>
+            <div class="ejemplos">
+              @for (e of r.ejemplos; track e) {
+                <button type="button" class="chip" (click)="usarEjemplo(e)">{{ e }}</button>
+              }
+            </div>
+          </div>
+        }
+        @case ('ia_no_disponible') {
+          <div class="card aviso">
+            <p><app-icon name="alert-circle" [size]="16" /> <b>{{ r.mensaje }}.</b> Mientras tanto podés usar los reportes convencionales.</p>
+          </div>
+        }
+        @case ('plan_sin_ia') {
+          <div class="card aviso">
+            <p><app-icon name="alert-circle" [size]="16" /> <b>{{ r.mensaje }}.</b> Podés usar los reportes convencionales.</p>
+          </div>
+        }
+        @default {
+          <article class="card resultado">
+            <header class="res-head">
+              <div>
+                <h2>{{ r.titulo }}</h2>
+                <ul class="filtros">
+                  @for (f of r.filtros_aplicados; track f) { <li>{{ f }}</li> }
+                </ul>
+                @if (r.descartados?.length) {
+                  <p class="descartados">
+                    <app-icon name="alert-circle" [size]="14" />
+                    No se aplicó: {{ r.descartados!.join(', ') }} (no pertenece a tu empresa).
+                  </p>
+                }
+              </div>
+              <span class="origen">{{ r.origen === 'ia' ? 'Interpretado con IA' : 'Reporte convencional' }}</span>
+            </header>
+
+            @if (r.estado === 'sin_datos') {
+              <p class="vacio">{{ r.mensaje }}.</p>
+            } @else {
+              <div class="selector-grafico" role="group" aria-label="Tipo de gráfico">
+                @for (g of graficos; track g.id) {
+                  <button type="button" [class.activo]="grafico() === g.id" [attr.aria-pressed]="grafico() === g.id" (click)="grafico.set(g.id)">
+                    {{ g.texto }}
+                  </button>
+                }
+              </div>
+              <app-grafico-reporte
+                [datos]="puntos()"
+                [tipo]="grafico()"
+                [formato]="columnaMedida()?.tipo === 'moneda' ? 'moneda' : 'numero'"
+                [etiquetaMedida]="columnaMedida()?.titulo || ''"
+              />
+
+              <div class="table-wrap">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      @for (c of r.columnas; track c.clave) {
+                        <th [class.num]="c.tipo === 'numero' || c.tipo === 'moneda'">{{ c.titulo }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (f of r.filas; track $index) {
+                      <tr>
+                        @for (c of r.columnas; track c.clave) {
+                          <td [class.num]="c.tipo === 'numero' || c.tipo === 'moneda'">{{ celda(c, f[c.clave]) }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                  @if (r.totales && (r.totales | keyvalue).length) {
+                    <tfoot>
+                      <tr>
+                        @for (c of r.columnas; track c.clave; let first = $first) {
+                          <td [class.num]="!first">{{ first ? 'Total' : celda(c, r.totales![c.clave]) }}</td>
+                        }
+                      </tr>
+                    </tfoot>
+                  }
+                </table>
+              </div>
+
+              <footer class="res-acciones">
+                <span class="muted">Generado el {{ r.generado_en | date: 'dd/MM/yyyy HH:mm' }}</span>
+                <span class="espacio"></span>
+                <button type="button" class="btn-secondary" [disabled]="exportando() !== null" (click)="exportar('excel')">
+                  <app-icon name="download" [size]="15" /> {{ exportando() === 'excel' ? 'Generando…' : 'Excel' }}
+                </button>
+                <button type="button" class="btn-primary" [disabled]="exportando() !== null" (click)="exportar('pdf')">
+                  <app-icon name="download" [size]="15" /> {{ exportando() === 'pdf' ? 'Generando…' : 'PDF' }}
+                </button>
+              </footer>
+            }
+          </article>
+        }
+      }
+    }
+
+    @if (mostrarConvencional() && catalogo(); as c) {
+      <form class="card convencional" (ngSubmit)="ejecutarConvencional()">
+        <h3>Reportes convencionales</h3>
+        <div class="inline-form">
+          <div class="form-group">
+            <label>Reporte</label>
+            <select [ngModel]="conv.tipo" (ngModelChange)="cambiarTipoConv($event)" name="tipo">
+              @for (t of c.tipos; track t.id) {
+                <option [value]="t.id">{{ t.titulo }}</option>
+              }
+            </select>
+          </div>
+          @if (tipoConv()?.usa_fechas) {
+            <div class="form-group">
+              <label>Desde</label>
+              <input type="date" [(ngModel)]="conv.fecha_inicio" name="desde" />
+            </div>
+            <div class="form-group">
+              <label>Hasta</label>
+              <input type="date" [(ngModel)]="conv.fecha_fin" name="hasta" />
+            </div>
+          }
+          @if (isAdmin()) {
+            <div class="form-group">
+              <label>Sucursal</label>
+              <select [(ngModel)]="conv.sucursal" name="sucursal">
+                <option [ngValue]="null">Todas</option>
+                @for (s of sucursales(); track s.id) {
+                  <option [ngValue]="s.id">{{ s.nombre }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (tipoConv()?.usa_categorias) {
+            <div class="form-group">
+              <label>Categoría</label>
+              <select [(ngModel)]="conv.categoria" name="categoria">
+                <option [ngValue]="null">Todas</option>
+                @for (cat of categorias(); track cat.id) {
+                  <option [ngValue]="cat.id">{{ cat.nombre }}</option>
+                }
+              </select>
+            </div>
+          }
+          @if (tipoConv()?.usa_limite) {
+            <div class="form-group">
+              <label>Cantidad</label>
+              <input type="number" min="1" max="50" [(ngModel)]="conv.limite" name="limite" />
+            </div>
           }
         </div>
+        <p class="muted">{{ tipoConv()?.descripcion }}</p>
+        <div class="inline-form-actions">
+          <button type="submit" class="btn-primary" [disabled]="cargando()">Generar reporte</button>
+        </div>
+      </form>
+    } @else if (catalogo()?.plan_incluye_ia) {
+      <button type="button" class="link-btn" (click)="mostrarConvencional.set(true)">Prefiero elegir el reporte manualmente</button>
+    }
+  </div>
 
-        <footer class="doc-acciones">
-          <button type="button" class="btn-secondary" (click)="editar()">
-            <app-icon name="pencil" [size]="15" /> Editar texto
-          </button>
-          <span class="espacio"></span>
-          <button type="button" class="btn-secondary" [disabled]="exportando() !== null" (click)="exportar('excel')">
-            <app-icon name="download" [size]="15" /> {{ exportando() === 'excel' ? 'Generando…' : 'Excel' }}
-          </button>
-          <button type="button" class="btn-primary" [disabled]="exportando() !== null" (click)="exportar('pdf')">
-            <app-icon name="download" [size]="15" /> {{ exportando() === 'pdf' ? 'Generando…' : 'Descargar PDF' }}
-          </button>
-        </footer>
-        <p class="muted nota">El PDF y el Excel incluyen este texto y las tablas con los datos del período.</p>
-      }
-    </article>
-  }
-}
+  <aside class="card historial">
+    <h3>Historial</h3>
+    @if (historial().length) {
+      <ul>
+        @for (h of historial(); track h.id) {
+          <li>
+            <button type="button" (click)="repetir(h)">
+              <span class="h-titulo">{{ h.titulo }}</span>
+              @if (h.solicitud) { <span class="h-solicitud">“{{ h.solicitud }}”</span> }
+              <span class="muted">{{ h.creado_en | date: 'dd/MM HH:mm' }} · {{ h.origen === 'ia' ? 'IA' : 'manual' }}</span>
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="muted">Tus reportes van a aparecer acá.</p>
+    }
+  </aside>
+</div>

@@ -55,6 +55,10 @@ import { estadoSuscripcion } from '../shared/estado-suscripcion';
               <label>Dirección</label>
               <input type="text" [(ngModel)]="nueva.direccion" name="direccion" />
             </div>
+            <div class="form-group">
+              <label>Logo (URL de imagen) <span class="muted">para los reportes</span></label>
+              <input type="url" [(ngModel)]="nueva.logo_url" name="logo_url" placeholder="https://…/logo.png" />
+            </div>
           </div>
 
           <h3 class="form-title">Plan contratado</h3>
@@ -167,6 +171,10 @@ import { estadoSuscripcion } from '../shared/estado-suscripcion';
                 <label>Dirección</label>
                 <input type="text" [(ngModel)]="edicion.direccion" name="ed_dir" />
               </div>
+              <div class="form-group">
+                <label>Logo (URL de imagen)</label>
+                <input type="url" [(ngModel)]="edicion.logo_url" name="ed_logo" placeholder="https://…/logo.png" />
+              </div>
             </div>
             <div class="inline-form-actions">
               @if (e.activa) {
@@ -249,7 +257,7 @@ export class EmpresasAdmin implements OnInit {
   readonly estado = estadoSuscripcion;
 
   nueva: EmpresaCreate = this.vacia();
-  edicion = { nombre: '', nit: '', email: '', telefono: '', direccion: '' };
+  edicion = { nombre: '', nit: '', email: '', telefono: '', direccion: '', logo_url: '' };
   cambioPlanId: number | null = null;
   cambioFechaFin: string | null = null;
 
@@ -263,7 +271,7 @@ export class EmpresasAdmin implements OnInit {
 
   private vacia(): EmpresaCreate {
     return {
-      nombre: '', slug: '', nit: '', email: '', telefono: '', direccion: '',
+      nombre: '', slug: '', nit: '', email: '', telefono: '', direccion: '', logo_url: '',
       plan_id: this.planesActivos?.()[0]?.id ?? 0,
       fecha_fin: null,
       administrador: { nombre: '', email: '', password: '' },
@@ -309,6 +317,7 @@ export class EmpresasAdmin implements OnInit {
     this.seleccionada.set(e);
     this.edicion = {
       nombre: e.nombre, nit: e.nit ?? '', email: e.email ?? '', telefono: e.telefono ?? '', direccion: e.direccion ?? '',
+      logo_url: e.logo_url ?? '',
     };
     this.cambioPlanId = e.suscripcion?.plan_id ?? this.planesActivos()[0]?.id ?? null;
     this.cambioFechaFin = e.suscripcion?.fecha_fin ?? null;

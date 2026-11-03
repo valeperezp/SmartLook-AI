@@ -54,6 +54,7 @@ import { estadoSuscripcion } from '../../plataforma/shared/estado-suscripcion';
               <li>{{ p.max_sucursales ?? 'Sucursales ilimitadas' }}{{ p.max_sucursales ? ' sucursales' : '' }}</li>
               <li>{{ p.max_usuarios ?? 'Usuarios ilimitados' }}{{ p.max_usuarios ? ' usuarios' : '' }}</li>
               <li>{{ p.max_productos ?? 'Productos ilimitados' }}{{ p.max_productos ? ' productos' : '' }}</li>
+              <li>{{ p.incluye_ia ? 'Reportes con IA y analítica con Machine Learning' : 'Reportes convencionales (sin IA)' }}</li>
             </ul>
             @if (p.id === e.suscripcion?.plan_id && e.suscripcion_vigente) {
               <span class="badge badge-success">Tu plan actual</span>

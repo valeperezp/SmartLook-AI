@@ -1,257 +1,321 @@
-"""Exportación de reportes a PDF y Excel (CU14 / CU15).
+"""Exportación de reportes a PDF y Excel (RF-22).
 
-Recibe los datos ya calculados (`service.contexto_reporte`) y, opcionalmente, el texto
-redactado por la IA para un reporte generativo. Las cifras de las tablas siempre salen
-de la base de datos, nunca del texto de la IA.
+- Dashboard (CU15): indicadores y tablas del período.
+- Reporte solicitado (CU14): logotipo de la empresa, título, filtros aplicados, gráfico y
+  tabla con totales. En Excel el gráfico es nativo (editable).
+Las cifras siempre salen de la base de datos.
 """
-import re
 from datetime import datetime
 from io import BytesIO
 from xml.sax.saxutils import escape
 
+import httpx
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, LineChart, PieChart, Reference
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from reportlab.graphics.charts.barcharts import HorizontalBarChart
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from reportlab.graphics.charts.piecharts import Pie
+from reportlab.graphics.shapes import Drawing, Rect, String
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.shared.core.tiempo import ZONA_HORARIA_LOCAL
 
 COLOR_HEADER = "1F2937"
 COLOR_ZEBRA = "F3F4F6"
 COLOR_MUTED = "6B7280"
+COLOR_MARCA = "A34353"  # mismo tono que los gráficos de la web
+# Paleta categórica para tortas (orden fijo; validada para daltonismo).
+PALETA = ["2A78D6", "EB6834", "1BAF7A", "EDA100", "E87BA4", "008300", "6250D6", "E34948"]
 
 
 def _bs(valor: float) -> str:
     return f"Bs {valor:,.2f}"
 
 
-def _secciones(datos: dict) -> list[tuple[str, list[str], list[list]]]:
-    """(título, encabezados, filas) de cada tabla del reporte, en el orden en que se muestran."""
+def _ahora() -> str:
+    return datetime.now(ZONA_HORARIA_LOCAL).strftime("%d/%m/%Y %H:%M")
+
+
+def _estilos():
+    styles = getSampleStyleSheet()
+    return {
+        "titulo": ParagraphStyle("TituloReporte", parent=styles["Title"], textColor=colors.HexColor(f"#{COLOR_HEADER}")),
+        "sub": ParagraphStyle("Sub", parent=styles["Normal"], textColor=colors.HexColor(f"#{COLOR_MUTED}"), spaceAfter=4),
+        "seccion": ParagraphStyle("Seccion", parent=styles["Heading2"], textColor=colors.HexColor(f"#{COLOR_HEADER}"),
+                                  spaceBefore=14, spaceAfter=6),
+    }
+
+
+def _tabla(encabezados: list[str], filas: list[list], negrita_ultima: bool = False) -> Table:
+    tabla = Table([encabezados] + [[str(c) for c in f] for f in filas], repeatRows=1)
+    estilo = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{COLOR_HEADER}")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(f"#{COLOR_ZEBRA}")]),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
+        ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]
+    if negrita_ultima:
+        estilo.append(("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"))
+    tabla.setStyle(TableStyle(estilo))
+    return tabla
+
+
+def _documento(buffer: BytesIO, titulo: str) -> SimpleDocTemplate:
+    return SimpleDocTemplate(buffer, pagesize=letter, topMargin=1.5 * cm, bottomMargin=1.5 * cm,
+                             leftMargin=1.5 * cm, rightMargin=1.5 * cm, title=titulo)
+
+
+def _logo(url: str | None):
+    """Logotipo de la empresa para el encabezado (RF-22). Si no se puede descargar, se omite."""
+    if not url:
+        return None
+    try:
+        respuesta = httpx.get(url, timeout=5.0, follow_redirects=True)
+        respuesta.raise_for_status()
+        imagen = Image(BytesIO(respuesta.content))
+        escala = min(3.5 * cm / imagen.imageWidth, 1.6 * cm / imagen.imageHeight)
+        imagen.drawWidth, imagen.drawHeight = imagen.imageWidth * escala, imagen.imageHeight * escala
+        imagen.hAlign = "LEFT"
+        return imagen
+    except Exception:
+        return None
+
+
+# ======================================================================
+# Dashboard (CU15)
+# ======================================================================
+
+def _secciones_dashboard(datos: dict) -> list[tuple[str, list[str], list[list]]]:
     v, r = datos["ventas"], datos["resumen"]
     variacion = v["variacion_ingresos_pct"]
-    secciones = [
-        (
-            "Indicadores",
-            ["Indicador", "Valor"],
-            [
-                ["Ventas completadas", v["cantidad_ventas"]],
-                ["Ingresos", _bs(v["ingresos"])],
-                ["Ticket promedio", _bs(v["ticket_promedio"])],
-                ["Unidades vendidas", v["unidades_vendidas"]],
-                ["Variación de ingresos", f"{variacion}%" if variacion is not None else "—"],
-                ["Reservas totales", r["total_reservas"]],
-                ["Inventario disponible", r["inventario_disponible"]],
-                ["Prendas con stock bajo", r["productos_stock_bajo"]],
-                ["Prendas agotadas", r["productos_agotados"]],
-            ],
-        ),
-    ]
+    secciones = [(
+        "Indicadores", ["Indicador", "Valor"],
+        [
+            ["Ventas completadas", v["cantidad_ventas"]],
+            ["Ingresos", _bs(v["ingresos"])],
+            ["Ticket promedio", _bs(v["ticket_promedio"])],
+            ["Unidades vendidas", v["unidades_vendidas"]],
+            ["Variación de ingresos", f"{variacion}%" if variacion is not None else "—"],
+            ["Reservas totales", r["total_reservas"]],
+            ["Inventario disponible", r["inventario_disponible"]],
+            ["Prendas con stock bajo", r["productos_stock_bajo"]],
+            ["Prendas agotadas", r["productos_agotados"]],
+        ],
+    )]
     if datos["ventas_por_sucursal"]:
-        secciones.append((
-            "Ventas por sucursal",
-            ["Sucursal", "Ventas", "Ingresos"],
-            [[s["nombre_sucursal"], s["cantidad_ventas"], _bs(s["ingresos"])] for s in datos["ventas_por_sucursal"]],
-        ))
+        secciones.append(("Ventas por sucursal", ["Sucursal", "Ventas", "Ingresos"],
+                          [[s["nombre_sucursal"], s["cantidad_ventas"], _bs(s["ingresos"])] for s in datos["ventas_por_sucursal"]]))
     if datos["ventas_por_categoria"]:
-        secciones.append((
-            "Ventas por categoría",
-            ["Categoría", "Unidades", "Ingresos"],
-            [[c["categoria"], c["unidades"], _bs(c["ingresos"])] for c in datos["ventas_por_categoria"]],
-        ))
+        secciones.append(("Ventas por categoría", ["Categoría", "Unidades", "Ingresos"],
+                          [[c["categoria"], c["unidades"], _bs(c["ingresos"])] for c in datos["ventas_por_categoria"]]))
     if datos["top_vendidos"]:
-        secciones.append((
-            "Productos más vendidos",
-            ["Producto", "Categoría", "Unidades", "Ingresos"],
-            [[p["nombre_producto"], p["nombre_categoria"] or "—", p["unidades"], _bs(p["ingresos"])]
-             for p in datos["top_vendidos"]],
-        ))
+        secciones.append(("Productos más vendidos", ["Producto", "Categoría", "Unidades", "Ingresos"],
+                          [[p["nombre_producto"], p["nombre_categoria"] or "—", p["unidades"], _bs(p["ingresos"])]
+                           for p in datos["top_vendidos"]]))
     dias = [d for d in datos["ventas_por_dia"] if d["cantidad"]]
     if dias:
-        secciones.append((
-            "Ventas por día",
-            ["Fecha", "Ventas", "Ingresos"],
-            [[d["fecha"], d["cantidad"], _bs(d["ingresos"])] for d in dias],
-        ))
+        secciones.append(("Ventas por día", ["Fecha", "Ventas", "Ingresos"],
+                          [[d["fecha"], d["cantidad"], _bs(d["ingresos"])] for d in dias]))
     if r["reservas_por_estado"]:
-        secciones.append((
-            "Reservas por estado",
-            ["Estado", "Cantidad"],
-            [[e["estado"].capitalize(), e["cantidad"]] for e in r["reservas_por_estado"]],
-        ))
-    if datos["top_reservados"]:
-        secciones.append((
-            "Productos más reservados",
-            ["Producto", "Unidades", "Reservas"],
-            [[p["nombre_producto"], p["total_unidades"], p["total_reservas"]] for p in datos["top_reservados"]],
-        ))
+        secciones.append(("Reservas por estado", ["Estado", "Cantidad"],
+                          [[e["estado"].capitalize(), e["cantidad"]] for e in r["reservas_por_estado"]]))
     if datos["alertas_stock"]:
-        secciones.append((
-            "Alertas de stock",
-            ["Prenda", "Sucursal", "Disponible", "Mínimo"],
-            [[a["nombre_producto"], a["nombre_sucursal"], a["cantidad_disponible"], a["stock_minimo"]]
-             for a in datos["alertas_stock"]],
-        ))
+        secciones.append(("Alertas de stock", ["Prenda", "Sucursal", "Disponible", "Mínimo"],
+                          [[a["nombre_producto"], a["nombre_sucursal"], a["cantidad_disponible"], a["stock_minimo"]]
+                           for a in datos["alertas_stock"]]))
     return secciones
 
 
-def _subtitulo(datos: dict) -> str:
+def _subtitulo_dashboard(datos: dict) -> str:
     empresa = f"{datos['empresa']} · " if datos.get("empresa") else ""
-    return (
-        f"{empresa}{datos['nombre_sucursal']} · últimos {datos['periodo_dias']} días · generado el "
-        f"{datetime.now(ZONA_HORARIA_LOCAL).strftime('%d/%m/%Y %H:%M')}"
-    )
+    return f"{empresa}{datos['nombre_sucursal']} · últimos {datos['periodo_dias']} días · generado el {_ahora()}"
 
 
-# ---------------------------------------------------------------- texto de la IA
-
-def _lineas_narrativa(narrativa: str) -> list[tuple[str, str]]:
-    """Convierte el markdown simple que devuelve la IA en (tipo, texto): titulo, vineta o parrafo."""
-    resultado = []
-    for cruda in narrativa.splitlines():
-        linea = cruda.strip()
-        if not linea:
-            continue
-        if linea.startswith("#"):
-            resultado.append(("titulo", linea.lstrip("#").strip()))
-        elif re.match(r"^([-*•]|\d+[.)])\s+", linea):
-            resultado.append(("vineta", re.sub(r"^([-*•]|\d+[.)])\s+", "", linea)))
-        else:
-            resultado.append(("parrafo", linea))
-    return resultado
+def generar_pdf(datos: dict, titulo: str) -> bytes:
+    buffer, e = BytesIO(), _estilos()
+    elementos = [Paragraph(escape(titulo), e["titulo"]), Paragraph(escape(_subtitulo_dashboard(datos)), e["sub"]),
+                 Spacer(1, 0.3 * cm)]
+    for nombre, encabezados, filas in _secciones_dashboard(datos):
+        elementos += [Paragraph(escape(nombre), e["seccion"]), _tabla(encabezados, filas)]
+    _documento(buffer, titulo).build(elementos)
+    return buffer.getvalue()
 
 
-def _negritas_pdf(texto: str) -> str:
-    """Escapa el texto (no es HTML confiable) y convierte **negrita** en <b>."""
-    return re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escape(texto))
+def _hoja(ws, titulo: str, subtitulo: str, encabezados: list[str], filas: list[list]) -> int:
+    """Escribe título, subtítulo y tabla con encabezado oscuro. Devuelve la fila del encabezado."""
+    ws["A1"] = titulo
+    ws["A1"].font = Font(bold=True, size=14, color=COLOR_HEADER)
+    ws["A2"] = subtitulo
+    ws["A2"].font = Font(italic=True, color=COLOR_MUTED)
+    ws.append([])
+    ws.append(encabezados)
+    fila_enc = ws.max_row
+    for col in range(1, len(encabezados) + 1):
+        celda = ws.cell(row=fila_enc, column=col)
+        celda.fill = PatternFill(start_color=COLOR_HEADER, end_color=COLOR_HEADER, fill_type="solid")
+        celda.font = Font(color="FFFFFF", bold=True)
+        celda.alignment = Alignment(horizontal="center")
+    for fila in filas:
+        ws.append(fila)
+    for col in range(1, len(encabezados) + 1):
+        anchos = [len(str(encabezados[col - 1]))] + [len(str(f[col - 1])) for f in filas]
+        ws.column_dimensions[get_column_letter(col)].width = min(max(anchos) + 4, 45)
+    return fila_enc
 
 
-def _sin_markdown(texto: str) -> str:
-    return re.sub(r"\*\*(.+?)\*\*", r"\1", texto)
-
-
-# ---------------------------------------------------------------- Excel
-
-def generar_excel(datos: dict, titulo: str, narrativa: str | None = None) -> bytes:
+def generar_excel(datos: dict, titulo: str) -> bytes:
     wb = Workbook()
-    header_fill = PatternFill(start_color=COLOR_HEADER, end_color=COLOR_HEADER, fill_type="solid")
-    header_font = Font(color="FFFFFF", bold=True)
-    title_font = Font(bold=True, size=14, color=COLOR_HEADER)
-    muted_font = Font(italic=True, color=COLOR_MUTED)
-
-    primera = True
-    if narrativa:
-        ws = wb.active
-        ws.title = "Reporte"
-        primera = False
-        ws["A1"] = titulo
-        ws["A1"].font = title_font
-        ws["A2"] = _subtitulo(datos)
-        ws["A2"].font = muted_font
-        ws.column_dimensions["A"].width = 110
-        fila = 4
-        for tipo, texto in _lineas_narrativa(narrativa):
-            celda = ws.cell(row=fila, column=1, value=("• " if tipo == "vineta" else "") + _sin_markdown(texto))
-            celda.alignment = Alignment(wrap_text=True, vertical="top")
-            if tipo == "titulo":
-                celda.font = Font(bold=True, size=12, color=COLOR_HEADER)
-                fila += 1
-            fila += 1
-
-    for nombre, encabezados, filas in _secciones(datos):
-        ws = wb.active if primera else wb.create_sheet(nombre[:31])
-        if primera:
-            ws.title = nombre[:31]
-            primera = False
-        ws["A1"] = nombre
-        ws["A1"].font = title_font
-        ws["A2"] = _subtitulo(datos)
-        ws["A2"].font = muted_font
-        ws.append([])
-        ws.append(encabezados)
-        fila_encabezado = ws.max_row
-        for col in range(1, len(encabezados) + 1):
-            celda = ws.cell(row=fila_encabezado, column=col)
-            celda.fill = header_fill
-            celda.font = header_font
-            celda.alignment = Alignment(horizontal="center")
-        for fila in filas:
-            ws.append(fila)
-        for col in range(1, len(encabezados) + 1):
-            anchos = [len(str(encabezados[col - 1]))] + [len(str(f[col - 1])) for f in filas]
-            ws.column_dimensions[get_column_letter(col)].width = min(max(anchos) + 4, 42)
-
+    for i, (nombre, encabezados, filas) in enumerate(_secciones_dashboard(datos)):
+        ws = wb.active if i == 0 else wb.create_sheet(nombre[:31])
+        ws.title = nombre[:31]
+        _hoja(ws, nombre if i else titulo, _subtitulo_dashboard(datos), encabezados, filas)
     buffer = BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
 
 
-# ---------------------------------------------------------------- PDF
+# ======================================================================
+# Reporte solicitado (CU14)
+# ======================================================================
 
-def generar_pdf(datos: dict, titulo: str, narrativa: str | None = None) -> bytes:
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=letter,
-        topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm,
-        leftMargin=1.5 * cm,
-        rightMargin=1.5 * cm,
-        title=titulo,
-    )
+def _valor(col: dict, valor) -> str:
+    if col["tipo"] == "moneda":
+        return _bs(float(valor))
+    if col["tipo"] == "numero":
+        return f"{valor:,}" if isinstance(valor, int) else f"{valor:,.2f}"
+    return str(valor)
 
-    styles = getSampleStyleSheet()
-    titulo_style = ParagraphStyle("TituloReporte", parent=styles["Title"], textColor=colors.HexColor(f"#{COLOR_HEADER}"))
-    subtitulo_style = ParagraphStyle(
-        "Subtitulo", parent=styles["Normal"], textColor=colors.HexColor(f"#{COLOR_MUTED}"), spaceAfter=6
-    )
-    seccion_style = ParagraphStyle(
-        "Seccion", parent=styles["Heading2"], textColor=colors.HexColor(f"#{COLOR_HEADER}"), spaceBefore=14, spaceAfter=6
-    )
-    parrafo_style = ParagraphStyle("Parrafo", parent=styles["Normal"], fontSize=10, leading=14, spaceAfter=4)
-    vineta_style = ParagraphStyle("Vineta", parent=parrafo_style, leftIndent=12, bulletIndent=2)
 
-    def _tabla(encabezados: list[str], filas: list[list]) -> Table:
-        tabla = Table([encabezados] + [[str(c) for c in f] for f in filas], repeatRows=1)
-        tabla.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{COLOR_HEADER}")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 9),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(f"#{COLOR_ZEBRA}")]),
-                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("TOPPADDING", (0, 0), (-1, -1), 6),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                ]
-            )
-        )
-        return tabla
+def _grafico_pdf(resultado: dict) -> Drawing | None:
+    filas, medida = resultado["filas"], resultado["medida"]
+    if not filas:
+        return None
+    etiquetas = [str(f["etiqueta"])[:28] for f in filas]
+    valores = [float(f[medida]) for f in filas]
+    tipo = resultado["grafico"]
+    if tipo == "torta":
+        # Más de 6 porciones no se leen: el resto se agrupa en "Otros".
+        if len(valores) > 6:
+            etiquetas, valores = etiquetas[:5] + ["Otros"], valores[:5] + [sum(valores[5:])]
+        d = Drawing(460, 200)
+        pie = Pie()
+        pie.x, pie.y, pie.width, pie.height = 30, 15, 170, 170
+        pie.data, pie.labels = valores, None
+        pie.slices.strokeColor, pie.slices.strokeWidth = colors.white, 1.5
+        for i in range(len(valores)):
+            pie.slices[i].fillColor = colors.HexColor(f"#{PALETA[i % len(PALETA)]}")
+        d.add(pie)
+        total = sum(valores) or 1
+        for i, (etq, val) in enumerate(zip(etiquetas, valores)):
+            y = 175 - i * 22
+            d.add(Rect(230, y, 10, 10, fillColor=colors.HexColor(f"#{PALETA[i % len(PALETA)]}"), strokeColor=None))
+            d.add(String(246, y + 1, f"{etq} — {val / total * 100:.0f}%", fontSize=9, fillColor=colors.HexColor("#374151")))
+        return d
+    if tipo == "lineas":
+        d = Drawing(500, 200)
+        lc = HorizontalLineChart()
+        lc.x, lc.y, lc.width, lc.height = 45, 30, 430, 150
+        lc.data = [valores]
+        paso = max(1, len(etiquetas) // 8)
+        lc.categoryAxis.categoryNames = [e if i % paso == 0 else "" for i, e in enumerate(etiquetas)]
+        lc.categoryAxis.labels.fontSize, lc.valueAxis.labels.fontSize = 7, 7
+        lc.categoryAxis.labels.angle, lc.categoryAxis.labels.dy = 30, -8
+        lc.valueAxis.valueMin = 0
+        lc.lines[0].strokeColor, lc.lines[0].strokeWidth = colors.HexColor(f"#{COLOR_MARCA}"), 2
+        d.add(lc)
+        return d
+    # barras horizontales: etiquetas largas (productos, sucursales) se leen mejor
+    alto = max(120, 22 * len(valores) + 30)
+    d = Drawing(500, alto)
+    bc = HorizontalBarChart()
+    bc.x, bc.y, bc.width, bc.height = 150, 15, 320, alto - 30
+    bc.data = [list(reversed(valores))]
+    bc.categoryAxis.categoryNames = list(reversed(etiquetas))
+    bc.categoryAxis.labels.fontSize, bc.valueAxis.labels.fontSize = 8, 7
+    bc.valueAxis.valueMin = 0
+    bc.bars[0].fillColor, bc.bars[0].strokeColor = colors.HexColor(f"#{COLOR_MARCA}"), None
+    bc.barSpacing = 2
+    d.add(bc)
+    return d
 
-    elementos = [
-        Paragraph(escape(titulo), titulo_style),
-        Paragraph(escape(_subtitulo(datos)), subtitulo_style),
-        Spacer(1, 0.3 * cm),
+
+def _tabla_consulta(resultado: dict) -> tuple[list[str], list[list]]:
+    cols = resultado["columnas"]
+    filas = [[_valor(c, f[c["clave"]]) for c in cols] for f in resultado["filas"]]
+    if resultado["totales"]:
+        filas.append(["Total"] + [_valor(c, resultado["totales"][c["clave"]]) if c["clave"] in resultado["totales"] else ""
+                                  for c in cols[1:]])
+    return [c["titulo"] for c in cols], filas
+
+
+def exportar_consulta_pdf(resultado: dict, empresa_nombre: str, logo_url: str | None) -> bytes:
+    buffer, e = BytesIO(), _estilos()
+    elementos = []
+    logo = _logo(logo_url)
+    if logo:
+        elementos.append(logo)
+    elementos += [
+        Paragraph(escape(resultado["titulo"]), e["titulo"]),
+        Paragraph(escape(f"{empresa_nombre} · generado el {_ahora()}"), e["sub"]),
+        Paragraph(escape(" · ".join(resultado["filtros_aplicados"])), e["sub"]),
     ]
+    if resultado.get("solicitud"):
+        elementos.append(Paragraph(f"Solicitud: <i>{escape(resultado['solicitud'])}</i>", e["sub"]))
+    grafico = _grafico_pdf(resultado)
+    if grafico:
+        elementos += [Spacer(1, 0.4 * cm), grafico]
+    encabezados, filas = _tabla_consulta(resultado)
+    elementos += [Paragraph("Detalle", e["seccion"]), _tabla(encabezados, filas, negrita_ultima=bool(resultado["totales"]))]
+    _documento(buffer, resultado["titulo"]).build(elementos)
+    return buffer.getvalue()
 
-    if narrativa:
-        for tipo, texto in _lineas_narrativa(narrativa):
-            if tipo == "titulo":
-                elementos.append(Paragraph(_negritas_pdf(texto), seccion_style))
-            elif tipo == "vineta":
-                elementos.append(Paragraph(_negritas_pdf(texto), vineta_style, bulletText="•"))
-            else:
-                elementos.append(Paragraph(_negritas_pdf(texto), parrafo_style))
-        elementos.append(Paragraph("Datos del período", seccion_style))
 
-    for nombre, encabezados, filas in _secciones(datos):
-        elementos.append(Paragraph(escape(nombre), seccion_style))
-        elementos.append(_tabla(encabezados, filas))
+def exportar_consulta_excel(resultado: dict, empresa_nombre: str) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Reporte"
+    encabezados, _ = _tabla_consulta(resultado)
+    cols = resultado["columnas"]
+    # En Excel van los números reales (no texto formateado) para que se puedan sumar y graficar.
+    filas = [[f[c["clave"]] for c in cols] for f in resultado["filas"]]
+    subtitulo = f"{empresa_nombre} · {' · '.join(resultado['filtros_aplicados'])} · generado el {_ahora()}"
+    fila_enc = _hoja(ws, resultado["titulo"], subtitulo, encabezados, filas)
+    primera, ultima = fila_enc + 1, fila_enc + len(filas)
+    for i, c in enumerate(cols, start=1):
+        if c["tipo"] == "moneda":
+            for fila in range(primera, ultima + 1):
+                ws.cell(row=fila, column=i).number_format = '"Bs" #,##0.00'
+    if resultado["totales"]:
+        ws.append(["Total"] + [resultado["totales"].get(c["clave"], "") for c in cols[1:]])
+        for celda in ws[ws.max_row]:
+            celda.font = Font(bold=True)
 
-    doc.build(elementos)
+    if filas:
+        col_medida = next(i for i, c in enumerate(cols, start=1) if c["clave"] == resultado["medida"])
+        datos_ref = Reference(ws, min_col=col_medida, min_row=fila_enc, max_row=ultima)
+        etiquetas_ref = Reference(ws, min_col=1, min_row=primera, max_row=ultima)
+        tipo = resultado["grafico"]
+        chart = PieChart() if tipo == "torta" else LineChart() if tipo == "lineas" else BarChart()
+        if isinstance(chart, BarChart):
+            chart.type = "bar"
+        chart.title = resultado["titulo"]
+        chart.add_data(datos_ref, titles_from_data=True)
+        chart.set_categories(etiquetas_ref)
+        chart.height, chart.width = 9, 18
+        ws.add_chart(chart, f"{get_column_letter(len(cols) + 2)}{fila_enc}")
+
+    buffer = BytesIO()
+    wb.save(buffer)
     return buffer.getvalue()

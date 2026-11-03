@@ -21,6 +21,8 @@ class Empresa(Base):
     email = Column(String(150), nullable=True)
     telefono = Column(String(50), nullable=True)
     direccion = Column(String(255), nullable=True)
+    # RF-22: logotipo que encabeza los reportes exportados (URL pública de una imagen PNG/JPG).
+    logo_url = Column(String(500), nullable=True)
     activa = Column(Boolean, default=True, nullable=False)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -40,6 +42,8 @@ class Plan(Base):
     max_sucursales = Column(Integer, nullable=True)
     max_usuarios = Column(Integer, nullable=True)
     max_productos = Column(Integer, nullable=True)
+    # RN-05: reportes generativos con IA y analítica con Machine Learning.
+    incluye_ia = Column(Boolean, default=False, nullable=False)
     activo = Column(Boolean, default=True, nullable=False)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -1,0 +1,84 @@
+@switch (forma()) {
+  @case ('barras') {
+    <ul class="barras" role="list">
+      @for (p of puntos(); track p.etiqueta; let i = $index) {
+        <li
+          (mouseenter)="hover.set(i)"
+          (mouseleave)="hover.set(null)"
+          [class.atenuada]="hover() !== null && hover() !== i"
+        >
+          <span class="b-etiqueta" [title]="p.etiqueta">{{ fechaCorta(p.etiqueta) }}</span>
+          <span class="b-track"><span class="b-barra" [style.width.%]="(p.valor / max()) * 100"></span></span>
+          <span class="b-valor">{{ fmt(p.valor) }}</span>
+        </li>
+      }
+    </ul>
+  }
+
+  @case ('lineas') {
+    <div class="lineas" (mouseleave)="hover.set(null)">
+      <svg [attr.viewBox]="'0 0 ' + ancho + ' ' + alto" role="img" [attr.aria-label]="etiquetaMedida + ' por día'">
+        @for (g of guias(); track g.y) {
+          <line class="guia" [attr.x1]="margen.izq" [attr.x2]="ancho - margen.der" [attr.y1]="g.y" [attr.y2]="g.y" />
+          <text class="eje" [attr.x]="margen.izq - 6" [attr.y]="g.y + 3" text-anchor="end">{{ fmtCorto(g.valor) }}</text>
+        }
+        <path class="area" [attr.d]="area()" />
+        <path class="linea" [attr.d]="linea()" />
+        @for (c of coords(); track c.etiqueta; let i = $index) {
+          @if (i % pasoEtiquetas() === 0) {
+            <text class="eje" [attr.x]="c.x" [attr.y]="alto - 8" text-anchor="middle">{{ fechaCorta(c.etiqueta) }}</text>
+          }
+          <!-- franja invisible más ancha que el punto: el hover no exige puntería -->
+          <rect
+            class="hit"
+            [attr.x]="c.x - (ancho - margen.izq - margen.der) / (coords().length * 2)"
+            [attr.y]="margen.arr"
+            [attr.width]="(ancho - margen.izq - margen.der) / coords().length"
+            [attr.height]="alto - margen.arr - margen.aba"
+            (mouseenter)="hover.set(i)"
+          />
+        }
+        @if (hover() !== null) {
+          <line class="cursor" [attr.x1]="coords()[hover()!].x" [attr.x2]="coords()[hover()!].x"
+                [attr.y1]="margen.arr" [attr.y2]="alto - margen.aba" />
+          <circle class="punto" [attr.cx]="coords()[hover()!].x" [attr.cy]="coords()[hover()!].y" r="5" />
+        }
+      </svg>
+      @if (hover() !== null) {
+        <div class="tooltip" [style.left.%]="(coords()[hover()!].x / ancho) * 100"
+             [class.izq]="hover()! > coords().length * 0.7" [class.der]="hover()! < coords().length * 0.3">
+          <span class="tt-fecha">{{ fechaCorta(coords()[hover()!].etiqueta) }}</span>
+          <span class="tt-valor">{{ fmt(coords()[hover()!].valor) }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  @case ('torta') {
+    <div class="torta">
+      <svg viewBox="0 0 200 200" role="img" [attr.aria-label]="'Distribución de ' + etiquetaMedida">
+        @for (p of porciones(); track p.etiqueta) {
+          <path
+            [attr.d]="p.camino"
+            class="porcion"
+            [style.--c-claro]="colorClaro(p.indice)"
+            [style.--c-oscuro]="colorOscuro(p.indice)"
+            [class.atenuada]="hover() !== null && hover() !== p.indice"
+            (mouseenter)="hover.set(p.indice)"
+            (mouseleave)="hover.set(null)"
+          />
+        }
+      </svg>
+      <ul class="leyenda">
+        @for (p of porciones(); track p.etiqueta) {
+          <li (mouseenter)="hover.set(p.indice)" (mouseleave)="hover.set(null)" [class.activa]="hover() === p.indice">
+            <span class="muestra" [style.--c-claro]="colorClaro(p.indice)" [style.--c-oscuro]="colorOscuro(p.indice)"></span>
+            <span class="l-etiqueta">{{ p.etiqueta }}</span>
+            <span class="l-pct">{{ p.pct | number: '1.0-0' }}%</span>
+            <span class="l-valor">{{ fmt(p.valor) }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+}

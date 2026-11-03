@@ -76,12 +76,69 @@ export interface Dashboard {
 
 // ---------- Reporte generativo (CU14) ----------
 
-export interface ReporteGenerativo {
+export type Grafico = 'barras' | 'lineas' | 'torta';
+
+export interface TipoReporte {
+  id: string;
   titulo: string;
-  contenido: string;
-  generado_con_ia: boolean;
-  periodo_dias: number;
-  nombre_sucursal: string;
-  generado_en: string;
-  sugerencias: string[];
+  descripcion: string;
+  usa_fechas: boolean;
+  usa_categorias: boolean;
+  usa_productos: boolean;
+  usa_limite: boolean;
+  grafico: Grafico;
+}
+
+export interface CatalogoReportes {
+  tipos: TipoReporte[];
+  ejemplos: string[];
+  plan_incluye_ia: boolean;
+}
+
+export interface IntencionReporte {
+  tipo: string;
+  fecha_inicio?: string | null;
+  fecha_fin?: string | null;
+  sucursal_ids?: number[] | null;
+  categoria_ids?: number[] | null;
+  producto_ids?: number[] | null;
+  limite?: number | null;
+  grafico?: Grafico | null;
+}
+
+export interface ColumnaReporte {
+  clave: string;
+  titulo: string;
+  tipo: 'texto' | 'numero' | 'moneda' | 'fecha';
+}
+
+export type EstadoReporte = 'ok' | 'sin_datos' | 'aclaracion' | 'no_soportado' | 'ia_no_disponible' | 'plan_sin_ia';
+
+export interface ResultadoReporte {
+  estado: EstadoReporte;
+  mensaje: string | null;
+  ejemplos?: string[];
+  pregunta?: string;
+  tipo?: string;
+  titulo?: string;
+  filtros_aplicados?: string[];
+  descartados?: string[];
+  intencion?: IntencionReporte & { descartados?: string[] };
+  columnas?: ColumnaReporte[];
+  filas?: Record<string, any>[];
+  totales?: Record<string, number>;
+  grafico?: Grafico;
+  medida?: string;
+  generado_en?: string;
+  origen?: 'ia' | 'manual';
+}
+
+export interface HistorialReporte {
+  id: number;
+  solicitud: string | null;
+  origen: 'ia' | 'manual';
+  tipo: string;
+  titulo: string;
+  intencion: IntencionReporte;
+  creado_en: string;
 }

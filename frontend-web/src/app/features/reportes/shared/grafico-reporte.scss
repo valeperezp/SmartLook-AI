@@ -1,0 +1,236 @@
+:host {
+  --chart-mark: #a34353;
+  --chart-mark-hover: #7c2635;
+  --chart-track: rgba(70, 45, 30, 0.07);
+  --chart-grid: rgba(70, 45, 30, 0.12);
+  display: block;
+}
+
+:host-context([data-theme='dark']) {
+  --chart-mark: #d06a7a;
+  --chart-mark-hover: #e48c9a;
+  --chart-track: rgba(255, 255, 255, 0.06);
+  --chart-grid: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- barras horizontales ---------- */
+.barras {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(0, 13rem) 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    transition: opacity 0.15s ease;
+
+    &.atenuada {
+      opacity: 0.5;
+    }
+
+    @media (max-width: 520px) {
+      grid-template-columns: 1fr auto;
+
+      .b-track {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+    }
+  }
+}
+
+.b-etiqueta {
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.b-track {
+  height: 12px;
+  background: var(--chart-track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.b-barra {
+  display: block;
+  height: 100%;
+  background: var(--chart-mark);
+  border-radius: 0 4px 4px 0;
+  transition: width 0.3s ease;
+}
+
+.b-valor {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ---------- líneas ---------- */
+.lineas {
+  position: relative;
+
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+}
+
+.guia {
+  stroke: var(--chart-grid);
+  stroke-dasharray: 3 3;
+}
+
+.eje {
+  font-size: 10px;
+  fill: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.area {
+  fill: var(--chart-mark);
+  opacity: 0.1;
+}
+
+.linea {
+  fill: none;
+  stroke: var(--chart-mark);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.hit {
+  fill: transparent;
+}
+
+.cursor {
+  stroke: var(--border-strong);
+}
+
+.punto {
+  fill: var(--chart-mark-hover);
+  stroke: var(--surface-solid);
+  stroke-width: 2;
+}
+
+.tooltip {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, -6px);
+  background: var(--surface-solid);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 0.4rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  white-space: nowrap;
+
+  &.izq {
+    transform: translate(-100%, -6px);
+  }
+
+  &.der {
+    transform: translate(0, -6px);
+  }
+}
+
+.tt-fecha {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.tt-valor {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- torta ---------- */
+.torta {
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) 1fr;
+  gap: 1.5rem;
+  align-items: center;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  svg {
+    width: 100%;
+    max-width: 220px;
+  }
+}
+
+.porcion,
+.muestra {
+  --c: var(--c-claro);
+}
+
+:host-context([data-theme='dark']) .porcion,
+:host-context([data-theme='dark']) .muestra {
+  --c: var(--c-oscuro);
+}
+
+.porcion {
+  fill: var(--c);
+  stroke: var(--surface-solid);
+  stroke-width: 2;
+  transition: opacity 0.15s ease;
+
+  &.atenuada {
+    opacity: 0.35;
+  }
+}
+
+.leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  width: 100%;
+
+  li {
+    display: grid;
+    grid-template-columns: 12px 1fr auto auto;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: var(--radius-sm);
+
+    &.activa {
+      background: var(--chart-track);
+    }
+  }
+}
+
+.muestra {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--c);
+}
+
+.l-pct {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.l-valor {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 6rem;
+  text-align: right;
+}

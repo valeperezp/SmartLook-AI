@@ -152,6 +152,172 @@
     }
   </section>
 
+  <!-- ===================== Analítica con Machine Learning (CU15) ===================== -->
+  <section class="ml" aria-labelledby="titulo-ml">
+    <header class="ml-head">
+      <div>
+        <h2 id="titulo-ml"><app-icon name="sparkles" [size]="18" /> Analítica con Machine Learning</h2>
+        <p class="muted">Predicción de demanda y segmentación de clientes, entrenadas con los datos de tu empresa.</p>
+      </div>
+      @if (isAdmin() && !mlBloqueado() && ml()?.entrenado) {
+        <button type="button" class="btn-secondary" [disabled]="entrenando()" (click)="entrenar()">
+          {{ entrenando() ? 'Entrenando…' : 'Reentrenar modelos' }}
+        </button>
+      }
+    </header>
+
+    @if (mlBloqueado()) {
+      <div class="card ml-aviso">
+        <app-icon name="alert-circle" [size]="18" />
+        <span>{{ mlBloqueado() }}. Mejorá el plan desde <b>Mi suscripción</b> para ver predicciones y segmentos.</span>
+      </div>
+    } @else if (mlError()) {
+      <div class="card ml-aviso error">{{ mlError() }}</div>
+    } @else if (ml() && !ml()!.entrenado) {
+      <div class="card ml-aviso">
+        <span>Todavía no hay modelos entrenados para tu empresa.</span>
+        @if (isAdmin()) {
+          <button type="button" class="btn-primary" [disabled]="entrenando()" (click)="entrenar()">
+            {{ entrenando() ? 'Entrenando… (unos segundos)' : 'Entrenar modelos' }}
+          </button>
+        } @else {
+          <span class="muted">Pedile al administrador que los entrene.</span>
+        }
+      </div>
+    } @else if (ml(); as m) {
+      @if (m.demanda; as dem) {
+        <section class="card panel">
+          <header class="panel-head">
+            <h2>Demanda: últimos 30 días y próximos 30</h2>
+            <ul class="leyenda-ml" aria-label="Leyenda">
+              <li><span class="muestra real"></span> Real</li>
+              <li><span class="muestra pred"></span> Predicción</li>
+            </ul>
+          </header>
+          <p class="interpretacion"><app-icon name="sparkles" [size]="15" /> {{ dem.interpretacion }}</p>
+
+          <div class="columnas-chart demanda" (mouseleave)="hoverDemanda.set(null)">
+            <div class="eje-y" aria-hidden="true">
+              <span [style.bottom.%]="100">{{ num(maxDemanda()) }} u.</span>
+              <span [style.bottom.%]="50">{{ num(maxDemanda() / 2) }}</span>
+              <span style="bottom: 0">0</span>
+            </div>
+            <div class="area" role="img" [attr.aria-label]="'Unidades por día: ' + dem.ultimos_30 + ' en los últimos 30 días y ' + dem.proximos_30 + ' previstas'">
+              <div class="guia" style="bottom: 100%"></div>
+              <div class="guia" style="bottom: 50%"></div>
+              <div class="corte" [style.left.%]="(inicioPrediccion() / serieDemanda().length) * 100"><span>hoy</span></div>
+              <div class="barras densas">
+                @for (p of serieDemanda(); track p.fecha; let i = $index) {
+                  <div class="col" [class.activa]="hoverDemanda() === i" [class.atenuada]="hoverDemanda() !== null && hoverDemanda() !== i"
+                       (mouseenter)="hoverDemanda.set(i)" (focus)="hoverDemanda.set(i)" tabindex="0"
+                       [attr.aria-label]="fechaCorta(p.fecha) + ': ' + p.unidades + ' unidades' + (p.predicho ? ' (predicción)' : '')">
+                    <div class="barra" [class.predicha]="p.predicho" [style.height.%]="(p.unidades / maxDemanda()) * 100"></div>
+                  </div>
+                }
+              </div>
+              @if (puntoDemanda(); as h) {
+                <div class="tooltip" [style.left.%]="((hoverDemanda()! + 0.5) / serieDemanda().length) * 100"
+                     [class.izq]="hoverDemanda()! > serieDemanda().length * 0.7" [class.der]="hoverDemanda()! < serieDemanda().length * 0.3">
+                  <span class="tt-fecha">{{ fechaLarga(h.fecha) }}</span>
+                  <span class="tt-valor">{{ num(h.unidades) }} unidades</span>
+                  <span class="tt-sub">{{ h.predicho ? 'Predicción del modelo' : 'Ventas reales' }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Categoría</th><th class="num">Últimos 30 días</th><th class="num">Próximos 30 (predicción)</th><th class="num">Variación</th></tr>
+              </thead>
+              <tbody>
+                @for (c of dem.por_categoria; track c.categoria) {
+                  <tr>
+                    <td>{{ c.categoria }}</td>
+                    <td class="num">{{ num(c.ultimos_30) }}</td>
+                    <td class="num">{{ num(c.proximos_30) }}</td>
+                    <td class="num" [class.sube]="(c.variacion_pct ?? 0) > 0" [class.baja]="(c.variacion_pct ?? 0) < 0">
+                      {{ c.variacion_pct === null ? '—' : (c.variacion_pct > 0 ? '▲ +' : c.variacion_pct < 0 ? '▼ ' : '') + c.variacion_pct + '%' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      @if (m.segmentos; as seg) {
+        <section class="card panel">
+          <header class="panel-head"><h2>Segmentos de clientes</h2></header>
+          <p class="interpretacion"><app-icon name="sparkles" [size]="15" /> {{ seg.interpretacion }}</p>
+          <ng-container *ngTemplateOutlet="ranking; context: { filas: segmentosFilas() }" />
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Segmento</th><th class="num">Clientes</th><th class="num">% ingresos</th>
+                  <th class="num">Última compra (días)</th><th class="num">Compras</th><th class="num">Gasto medio</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of seg.segmentos; track s.segmento) {
+                  <tr>
+                    <td><b>{{ s.segmento }}</b><div class="muted">{{ s.descripcion }}</div></td>
+                    <td class="num">{{ s.clientes }}</td>
+                    <td class="num">{{ s.pct_ingresos }}%</td>
+                    <td class="num">{{ metrica(s.recencia_media, 0) }}</td>
+                    <td class="num">{{ metrica(s.frecuencia_media, 1) }}</td>
+                    <td class="num">{{ s.monto_medio === null ? '—' : bs(s.monto_medio) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      <section class="card panel">
+        <header class="panel-head"><h2>Métricas de los modelos</h2></header>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Modelo</th><th>Evaluación</th><th>Datos</th><th>Entrenado</th></tr>
+            </thead>
+            <tbody>
+              @if (modeloDemanda(); as md) {
+                <tr>
+                  <td><b>Predicción de demanda</b><div class="muted">{{ md.algoritmo }} · supervisado · v{{ md.version }}</div></td>
+                  <td>
+                    MAE {{ metrica(md.metricas['mae']) }} · RMSE {{ metrica(md.metricas['rmse']) }} · R² {{ metrica(md.metricas['r2'], 3) }}
+                    <div class="muted">Total diario: MAE {{ metrica(md.metricas['mae_diario_total'], 1) }} u. · R² {{ metrica(md.metricas['r2_diario_total'], 3) }}</div>
+                  </td>
+                  <td>
+                    {{ md.metricas['dias_reales'] }} días reales + {{ num(md.metricas['filas_sinteticas']) }} filas sintéticas
+                    <div class="muted">Prueba: últimos {{ md.metricas['dias_prueba'] }} días (no vistos al entrenar)</div>
+                  </td>
+                  <td>{{ md.entrenado_en | date: 'dd/MM/yyyy HH:mm' }}</td>
+                </tr>
+              }
+              @if (modeloSegmentos(); as ms) {
+                <tr>
+                  <td><b>Segmentación de clientes</b><div class="muted">{{ ms.algoritmo }} (RFM) · no supervisado · v{{ ms.version }}</div></td>
+                  <td>
+                    Coeficiente de silueta {{ metrica(ms.metricas['silueta'], 3) }} · k = {{ ms.metricas['k'] }}
+                    <div class="muted">Se probó k de 2 a 5 y se eligió el de mejor silueta</div>
+                  </td>
+                  <td>{{ ms.metricas['clientes_reales'] }} clientes reales + {{ ms.metricas['clientes_sinteticos'] }} sintéticos</td>
+                  <td>{{ ms.entrenado_en | date: 'dd/MM/yyyy HH:mm' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  </section>
+
   <div class="grilla">
     @if (porSucursal().length) {
       <section class="card panel">

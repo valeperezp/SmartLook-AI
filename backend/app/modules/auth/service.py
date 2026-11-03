@@ -32,17 +32,36 @@ def _empresa_por_slug_o_404(db: Session, slug: str) -> Empresa:
     return empresa
 
 
-def validar_acceso_empresa(db: Session, usuario: Usuario) -> None:
-    """403 si la empresa del usuario está dada de baja o sin suscripción vigente."""
+_METODOS_DE_LECTURA = {"GET", "HEAD", "OPTIONS"}
+# POST que no modifican datos (generar/exportar reportes, chat) o que sirven para regularizar la suscripción.
+_RUTAS_PERMITIDAS_SOLO_LECTURA = ("/mi-empresa/suscripcion", "/reportes/", "/ia/chat")
+
+
+def validar_acceso_empresa(db: Session, usuario: Usuario, metodo: str = "GET", ruta: str = "") -> None:
+    """Reglas de acceso por estado de la empresa y su suscripción.
+
+    - Empresa dada de baja, suscripción suspendida o cancelada: no puede iniciar sesión (RN-06).
+    - Suscripción vencida: inicia sesión, pero solo puede consultar (RN-06).
+    """
     if usuario.rol == ROL_SUPERADMIN:
         return
     empresa = usuario.empresa
     if empresa is None or not empresa.activa:
         raise HTTPException(status_code=403, detail="La empresa no está habilitada en la plataforma")
-    if empresas_service.suscripcion_vigente(db, empresa.id) is None:
+    suscripcion = empresas_service.suscripcion_actual(db, empresa.id)
+    if suscripcion is None or suscripcion.estado != "activa":
         raise HTTPException(
             status_code=403,
-            detail="La suscripción de la empresa no está vigente. Contactá al administrador.",
+            detail="La suscripción de la empresa está suspendida. Contactá al administrador de la plataforma.",
+        )
+    if (
+        empresas_service.esta_vencida(suscripcion)
+        and metodo not in _METODOS_DE_LECTURA
+        and not ruta.startswith(_RUTAS_PERMITIDAS_SOLO_LECTURA)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="La suscripción de la empresa venció: solo podés consultar información hasta renovarla.",
         )
 
 
@@ -90,7 +109,9 @@ def emitir_token(usuario: Usuario) -> str:
     )
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Usuario:
+def get_current_user(
+    request: Request, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+) -> Usuario:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudo validar la sesión",
@@ -111,7 +132,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     # Un token emitido para otra empresa (o antes de un cambio de empresa) ya no sirve.
     if payload.get("empresa_id") != usuario.empresa_id:
         raise credentials_exception
-    validar_acceso_empresa(db, usuario)
+    validar_acceso_empresa(db, usuario, request.method, request.url.path)
     return usuario
 
 
@@ -137,7 +158,7 @@ def empresa_contexto(
     3. Si no viene nada: la tienda por defecto (la app móvil de clientes).
     """
     if token:
-        usuario = get_current_user(token, db)
+        usuario = get_current_user(request, token, db)
         if usuario.empresa_id is not None:
             return usuario.empresa_id
     slug = request.headers.get("X-Empresa") or settings.empresa_por_defecto

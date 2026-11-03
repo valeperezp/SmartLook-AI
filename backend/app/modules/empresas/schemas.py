@@ -17,6 +17,7 @@ class PlanBase(BaseModel):
     max_sucursales: int | None = Field(default=None, ge=1)
     max_usuarios: int | None = Field(default=None, ge=1)
     max_productos: int | None = Field(default=None, ge=1)
+    incluye_ia: bool = False
 
 
 class PlanCreate(PlanBase):
@@ -30,6 +31,7 @@ class PlanUpdate(BaseModel):
     max_sucursales: int | None = Field(default=None, ge=1)
     max_usuarios: int | None = Field(default=None, ge=1)
     max_productos: int | None = Field(default=None, ge=1)
+    incluye_ia: bool | None = None
     activo: bool | None = None
 
 
@@ -82,6 +84,7 @@ class EmpresaBase(BaseModel):
     email: str | None = None
     telefono: str | None = None
     direccion: str | None = None
+    logo_url: str | None = Field(default=None, max_length=500)
 
 
 class AdminInicial(BaseModel):
@@ -103,6 +106,7 @@ class EmpresaUpdate(BaseModel):
     email: str | None = None
     telefono: str | None = None
     direccion: str | None = None
+    logo_url: str | None = Field(default=None, max_length=500)
     activa: bool | None = None
 
 
@@ -118,6 +122,11 @@ class EmpresaDetalle(EmpresaOut):
     suscripcion: SuscripcionOut | None = None
     suscripcion_vigente: bool
     uso: UsoEmpresa
+    # RN-08: días que faltan para el vencimiento (negativo = ya venció; None = sin vencimiento).
+    dias_para_vencer: int | None = None
+    aviso_vencimiento: bool = False
+    # RN-06: con la suscripción vencida la empresa solo puede consultar.
+    solo_lectura: bool = False
 
 
 class EmpresaPublica(BaseModel):

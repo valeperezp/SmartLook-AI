@@ -34,7 +34,10 @@ from app.modules.promociones.router import router as promociones_router
 from app.modules.vestidor.router import router as vestidor_router
 from app.modules.empresas.router import empresas_router, mi_empresa_router, planes_router
 from app.modules.transferencias.router import router as transferencias_router
+from app.modules.analitica_ml.router import router as analitica_router
 
+import app.modules.analitica_ml.models
+import app.modules.reportes.models
 import app.modules.empresas.models
 import app.modules.transferencias.models
 import app.modules.usuarios.models
@@ -94,6 +97,7 @@ app.include_router(ventas_router)
 app.include_router(pagos_router)
 app.include_router(ia_router)
 app.include_router(reportes_router)
+app.include_router(analitica_router)
 app.include_router(promociones_router)
 app.include_router(vestidor_router)
 

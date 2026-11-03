@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # Chatbot (CU21) — modelo local vía Ollama, corriendo en la máquina host (no en Docker).
     ollama_base_url: str = "http://host.docker.internal:11434"
-    ollama_model: str = "llama3.2:1b"
+    ollama_model: str = "llama3.2:latest"
 
     # Supabase Storage — subida de imágenes de productos. La service_role key SOLO se usa
     # en el backend (bypassa RLS); nunca debe exponerse al frontend.

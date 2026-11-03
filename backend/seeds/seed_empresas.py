@@ -14,6 +14,8 @@ Todos los usuarios de prueba usan la contraseña: Demo1234!
 """
 import random
 import sys
+
+import numpy as np
 from datetime import datetime, timedelta
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -76,15 +78,16 @@ def suscribir(empresa, plan, fecha_inicio, fecha_fin=None):
 
 print("== Planes (CU3)")
 planes = {}
-for nombre, desc, precio, max_suc, max_usr, max_prod in [
-    ("Básico", "Para una tienda que recién empieza", 199, 1, 5, 50),
-    ("Profesional", "Varias sucursales y equipo completo", 499, 3, 20, 500),
-    ("Empresarial", "Sin límites", 999, None, None, None),
+# RN-04: Básico hasta 2 sucursales, Profesional hasta 10. RN-05: IA solo en Profesional (y superiores).
+for nombre, desc, precio, max_suc, max_usr, max_prod, ia in [
+    ("Básico", "Para una tienda que recién empieza", 199, 2, 5, 50, False),
+    ("Profesional", "Varias sucursales, reportes con IA y analítica", 499, 10, 20, 500, True),
+    ("Empresarial", "Sin límites", 999, None, None, None, True),
 ]:
     plan, creado = get_or_create(
         Plan, nombre=nombre,
         defaults={"descripcion": desc, "precio_mensual": precio, "max_sucursales": max_suc,
-                  "max_usuarios": max_usr, "max_productos": max_prod},
+                  "max_usuarios": max_usr, "max_productos": max_prod, "incluye_ia": ia},
     )
     planes[nombre] = plan
     print(f"  {'[+]' if creado else '[=]'} {nombre}")
@@ -217,7 +220,43 @@ for i, p in enumerate(ps):
 for i, p in enumerate(pu):
     stock(p, suc_urban, "M", "Negro", [12, 3, 20][i], vendida=4)
 
-print("== Historial de ventas y reservas (45 días, para el dashboard)")
+DIAS_HISTORIAL = 60
+# Lunes..domingo: el fin de semana se vende bastante más (patrón que el modelo de demanda debe aprender).
+FACTOR_DIA_SEMANA = [0.7, 0.75, 0.85, 0.95, 1.3, 1.7, 1.1]
+PESO_CATEGORIA = {"Camisetas": 1.2, "Pantalones": 1.0, "Chaquetas": 1.3, "Camisas": 0.9, "Vestidos": 1.0}
+TENDENCIA_CATEGORIA = {"Camisetas": 0.9, "Vestidos": 0.6, "Chaquetas": -0.8}
+
+print(f"== Historial de ventas y reservas ({DIAS_HISTORIAL} días, para el dashboard y el ML)")
+
+
+NOMBRES = ["Ana", "Luis", "Carla", "Diego", "Sofía", "Mateo", "Lucía", "Jorge", "Valentina", "Andrés",
+           "Camila", "Rodrigo", "Daniela", "Marco", "Paola", "Sergio", "Gabriela", "Iván", "Natalia", "Pablo"]
+APELLIDOS = ["Rojas", "Vargas", "Gutiérrez", "Mamani", "Flores", "Suárez", "Justiniano", "Quispe", "Paz", "Ortiz"]
+
+
+def crear_clientes(empresa, cantidad, dominio):
+    """Clientes de prueba (para la segmentación del CU15 hacen falta varios con historial)."""
+    rnd = random.Random(empresa.id)
+    clientes = []
+    for i in range(1, cantidad + 1):
+        nombre = f"{rnd.choice(NOMBRES)} {rnd.choice(APELLIDOS)}"
+        c, _ = get_or_create(Usuario, email=f"cliente{i:02d}@{dominio}",
+                             defaults={"nombre": nombre, "password_hash": _hash_demo,
+                                       "rol": "cliente", "empresa_id": empresa.id})
+        clientes.append(c)
+    print(f"  [+] {empresa.slug}: {cantidad} clientes de prueba")
+    return clientes
+
+
+def perfiles_clientes(clientes, rnd):
+    """Cada cliente compra con distinta intensidad, y algunos dejan de comprar (para que haya segmentos reales)."""
+    perfiles = []
+    for c in clientes:
+        tipo = rnd.choices(["vip", "regular", "ocasional", "abandono"], weights=[15, 35, 30, 20])[0]
+        peso = {"vip": 6.0, "regular": 2.0, "ocasional": 0.6, "abandono": 2.5}[tipo]
+        ultimo_dia = rnd.randint(15, 40) if tipo == "abandono" else 0  # días atrás desde los que ya no compra
+        perfiles.append((c, peso * rnd.uniform(0.7, 1.3), ultimo_dia))
+    return perfiles
 
 
 def historial(empresa, productos, sucursales, cajero, clientes, ventas_por_dia):
@@ -226,26 +265,40 @@ def historial(empresa, productos, sucursales, cajero, clientes, ventas_por_dia):
         print(f"  [=] {empresa.slug}: ya tiene historial")
         return
     rnd = random.Random(empresa.id * 7919)
+    perfiles = perfiles_clientes(clientes, rnd)
+
+    def cliente_para(dias_atras):
+        activos = [(c, peso) for c, peso, hasta in perfiles if dias_atras >= hasta]
+        return rnd.choices([c for c, _ in activos], weights=[p for _, p in activos])[0]
+
     tallas = maestro_por_id[empresa.id]["tallas"]
     colores = maestro_por_id[empresa.id]["colores"]
+    np_rng = np.random.default_rng(empresa.id)
     ahora = datetime.now(ZONA_HORARIA_LOCAL)
     n_ventas = n_reservas = 0
-    for dias_atras in range(44, -1, -1):
+    for dias_atras in range(DIAS_HISTORIAL - 1, -1, -1):
         dia = ahora - timedelta(days=dias_atras)
-        # Más movimiento los fines de semana y una leve tendencia al alza.
-        base = ventas_por_dia + (2 if dia.weekday() >= 4 else 0) + (44 - dias_atras) // 15
+        avance = 1 - dias_atras / DIAS_HISTORIAL  # 0 al principio del historial, 1 hoy
+        # Patrón semanal marcado (viernes y sábado fuertes) y un leve crecimiento del negocio.
+        esperado = ventas_por_dia * FACTOR_DIA_SEMANA[dia.weekday()] * (1 + 0.25 * avance)
+        # Estacionalidad: se acerca el verano, suben camisetas y vestidos y bajan las chaquetas.
+        pesos_cat = {cat: max(0.2, w + TENDENCIA_CATEGORIA.get(cat, 0) * avance) for cat, w in PESO_CATEGORIA.items()}
+        pesos_prod = [pesos_cat.get(p.categoria.nombre, 1.0) for p in productos]
         for sucursal in sucursales:
-            for _ in range(rnd.randint(max(0, base - 2), base + 1)):
+            for _ in range(int(np_rng.poisson(esperado))):
                 momento = dia.replace(hour=rnd.randint(9, 20), minute=rnd.randint(0, 59), second=0, microsecond=0)
                 if momento > ahora:
                     continue
                 canal = "online" if rnd.random() < 0.3 else "presencial"
+                # Las ventas online siempre tienen cliente; en tienda, la mitad se registran con cliente.
+                con_cliente = canal == "online" or rnd.random() < 0.5
                 venta = Venta(sucursal_id=sucursal.id, canal=canal, estado="completada", total=0,
                               cajero_id=cajero.id if cajero and canal == "presencial" else None,
-                              cliente_id=rnd.choice(clientes).id if canal == "online" else None,
+                              cliente_id=cliente_para(dias_atras).id if con_cliente else None,
                               creada_en=momento)
                 total = 0
-                for producto in rnd.sample(productos, k=rnd.randint(1, min(3, len(productos)))):
+                elegidos = {rnd.choices(productos, weights=pesos_prod)[0] for _ in range(rnd.randint(1, 3))}
+                for producto in elegidos:
                     cantidad = rnd.choices([1, 2, 3], weights=[70, 25, 5])[0]
                     venta.items.append(VentaItem(producto_id=producto.id, cantidad=cantidad,
                                                  precio_unitario=producto.precio,
@@ -256,7 +309,7 @@ def historial(empresa, productos, sucursales, cajero, clientes, ventas_por_dia):
                 db.add(venta)
                 n_ventas += 1
             if rnd.random() < 0.6:
-                reserva = Reserva(cliente_id=rnd.choice(clientes).id, sucursal_id=sucursal.id,
+                reserva = Reserva(cliente_id=cliente_para(dias_atras).id, sucursal_id=sucursal.id,
                                   estado=rnd.choices(["atendida", "confirmada", "pendiente", "cancelada"],
                                                      weights=[50, 20, 15, 15])[0],
                                   creada_en=dia.replace(hour=rnd.randint(9, 20), minute=0, second=0, microsecond=0))
@@ -270,10 +323,10 @@ def historial(empresa, productos, sucursales, cajero, clientes, ventas_por_dia):
 
 
 cajero_centro = db.query(Usuario).filter_by(email="cajero.centro@smartlook.bo").first()
-clientes_smartlook = db.query(Usuario).filter_by(empresa_id=smartlook.id, rol="cliente").all()
-clientes_urban = db.query(Usuario).filter_by(empresa_id=urban.id, rol="cliente").all()
-historial(smartlook, ps, [suc_centro, suc_norte, suc_equi], cajero_centro, clientes_smartlook, ventas_por_dia=3)
-historial(urban, pu, [suc_urban], None, clientes_urban, ventas_por_dia=2)
+clientes_smartlook = crear_clientes(smartlook, 48, "smartlook.bo")
+clientes_urban = crear_clientes(urban, 18, "urbanstyle.bo")
+historial(smartlook, ps, [suc_centro, suc_norte, suc_equi], cajero_centro, clientes_smartlook, ventas_por_dia=8)
+historial(urban, pu, [suc_urban], None, clientes_urban, ventas_por_dia=5)
 
 db.commit()
 db.close()

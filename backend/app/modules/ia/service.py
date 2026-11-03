@@ -7,6 +7,7 @@ según esas coincidencias. Si el cliente no tiene historial, recomienda lo más
 popular entre todos los clientes. Pensado para poder swappearse más adelante por
 una llamada a un LLM externo sin tocar el router (ver `ai_api_key` en config).
 """
+import json
 import unicodedata
 from collections import Counter
 from datetime import datetime
@@ -582,6 +583,40 @@ def _completar_chat_openai(
     respuesta.raise_for_status()
     data = respuesta.json()
     return data["choices"][0]["message"]["content"].strip()
+
+
+def interpretar_json(
+    db: Session, system_prompt: str, mensaje: str, timeout_s: float = 90.0, max_tokens: int = 400
+) -> dict | None:
+    """Pide al modelo una respuesta en JSON (CU14: intención y filtros de un reporte).
+
+    Al modelo solo le llega el texto del usuario y las instrucciones: ningún dato de la base.
+    Devuelve None si el proveedor no responde o no devuelve un JSON válido.
+    """
+    config = obtener_configuracion_ia(db)
+    config = SimpleNamespace(base_url=config.base_url, api_key=config.api_key, modelo=config.modelo)
+    db.commit()  # libera la conexion del pool antes de la llamada lenta al LLM
+    try:
+        respuesta = httpx.post(
+            f"{config.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {config.api_key or 'sin-api-key'}"},
+            json={
+                "model": config.modelo,
+                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": mensaje}],
+                "temperature": 0,
+                "max_tokens": max_tokens,
+                "response_format": {"type": "json_object"},
+            },
+            timeout=httpx.Timeout(timeout_s, connect=5.0),
+        )
+        respuesta.raise_for_status()
+        texto = respuesta.json()["choices"][0]["message"]["content"]
+        # Algunos modelos envuelven el JSON en ```json ... ```.
+        texto = texto.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        datos = json.loads(texto)
+        return datos if isinstance(datos, dict) else None
+    except Exception:
+        return None
 
 
 def probar_configuracion_ia(db: Session) -> dict:

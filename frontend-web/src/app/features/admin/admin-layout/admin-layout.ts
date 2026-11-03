@@ -1,4 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { EmpresasService } from '../../../core/services/empresas.service';
+import { EmpresaDetalle } from '../../../core/models/empresa.model';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { AdminUiService } from '../../../core/services/admin-ui.service';
@@ -70,13 +72,66 @@ import { AuthService } from '../../../core/services/auth.service';
       </aside>
 
       <main class="admin-content">
+        @if (empresa(); as e) {
+          @if (e.solo_lectura) {
+            <div class="banner banner-error" role="alert">
+              <app-icon name="alert-circle" [size]="18" />
+              <span>
+                La suscripción venció hace {{ -e.dias_para_vencer! }} día(s). Solo podés consultar información:
+                no se pueden registrar ventas, reservas, sucursales ni usuarios hasta renovarla.
+              </span>
+              <a routerLink="/admin/suscripcion">Renovar</a>
+            </div>
+          } @else if (e.aviso_vencimiento) {
+            <div class="banner" role="status">
+              <app-icon name="clock" [size]="18" />
+              <span>
+                @if (e.dias_para_vencer === 0) { Tu suscripción vence hoy. }
+                @else { Tu suscripción vence en {{ e.dias_para_vencer }} día(s). }
+              </span>
+              <a routerLink="/admin/suscripcion">Ver suscripción</a>
+            </div>
+          }
+        }
         <router-outlet></router-outlet>
       </main>
     </div>
   `,
   styleUrl: './admin-layout.scss',
+  styles: `
+    .banner {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(179, 132, 63, 0.4);
+      background: rgba(179, 132, 63, 0.12);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+
+      app-icon { color: var(--warning); }
+      span { flex: 1; min-width: 14rem; }
+      a { font-weight: 600; color: var(--primary); }
+    }
+    .banner-error {
+      border-color: rgba(163, 64, 47, 0.35);
+      background: rgba(163, 64, 47, 0.1);
+      app-icon { color: var(--danger); }
+    }
+  `,
 })
-export class AdminLayout {
+export class AdminLayout implements OnInit {
   adminUi = inject(AdminUiService);
   auth = inject(AuthService);
+  private empresas = inject(EmpresasService);
+
+  /** RN-06 y RN-08: estado de la suscripción para los avisos de vencimiento. */
+  empresa = signal<EmpresaDetalle | null>(null);
+
+  ngOnInit() {
+    this.empresas.miEmpresa().subscribe({ next: (e) => this.empresa.set(e), error: () => this.empresa.set(null) });
+  }
 }

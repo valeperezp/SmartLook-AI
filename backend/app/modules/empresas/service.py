@@ -282,14 +282,46 @@ def obtener_empresa_por_slug(db: Session, slug: str) -> models.Empresa | None:
     return db.query(models.Empresa).filter(models.Empresa.slug == slug.strip().lower()).first()
 
 
+DIAS_AVISO_VENCIMIENTO = 7  # RN-08
+
+
+def dias_para_vencer(suscripcion: models.Suscripcion | None) -> int | None:
+    if suscripcion is None or suscripcion.fecha_fin is None:
+        return None
+    return (suscripcion.fecha_fin - _hoy()).days
+
+
+def esta_vencida(suscripcion: models.Suscripcion | None) -> bool:
+    """RN-06: activa pero con la fecha de fin ya pasada (la empresa entra, pero solo consulta)."""
+    dias = dias_para_vencer(suscripcion)
+    return suscripcion is not None and suscripcion.estado == "activa" and dias is not None and dias < 0
+
+
 def detalle_empresa(db: Session, empresa: models.Empresa) -> schemas.EmpresaDetalle:
     suscripcion = suscripcion_actual(db, empresa.id)
+    dias = dias_para_vencer(suscripcion)
     return schemas.EmpresaDetalle(
         **schemas.EmpresaOut.model_validate(empresa).model_dump(),
         suscripcion=schemas.SuscripcionOut.model_validate(suscripcion) if suscripcion else None,
         suscripcion_vigente=es_vigente(suscripcion),
         uso=calcular_uso(db, empresa.id),
+        dias_para_vencer=dias,
+        aviso_vencimiento=(
+            suscripcion is not None and suscripcion.estado == "activa"
+            and dias is not None and dias <= DIAS_AVISO_VENCIMIENTO
+        ),
+        solo_lectura=esta_vencida(suscripcion),
     )
+
+
+def requiere_plan_con_ia(db: Session, empresa_id: int) -> None:
+    """RN-05: reportes generativos y analítica con ML solo para planes que incluyen IA (Profesional)."""
+    suscripcion = suscripcion_actual(db, empresa_id)
+    if suscripcion is None or not suscripcion.plan.incluye_ia:
+        raise HTTPException(
+            status_code=403,
+            detail="Los reportes generativos y la analítica están disponibles en el plan Profesional",
+        )
 
 
 def crear_empresa(db: Session, data: schemas.EmpresaCreate) -> models.Empresa:

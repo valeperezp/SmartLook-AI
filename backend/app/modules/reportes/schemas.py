@@ -109,27 +109,23 @@ class Dashboard(BaseModel):
 
 # ---------- Reporte generativo (CU14) ----------
 
-class ReporteGenerativoRequest(BaseModel):
+class SolicitudReporte(BaseModel):
     solicitud: str = Field(min_length=3, max_length=500)
-    sucursal_id: int | None = None
-    # None = se deduce de la solicitud ("última semana" → 7 días).
-    dias: int | None = Field(default=None, ge=1, le=365)
 
 
-class ReporteGenerativoOut(BaseModel):
-    titulo: str
-    contenido: str
-    generado_con_ia: bool
-    periodo_dias: int
-    nombre_sucursal: str
-    generado_en: datetime
-    sugerencias: list[str]
+class IntencionReporte(BaseModel):
+    """Intención validable: la arma la IA (paso 5) o el formulario de reportes convencionales."""
+    tipo: str
+    fecha_inicio: str | None = None
+    fecha_fin: str | None = None
+    sucursal_ids: list[int] | None = None
+    categoria_ids: list[int] | None = None
+    producto_ids: list[int] | None = None
+    limite: int | None = Field(default=None, ge=1, le=50)
+    grafico: Literal["barras", "lineas", "torta"] | None = None
 
 
-class ExportarGenerativoRequest(BaseModel):
-    """Exporta el reporte que el usuario ya tiene en pantalla (no se vuelve a llamar a la IA)."""
+class ExportarReporteRequest(BaseModel):
     formato: Literal["pdf", "excel"]
-    titulo: str = Field(max_length=200)
-    contenido: str = Field(max_length=20000)
-    periodo_dias: int = Field(ge=1, le=365)
-    sucursal_id: int | None = None
+    intencion: IntencionReporte
+    solicitud: str | None = Field(default=None, max_length=500)
