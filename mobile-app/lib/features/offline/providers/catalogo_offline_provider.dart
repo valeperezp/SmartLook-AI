@@ -7,15 +7,19 @@ import '../data/catalogo_local_dao.dart';
 import '../data/mock_data.dart';
 import '../data/sync_queue_dao.dart';
 import '../models/catalogo_item.dart';
+import '../services/catalogo_sync_service.dart';
 
 /// Catálogo offline del cliente (CU8) y reserva local de un producto (CU9).
 class CatalogoOfflineProvider extends ChangeNotifier {
-  CatalogoOfflineProvider({CatalogoLocalDao? catalogoDao, SyncQueueDao? colaDao})
+  CatalogoOfflineProvider({CatalogoLocalDao? catalogoDao, SyncQueueDao? colaDao, CatalogoSyncService? catalogoSync})
       : _catalogoDao = catalogoDao ?? CatalogoLocalDao(),
-        _colaDao = colaDao ?? SyncQueueDao();
+        _colaDao = colaDao ?? SyncQueueDao(),
+        _catalogoSyncInyectado = catalogoSync;
 
   final CatalogoLocalDao _catalogoDao;
   final SyncQueueDao _colaDao;
+  final CatalogoSyncService? _catalogoSyncInyectado;
+  late final CatalogoSyncService _catalogoSync = _catalogoSyncInyectado ?? CatalogoSyncService(dao: _catalogoDao);
   static const _uuid = Uuid();
 
   List<CatalogoItem> _productos = const [];
@@ -70,6 +74,33 @@ class CatalogoOfflineProvider extends ChangeNotifier {
       _ultimoMensaje = 'No se pudieron cargar los datos de prueba.';
     }
     await cargar();
+  }
+
+  /// Descarga el catálogo real del backend (todas las sucursales) y reemplaza el local, incluidos los datos de prueba.
+  /// Sin red conserva el catálogo local. Devuelve los avisos de stock (CU16) que se activaron.
+  Future<List<Map<String, dynamic>>> actualizarDesdeServidor() async {
+    if (!soportado) {
+      _ultimoMensaje = 'El modo offline no está disponible en web.';
+      notifyListeners();
+      return const [];
+    }
+    _cargando = true;
+    _error = null;
+    notifyListeners();
+    var avisos = const <Map<String, dynamic>>[];
+    try {
+      final r = await _catalogoSync.descargarCatalogoDesdeServidor();
+      avisos = r.avisos;
+      await _leer();
+      _ultimoMensaje = CatalogoSyncService.mensajeDescarga(resultado: r, pendientes: _pendientes);
+    } catch (e, st) {
+      if (e is! SinConexionException) debugPrint('[CatalogoOfflineProvider] Error al descargar el catálogo: $e\n$st');
+      _ultimoMensaje = CatalogoSyncService.mensajeDescarga(error: e);
+    } finally {
+      _cargando = false;
+      notifyListeners();
+    }
+    return avisos;
   }
 
   /// Reserva 1 unidad de [producto] sin conexión: guarda la operación RESERVA_CLIENTE en la cola y

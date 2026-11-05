@@ -71,6 +71,14 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
     await _revisarAvisos();
   }
 
+  /// Descarga el catálogo real del backend. Sin red se queda con el catálogo local y lo avisa.
+  Future<void> _actualizarCatalogo() async {
+    final provider = context.read<CatalogoOfflineProvider>();
+    await provider.actualizarDesdeServidor();
+    _avisar(provider.ultimoMensaje);
+    await _revisarAvisos();
+  }
+
   int? get _clienteId => context.read<AuthProvider>().usuario?.id;
 
   Future<void> _cargarSuscripciones() async {
@@ -109,6 +117,8 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CatalogoOfflineProvider>();
+    // Se observa aquí (no dentro del itemBuilder): context.select/watch no se permite en un builder diferido.
+    final suscripciones = context.watch<SuscripcionesProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -127,8 +137,8 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Recargar',
-            onPressed: provider.cargando ? null : provider.cargar,
+            tooltip: 'Actualizar catálogo',
+            onPressed: provider.cargando ? null : _actualizarCatalogo,
           ),
         ],
       ),
@@ -155,13 +165,13 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
                 ],
               ),
             ),
-          Expanded(child: _cuerpo(provider)),
+          Expanded(child: _cuerpo(provider, suscripciones)),
         ],
       ),
     );
   }
 
-  Widget _cuerpo(CatalogoOfflineProvider provider) {
+  Widget _cuerpo(CatalogoOfflineProvider provider, SuscripcionesProvider suscripciones) {
     if (provider.cargando && provider.productos.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -173,7 +183,7 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'No hay catálogo guardado en el dispositivo.\nUsa "Cargar Datos Mock" para probar.',
+            'No hay catálogo guardado en el dispositivo.\nToca el botón de actualizar para descargarlo.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -193,7 +203,7 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
         return _TarjetaProducto(
           producto: producto,
           reservando: provider.estaReservando(producto),
-          suscrito: context.select<SuscripcionesProvider, bool>((s) => s.estaSuscrito(producto)),
+          suscrito: suscripciones.estaSuscrito(producto),
           onReservar: () => _reservar(producto),
           onAvisame: () => _avisame(producto),
         );

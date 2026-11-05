@@ -152,6 +152,13 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
     if (sucursalId != null) await context.read<VentaOfflineProvider>().cargar(sucursalId);
   }
 
+  /// Descarga el catálogo real de la sucursal. Sin red se queda con el catálogo local y lo avisa.
+  Future<void> _actualizarCatalogo(int sucursalId) async {
+    final provider = context.read<VentaOfflineProvider>();
+    await provider.actualizarDesdeServidor(sucursalId);
+    _avisar(provider.ultimoMensaje);
+  }
+
   Future<void> _cargarMock(int sucursalId) async {
     final provider = context.read<VentaOfflineProvider>();
     await provider.cargarDatosMock(sucursalId);
@@ -165,7 +172,7 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('POS offline'),
+        title: const Text('POS'), // corto: con 5 iconos en la barra "POS offline" se cortaba
         actions: [
           IconButton(
             icon: const Icon(Icons.swap_horiz),
@@ -178,18 +185,25 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
             onPressed: () => context.push('/offline/turno'),
           ),
           // TEMPORAL: sincronización manual (fase de pruebas)
-          TextButton.icon(
+          if (sucursalId != null)
+            IconButton(
+              tooltip: 'Actualizar catálogo',
+              onPressed: provider.cargando || provider.procesando ? null : () => _actualizarCatalogo(sucursalId),
+              icon: const Icon(Icons.refresh),
+            ),
+          // Solo iconos: con texto las acciones no caben en el AppBar y desbordan
+          IconButton(
+            tooltip: 'Sincronizar datos',
             onPressed: _sincronizando || provider.procesando ? null : _sincronizar,
             icon: _sincronizando
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.sync),
-            label: const Text('Sincronizar Datos'),
           ),
           if (kDebugMode && provider.soportado && sucursalId != null)
-            TextButton.icon(
+            IconButton(
+              tooltip: 'Cargar datos mock (debug)',
               onPressed: provider.cargando || provider.procesando ? null : () => _cargarMock(sucursalId),
               icon: const Icon(Icons.dataset),
-              label: const Text('Cargar Datos Mock'),
             ),
         ],
       ),
@@ -226,7 +240,7 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'No hay catálogo guardado en el dispositivo para esta sucursal.\nUsa "Cargar Datos Mock" para probar.',
+            'No hay catálogo guardado en el dispositivo para esta sucursal.\nToca el botón de actualizar para descargarlo.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -238,7 +252,7 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
         maxCrossAxisExtent: 150,
         mainAxisSpacing: 8,
         crossAxisSpacing: 8,
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.82,
       ),
       itemCount: provider.productos.length,
       itemBuilder: (context, i) {
@@ -363,7 +377,7 @@ class _TarjetaPos extends StatelessWidget {
     final agotado = restante <= 0;
     return Card(
       clipBehavior: Clip.antiAlias,
-      color: agotado ? Colors.grey.shade200 : null,
+      color: agotado ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08) : null,
       child: InkWell(
         onTap: onTap,
         child: Padding(

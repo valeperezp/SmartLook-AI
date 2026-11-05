@@ -9,6 +9,7 @@ import '../data/mock_data.dart';
 import '../data/sync_queue_dao.dart';
 import '../data/turno_caja_dao.dart';
 import '../models/catalogo_item.dart';
+import '../services/catalogo_sync_service.dart';
 
 /// Una línea del carrito de venta: un producto (variante) y cuántas unidades se llevan.
 class LineaVenta {
@@ -22,12 +23,15 @@ class LineaVenta {
 
 /// Punto de venta offline del cajero (CU10): arma el carrito y registra la venta de contado en SQLite.
 class VentaOfflineProvider extends ChangeNotifier {
-  VentaOfflineProvider({CatalogoLocalDao? catalogoDao, SyncQueueDao? colaDao})
+  VentaOfflineProvider({CatalogoLocalDao? catalogoDao, SyncQueueDao? colaDao, CatalogoSyncService? catalogoSync})
       : _catalogoDao = catalogoDao ?? CatalogoLocalDao(),
-        _colaDao = colaDao ?? SyncQueueDao();
+        _colaDao = colaDao ?? SyncQueueDao(),
+        _catalogoSyncInyectado = catalogoSync;
 
   final CatalogoLocalDao _catalogoDao;
   final SyncQueueDao _colaDao;
+  final CatalogoSyncService? _catalogoSyncInyectado;
+  late final CatalogoSyncService _catalogoSync = _catalogoSyncInyectado ?? CatalogoSyncService(dao: _catalogoDao);
   static const _uuid = Uuid();
 
   List<CatalogoItem> _productos = const [];
@@ -89,6 +93,32 @@ class VentaOfflineProvider extends ChangeNotifier {
     }
     _lineas.clear(); // el catálogo se reemplazó: las líneas viejas ya no corresponden
     await cargar(sucursalId);
+  }
+
+  /// Descarga el catálogo real de [sucursalId] desde el backend y reemplaza el local (incluidos los datos de prueba).
+  /// Sin red conserva el catálogo local.
+  Future<void> actualizarDesdeServidor(int sucursalId) async {
+    if (!soportado) {
+      _ultimoMensaje = 'El modo offline no está disponible en web.';
+      notifyListeners();
+      return;
+    }
+    _cargando = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final r = await _catalogoSync.descargarCatalogoDesdeServidor(sucursalId: sucursalId);
+      _lineas.clear(); // el catálogo se reemplazó: las líneas viejas ya no corresponden
+      await _leer(sucursalId);
+      final pendientes = (await _colaDao.obtenerOperacionesPendientes()).length;
+      _ultimoMensaje = CatalogoSyncService.mensajeDescarga(resultado: r, pendientes: pendientes);
+    } catch (e, st) {
+      if (e is! SinConexionException) debugPrint('[VentaOfflineProvider] Error al descargar el catálogo: $e\n$st');
+      _ultimoMensaje = CatalogoSyncService.mensajeDescarga(error: e);
+    } finally {
+      _cargando = false;
+      notifyListeners();
+    }
   }
 
   // ---------------------------------------------------------------------------
