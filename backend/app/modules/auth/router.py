@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.modules.auth import schemas, service
+from app.modules.bitacora import service as bitacora
 from app.modules.usuarios.models import Usuario
 from app.modules.usuarios.schemas import UsuarioOut
 from app.shared.db.session import get_db
@@ -43,10 +44,25 @@ async def login(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=422, detail="Email y contraseña son requeridos")
 
     empresa = str(empresa).strip() if empresa else None
-    usuario = service.autenticar_usuario(db, str(username).strip(), str(password), empresa)
-    if not usuario:
-        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
-    return schemas.TokenResponse(access_token=service.emitir_token(usuario))
+    email = str(username).strip()
+    try:
+        usuario = service.autenticar_usuario(db, email, str(password), empresa)
+    except HTTPException as error:
+        # El intento fallido queda en la bitácora (sin la contraseña).
+        bitacora.registrar_aparte("sesion.rechazada", f"{email}: {error.detail}", request=request)
+        raise
+
+    modo_solo_lectura = service.solo_lectura(db, usuario)
+    bitacora.registrar(
+        db, "sesion.inicio", "Inicio de sesión" + (" (solo lectura: suscripción vencida)" if modo_solo_lectura else ""),
+        usuario=usuario, request=request,
+    )
+    db.commit()
+    return schemas.TokenResponse(
+        access_token=service.emitir_token(usuario, modo_solo_lectura),
+        rol=usuario.rol,
+        solo_lectura=modo_solo_lectura,
+    )
 
 
 @router.get("/me", response_model=UsuarioOut)

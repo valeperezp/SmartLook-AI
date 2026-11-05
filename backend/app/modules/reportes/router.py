@@ -129,7 +129,7 @@ def catalogo_reportes(usuario: Usuario = Depends(admin_or_encargado), db: Sessio
     return {
         "tipos": generativo.catalogo_para_ui(),
         "ejemplos": generativo.ejemplos(),
-        "plan_incluye_ia": bool(suscripcion and suscripcion.plan.incluye_ia),
+        "plan_incluye_ia": empresas_service.plan_tiene(suscripcion.plan if suscripcion else None, "reportes_ia"),
     }
 
 
@@ -141,7 +141,7 @@ async def solicitar_reporte(
 ):
     """CU14: la IA interpreta la frase y el backend ejecuta un reporte del catálogo permitido."""
     suscripcion = empresas_service.suscripcion_actual(db, usuario.empresa_id)
-    if not (suscripcion and suscripcion.plan.incluye_ia):  # 2a
+    if not empresas_service.plan_tiene(suscripcion.plan if suscripcion else None, "reportes_ia"):  # 2a
         return {"estado": "plan_sin_ia", "mensaje": "Los reportes generativos están disponibles en el plan Profesional",
                 "ejemplos": generativo.ejemplos()}
     # La interpretación puede tardar (modelo local): fuera del event loop.

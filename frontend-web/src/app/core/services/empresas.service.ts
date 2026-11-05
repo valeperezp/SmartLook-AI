@@ -1,17 +1,21 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import {
+  AsignarPlan,
+  EmpresaCreada,
   EmpresaCreate,
   EmpresaDetalle,
   EmpresaUpdate,
+  EntradaBitacora,
   EstadoSuscripcion,
+  Funcionalidad,
   Plan,
   PlanCreate,
   Suscripcion,
 } from '../models/empresa.model';
 
-/** Empresas (CU2), planes (CU3) y suscripciones (CU4). */
+/** Empresas (CU2), planes (CU3), suscripciones (CU4) y bitácora. */
 @Injectable({ providedIn: 'root' })
 export class EmpresasService {
   private http = inject(HttpClient);
@@ -26,16 +30,24 @@ export class EmpresasService {
     return this.http.get<Plan[]>(`${this.api}/planes/todos`);
   }
 
+  listarFuncionalidades() {
+    return this.http.get<Funcionalidad[]>(`${this.api}/planes/funcionalidades`);
+  }
+
   crearPlan(data: PlanCreate) {
     return this.http.post<Plan>(`${this.api}/planes`, data);
   }
 
-  actualizarPlan(id: number, data: Partial<Plan>) {
+  actualizarPlan(id: number, data: Partial<PlanCreate> & { activo?: boolean }) {
     return this.http.put<Plan>(`${this.api}/planes/${id}`, data);
   }
 
   desactivarPlan(id: number) {
-    return this.http.delete<Plan>(`${this.api}/planes/${id}`);
+    return this.http.post<Plan>(`${this.api}/planes/${id}/desactivar`, {});
+  }
+
+  eliminarPlan(id: number) {
+    return this.http.delete<void>(`${this.api}/planes/${id}`);
   }
 
   // ---------- Empresas (superadmin) ----------
@@ -44,23 +56,31 @@ export class EmpresasService {
   }
 
   crear(data: EmpresaCreate) {
-    return this.http.post<EmpresaDetalle>(`${this.api}/empresas`, data);
+    return this.http.post<EmpresaCreada>(`${this.api}/empresas`, data);
   }
 
   actualizar(id: number, data: EmpresaUpdate) {
     return this.http.put<EmpresaDetalle>(`${this.api}/empresas/${id}`, data);
   }
 
-  desactivar(id: number) {
-    return this.http.delete<EmpresaDetalle>(`${this.api}/empresas/${id}`);
+  suspender(id: number) {
+    return this.http.post<EmpresaDetalle>(`${this.api}/empresas/${id}/suspender`, {});
+  }
+
+  reactivar(id: number) {
+    return this.http.post<EmpresaDetalle>(`${this.api}/empresas/${id}/reactivar`, {});
   }
 
   historial(id: number) {
     return this.http.get<Suscripcion[]>(`${this.api}/empresas/${id}/suscripciones`);
   }
 
-  asignarPlan(id: number, plan_id: number, fecha_fin: string | null) {
-    return this.http.post<EmpresaDetalle>(`${this.api}/empresas/${id}/suscripcion`, { plan_id, fecha_fin });
+  asignarPlan(id: number, data: AsignarPlan) {
+    return this.http.post<EmpresaDetalle>(`${this.api}/empresas/${id}/suscripcion`, data);
+  }
+
+  renovar(id: number) {
+    return this.http.post<EmpresaDetalle>(`${this.api}/empresas/${id}/suscripcion/renovar`, {});
   }
 
   cambiarEstado(id: number, estado: Exclude<EstadoSuscripcion, 'reemplazada'>) {
@@ -72,7 +92,7 @@ export class EmpresasService {
     return this.http.get<{ nombre: string; slug: string }>(`${this.api}/empresas/publica/${slug}`);
   }
 
-  // ---------- Mi empresa (administrador) ----------
+  // ---------- Mi empresa (administrador, solo consulta) ----------
   miEmpresa() {
     return this.http.get<EmpresaDetalle>(`${this.api}/mi-empresa`);
   }
@@ -81,7 +101,10 @@ export class EmpresasService {
     return this.http.get<Suscripcion[]>(`${this.api}/mi-empresa/suscripciones`);
   }
 
-  cambiarMiPlan(plan_id: number) {
-    return this.http.post<EmpresaDetalle>(`${this.api}/mi-empresa/suscripcion`, { plan_id });
+  // ---------- Bitácora ----------
+  bitacora(accion?: string) {
+    let params = new HttpParams().set('limite', 300);
+    if (accion) params = params.set('accion', accion);
+    return this.http.get<EntradaBitacora[]>(`${this.api}/bitacora`, { params });
   }
 }

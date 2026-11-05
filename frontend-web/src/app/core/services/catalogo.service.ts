@@ -10,6 +10,8 @@ import {
   ProductoDisponibilidad,
   Talla,
   Temporada,
+  Variante,
+  VarianteCreate,
 } from '../models/catalogo.model';
 
 @Injectable({ providedIn: 'root' })
@@ -78,6 +80,18 @@ export class CatalogoService {
     params = params.set('incluir_inactivos', incluirInactivos);
     if (sucursalId) params = params.set('sucursal_id', sucursalId);
     return this.http.get<Producto[]>(`${this.base}/productos`, { params });
+  }
+
+  obtenerProducto(id: number) {
+    return this.http.get<Producto>(`${this.base}/productos/${id}`);
+  }
+
+  // Variantes (CU7)
+  agregarVariante(productoId: number, data: VarianteCreate) {
+    return this.http.post<Variante>(`${this.base}/productos/${productoId}/variantes`, data);
+  }
+  desactivarVariante(productoId: number, varianteId: number) {
+    return this.http.delete<Variante>(`${this.base}/productos/${productoId}/variantes/${varianteId}`);
   }
 
   obtenerDisponibilidad(productoId: number) {

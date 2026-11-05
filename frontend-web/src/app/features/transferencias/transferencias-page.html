@@ -2,14 +2,18 @@
   <div>
     <h1>Transferencias entre sucursales</h1>
     <p>
-      Pedí o enviá mercadería entre sucursales. El stock sale del origen al despacharla y
-      llega al destino cuando se confirma la recepción.
+      El encargado de destino solicita prendas a otra sucursal, el de origen las envía (se descuenta su
+      inventario) y el destino confirma la recepción (se suma al suyo).
     </p>
   </div>
-  <button class="btn-primary" (click)="abrirAlta()">
-    {{ mostrarAlta() ? 'Cerrar' : 'Nueva transferencia' }}
+  <button class="btn-primary" (click)="abrirAlta()" [disabled]="!enLinea()">
+    {{ mostrarAlta() ? 'Cerrar' : 'Nueva solicitud' }}
   </button>
 </div>
+
+@if (!enLinea()) {
+  <div class="sin-conexion" role="alert">Se requiere conexión para gestionar transferencias.</div>
+}
 
 @if (toast()) {
   <div class="toast-notification" [class.toast-error]="toastIsError()">{{ toast() }}</div>
@@ -19,30 +23,50 @@
   <div class="card alta">
     <div class="inline-form">
       <div class="form-group">
-        <label>Desde (origen)</label>
-        <select [(ngModel)]="origenId" name="origen" (ngModelChange)="cambiarOrigen()">
+        <label>Para la sucursal (destino)</label>
+        <select [(ngModel)]="destinoId" name="destino" [disabled]="!esAdmin()" (ngModelChange)="buscarDisponibilidad()">
           <option [ngValue]="null">— Elegir —</option>
           @for (s of sucursalesActivas(); track s.id) {
-            <option [ngValue]="s.id" [disabled]="s.id === destinoId">{{ s.nombre }}</option>
+            <option [ngValue]="s.id">{{ s.nombre }}</option>
           }
         </select>
       </div>
       <div class="form-group">
-        <label>Hacia (destino)</label>
-        <select [(ngModel)]="destinoId" name="destino">
-          <option [ngValue]="null">— Elegir —</option>
-          @for (s of sucursalesActivas(); track s.id) {
-            <option [ngValue]="s.id" [disabled]="s.id === origenId">{{ s.nombre }}</option>
+        <label>Prenda buscada</label>
+        <select [(ngModel)]="productoBuscado" name="producto" (ngModelChange)="buscarDisponibilidad()">
+          <option [ngValue]="null">— Elegir prenda —</option>
+          @for (p of productos(); track p.id) {
+            <option [ngValue]="p.id">{{ p.nombre }}</option>
           }
         </select>
       </div>
-      <div class="form-group motivo">
-        <label>Motivo</label>
-        <input type="text" [(ngModel)]="motivo" name="motivo" maxlength="255" placeholder="ej: reposición para el fin de semana" />
-      </div>
     </div>
 
+    @if (disponibilidad(); as disp) {
+      @if (disp.length === 0) {
+        <p class="aviso">No hay existencia en otras sucursales.</p>
+      } @else {
+        <h4 class="subtitulo">Sucursales con existencia</h4>
+        <div class="origenes">
+          @for (g of sucursalesConExistencia(); track g.id) {
+            <div class="origen" [class.elegido]="origenId === g.id">
+              <div>
+                <b>{{ g.nombre }}</b>
+                <ul>
+                  @for (f of g.filas; track f.inventario_id) {
+                    <li>{{ f.nombre_talla || 'Sin talla' }} · {{ f.nombre_color || 'Sin color' }}: <b>{{ f.cantidad_disponible }}</b></li>
+                  }
+                </ul>
+              </div>
+              <button class="btn-secondary" (click)="pedirA(g.id)">{{ origenId === g.id ? 'Elegida' : 'Pedir a esta sucursal' }}</button>
+            </div>
+          }
+        </div>
+      }
+    }
+
     @if (origenId) {
+      <h4 class="subtitulo">Prendas a solicitar</h4>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
@@ -51,12 +75,12 @@
               <th>Talla</th>
               <th>Color</th>
               <th class="num">Disponible</th>
-              <th class="num">A transferir</th>
+              <th class="num">Cantidad</th>
             </tr>
           </thead>
           <tbody>
             @for (i of stockOrigen(); track i.id) {
-              <tr>
+              <tr [class.destacada]="i.producto_id === productoBuscado">
                 <td>{{ i.nombre_producto }}</td>
                 <td>{{ i.nombre_talla || '—' }}</td>
                 <td>{{ i.nombre_color || '—' }}</td>
@@ -74,21 +98,25 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="5" class="muted">Esta sucursal no tiene prendas con stock.</td></tr>
+              <tr><td colspan="5" class="muted">Esta sucursal no tiene prendas con existencia.</td></tr>
             }
           </tbody>
         </table>
       </div>
+      <div class="form-group motivo">
+        <label>Motivo</label>
+        <input type="text" [(ngModel)]="motivo" name="motivo" maxlength="255" placeholder="ej: reposición para el fin de semana" />
+      </div>
     }
 
     <div class="inline-form-actions">
-      <span class="muted">{{ totalSeleccionado() }} unidades seleccionadas</span>
+      <span class="muted">{{ totalSeleccionado() }} unidades</span>
       <button
         class="btn-primary"
-        [disabled]="guardando() || !origenId || !destinoId || totalSeleccionado() === 0"
+        [disabled]="guardando() || !enLinea() || !origenId || !destinoId || totalSeleccionado() === 0"
         (click)="crear()"
       >
-        Solicitar transferencia
+        Solicitar
       </button>
     </div>
   </div>
@@ -102,7 +130,7 @@
 </div>
 
 @if (pendientesDeMi() > 0) {
-  <p class="aviso">Tenés {{ pendientesDeMi() }} transferencia(s) esperando una acción tuya.</p>
+  <p class="aviso">Tiene {{ pendientesDeMi() }} transferencia(s) esperando una acción suya.</p>
 }
 
 <div class="lista">
@@ -128,12 +156,25 @@
               @for (i of t.items; track i.id) {
                 <li>
                   <span>{{ i.nombre_producto }} <span class="muted">{{ i.nombre_talla }} {{ i.nombre_color }}</span></span>
-                  <b>× {{ i.cantidad }}</b>
+                  @if (t.acciones.includes('recibir')) {
+                    <label class="recibida">
+                      Recibidas
+                      <input type="number" min="0" [max]="i.cantidad" [(ngModel)]="recibidas[i.id]" [name]="'rec-' + i.id" />
+                      de {{ i.cantidad }}
+                    </label>
+                  } @else if (i.cantidad_recibida !== null && i.cantidad_recibida !== i.cantidad) {
+                    <b>{{ i.cantidad_recibida }} de {{ i.cantidad }}</b>
+                  } @else {
+                    <b>× {{ i.cantidad }}</b>
+                  }
                 </li>
               }
             </ul>
             @if (t.motivo) {
               <p class="muted">Motivo: {{ t.motivo }}</p>
+            }
+            @if (t.observacion) {
+              <p class="observacion">{{ t.observacion }}</p>
             }
           </div>
 
@@ -162,10 +203,10 @@
                 [(ngModel)]="comentarios[t.id]"
                 [name]="'com-' + t.id"
                 maxlength="255"
-                placeholder="Comentario (opcional)"
+                [placeholder]="t.acciones.includes('rechazar') ? 'Motivo (obligatorio para rechazar)' : 'Comentario (opcional)'"
               />
               @for (a of t.acciones; track a) {
-                <button [class]="acciones[a].clase" [disabled]="procesando() === t.id" (click)="ejecutar(t, a)">
+                <button [class]="acciones[a].clase" [disabled]="procesando() === t.id || !enLinea()" (click)="ejecutar(t, a)">
                   {{ acciones[a].texto }}
                 </button>
               }

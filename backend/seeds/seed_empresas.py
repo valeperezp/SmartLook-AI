@@ -23,6 +23,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 import app.main  # noqa: F401  registra todos los modelos y crea las tablas
 from app.modules.catalogo.models import Categoria, Color, Producto, Talla
+from app.modules.catalogo import service as catalogo_service
+from app.modules.empresas import service as empresas_service
 from app.modules.empresas.models import Empresa, Plan, Suscripcion
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.proveedores.models import Proveedor
@@ -76,21 +78,26 @@ def suscribir(empresa, plan, fecha_inicio, fecha_fin=None):
     ))
 
 
-print("== Planes (CU3)")
+print("== Planes y funcionalidades (CU3)")
 planes = {}
 # RN-04: Básico hasta 2 sucursales, Profesional hasta 10. RN-05: IA solo en Profesional (y superiores).
-for nombre, desc, precio, max_suc, max_usr, max_prod, ia in [
-    ("Básico", "Para una tienda que recién empieza", 199, 2, 5, 50, False),
-    ("Profesional", "Varias sucursales, reportes con IA y analítica", 499, 10, 20, 500, True),
-    ("Empresarial", "Sin límites", 999, None, None, None, True),
+for nombre, desc, precio, duracion, max_suc, max_usr, max_prod, funcionalidades in [
+    ("Básico", "Para una tienda que recién empieza", 199, 30, 2, 5, 50, ["transferencias"]),
+    ("Profesional", "Varias sucursales, reportes con IA y analítica", 499, 30, 10, 20, 500,
+     ["transferencias", "reportes_ia", "analitica_ml"]),
+    ("Empresarial", "Sin límites", 999, 365, None, None, None, ["transferencias", "reportes_ia", "analitica_ml"]),
 ]:
     plan, creado = get_or_create(
         Plan, nombre=nombre,
-        defaults={"descripcion": desc, "precio_mensual": precio, "max_sucursales": max_suc,
-                  "max_usuarios": max_usr, "max_productos": max_prod, "incluye_ia": ia},
+        defaults={"descripcion": desc, "precio_mensual": precio, "duracion_dias": duracion,
+                  "max_sucursales": max_suc, "max_usuarios": max_usr, "max_productos": max_prod},
     )
+    if plan.duracion_dias is None:
+        plan.duracion_dias = duracion
+    if not plan.plan_funcionalidades:
+        empresas_service._aplicar_funcionalidades(db, plan, funcionalidades)
     planes[nombre] = plan
-    print(f"  {'[+]' if creado else '[=]'} {nombre}")
+    print(f"  {'[+]' if creado else '[=]'} {nombre}: {', '.join(funcionalidades)}")
 
 print("== Superadmin de la plataforma")
 usuario("superadmin@smartlook.bo", "Superadmin SmartLook", "superadmin")
@@ -113,16 +120,18 @@ suc_equi, _ = get_or_create(Sucursal, nombre="SmartLook Equipetrol", empresa_id=
                             defaults={"direccion": "Av. San Martín 300", "ciudad": "Santa Cruz", "activa": True})
 usuario("admin@smartlook.bo", "Valeria Admin", "administrador", smartlook)
 usuario("encargado.centro@smartlook.bo", "Encargado Centro", "encargado_sucursal", smartlook, suc_centro)
+# Segundo encargado: para probar las transferencias (CU19) entre dos sucursales.
+usuario("encargado.norte@smartlook.bo", "Encargado Norte", "encargado_sucursal", smartlook, suc_norte)
 usuario("cajero.centro@smartlook.bo", "Cajero Centro", "cajero", smartlook, suc_centro)
 usuario("cliente@smartlook.bo", "Cliente Demo", "cliente", smartlook)
 
-print("== Empresa: urbanstyle (Básico)")
+print("== Empresa: urbanstyle (Básico, vence en 5 días → aviso de vencimiento)")
 urban, _ = get_or_create(
     Empresa, slug="urbanstyle",
     defaults={"nombre": "Urban Style", "nit": "2034567891", "email": "hola@urbanstyle.bo",
               "telefono": "+591 2 2123456", "direccion": "Calle Sagárnaga 200, La Paz"},
 )
-suscribir(urban, planes["Básico"], hoy - timedelta(days=10), hoy + timedelta(days=20))
+suscribir(urban, planes["Básico"], hoy - timedelta(days=25), hoy + timedelta(days=5))
 suc_urban, _ = get_or_create(Sucursal, nombre="Urban Style Sagárnaga", empresa_id=urban.id,
                              defaults={"direccion": "Calle Sagárnaga 200", "ciudad": "La Paz", "activa": True})
 usuario("admin@urbanstyle.bo", "Admin Urban", "administrador", urban)
@@ -135,6 +144,15 @@ retro, _ = get_or_create(
 )
 suscribir(retro, planes["Básico"], hoy - timedelta(days=60), hoy - timedelta(days=1))
 usuario("admin@modaretro.bo", "Admin Retro", "administrador", retro)
+
+print("== Empresa: tiendacerrada (suspendida → sus usuarios no inician sesión)")
+cerrada, _ = get_or_create(
+    Empresa, slug="tiendacerrada",
+    defaults={"nombre": "Tienda Cerrada", "nit": "4056789123", "email": "info@tiendacerrada.bo",
+              "direccion": "Sucre", "activa": False},
+)
+suscribir(cerrada, planes["Básico"], hoy - timedelta(days=5), hoy + timedelta(days=25))
+usuario("admin@tiendacerrada.bo", "Admin Cerrada", "administrador", cerrada)
 
 print("== Catálogo maestro (uno por empresa)")
 
@@ -327,6 +345,10 @@ clientes_smartlook = crear_clientes(smartlook, 48, "smartlook.bo")
 clientes_urban = crear_clientes(urban, 18, "urbanstyle.bo")
 historial(smartlook, ps, [suc_centro, suc_norte, suc_equi], cajero_centro, clientes_smartlook, ventas_por_dia=8)
 historial(urban, pu, [suc_urban], None, clientes_urban, ventas_por_dia=5)
+
+db.flush()
+print("== Variantes de producto (CU7)")
+print(f"  [+] {catalogo_service.variantes_desde_inventario(db)} variantes desde el inventario")
 
 db.commit()
 db.close()

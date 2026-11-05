@@ -27,16 +27,14 @@ def obtener_usuario(usuario_id: int, db: Session = Depends(get_db), admin: Usuar
 
 @router.post("", response_model=schemas.UsuarioOut, status_code=201)
 def crear_usuario(data: schemas.UsuarioCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
-    if service.obtener_usuario_por_email(db, data.email):
-        raise HTTPException(status_code=400, detail="Ese email ya está registrado")
-    return service.crear_usuario(db, data, admin.empresa_id)
+    return service.crear_usuario(db, data, admin.empresa_id, admin)
 
 
 @router.patch("/{usuario_id}", response_model=schemas.UsuarioOut)
 def actualizar_usuario(
     usuario_id: int, data: schemas.UsuarioUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
 ):
-    usuario = service.actualizar_usuario(db, usuario_id, data, admin.empresa_id)
+    usuario = service.actualizar_usuario(db, usuario_id, data, admin.empresa_id, admin)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return usuario
@@ -46,7 +44,7 @@ def actualizar_usuario(
 def actualizar_rol(
     usuario_id: int, data: schemas.UsuarioRolUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
 ):
-    usuario = service.actualizar_rol(db, usuario_id, data, admin.empresa_id)
+    usuario = service.actualizar_rol(db, usuario_id, data, admin.empresa_id, admin)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return usuario
@@ -54,7 +52,7 @@ def actualizar_rol(
 
 @router.delete("/{usuario_id}", response_model=schemas.UsuarioOut)
 def desactivar_usuario(usuario_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
-    usuario = service.desactivar_usuario(db, usuario_id, admin.empresa_id)
+    usuario = service.desactivar_usuario(db, usuario_id, admin.empresa_id, admin)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return usuario

@@ -7,7 +7,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.modules.catalogo.models import Color, Producto, Talla
+from app.modules.catalogo import service as catalogo_service
+from app.modules.catalogo.models import Color, Producto, Talla, VarianteProducto
 from app.modules.inventario import models, schemas
 from app.modules.sucursales.models import Sucursal
 from app.shared.db.tenant import asegurar_de_empresa
@@ -212,17 +213,20 @@ def crear_o_inicializar_inventario(
         .filter(
             models.Inventario.producto_id == data.producto_id,
             models.Inventario.sucursal_id == data.sucursal_id,
-            models.Inventario.talla_id == data.talla_id,
-            models.Inventario.color_id == data.color_id,
+            # IS NOT DISTINCT FROM: una prenda sin talla/color (NULL) también se compara bien.
+            models.Inventario.talla_id.is_not_distinct_from(data.talla_id),
+            models.Inventario.color_id.is_not_distinct_from(data.color_id),
         )
         .first()
     )
     if existente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ya existe un registro de inventario para este producto, talla y color en esta sucursal.",
+            detail="Esta variante ya tiene inventario en la sucursal: registre un movimiento de entrada.",
         )
 
+    # CU7 8a: primera carga en la sucursal. La variante queda registrada en el catálogo si no existía.
+    catalogo_service.registrar_variante_si_falta(db, data.producto_id, data.talla_id, data.color_id)
     nuevo_inv = models.Inventario(
         producto_id=data.producto_id,
         sucursal_id=data.sucursal_id,
@@ -233,21 +237,42 @@ def crear_o_inicializar_inventario(
         activo=True,
     )
     db.add(nuevo_inv)
-    db.commit()
-    db.refresh(nuevo_inv)
-
+    db.flush()
     if data.cantidad_inicial > 0:
-        mov = models.MovimientoInventario(
+        # Mismo commit que el inventario (RNF-04): nunca queda uno sin el otro.
+        db.add(models.MovimientoInventario(
             inventario_id=nuevo_inv.id,
             tipo="entrada",
             cantidad=data.cantidad_inicial,
             motivo="Carga inicial de inventario en sucursal",
             usuario_id=usuario_id,
-        )
-        db.add(mov)
-        db.commit()
-
+        ))
+    db.commit()
     return obtener_inventario(db, nuevo_inv.id, empresa_id)
+
+
+def variantes_sin_cargar(db: Session, sucursal_id: int, empresa_id: int) -> list[dict]:
+    """Variantes activas del catálogo que la sucursal todavía no tiene en su inventario (CU7 8a)."""
+    cargadas = {
+        (i.producto_id, i.talla_id, i.color_id)
+        for i in db.query(models.Inventario).filter(models.Inventario.sucursal_id == sucursal_id)
+    }
+    variantes = (
+        db.query(VarianteProducto)
+        .join(Producto, VarianteProducto.producto_id == Producto.id)
+        .filter(Producto.empresa_id == empresa_id, Producto.activo.is_(True), VarianteProducto.activo.is_(True))
+        .order_by(Producto.nombre, VarianteProducto.id)
+        .all()
+    )
+    return [
+        {
+            "variante_id": v.id, "producto_id": v.producto_id, "nombre_producto": v.producto.nombre,
+            "talla_id": v.talla_id, "nombre_talla": v.nombre_talla,
+            "color_id": v.color_id, "nombre_color": v.nombre_color, "precio": v.precio_efectivo,
+        }
+        for v in variantes
+        if (v.producto_id, v.talla_id, v.color_id) not in cargadas
+    ]
 
 
 def registrar_movimiento(

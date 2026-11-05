@@ -219,6 +219,21 @@ async def subir_imagen_producto(
     )
 
 
+# ---------- Variantes de producto (CU7) ----------
+@router.post("/productos/{producto_id}/variantes", response_model=schemas.VarianteOut, status_code=201)
+def agregar_variante(
+    producto_id: int, data: schemas.VarianteCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.agregar_variante(db, producto_id, data, admin.empresa_id), "Producto no encontrado")
+
+
+@router.delete("/productos/{producto_id}/variantes/{variante_id}", response_model=schemas.VarianteOut)
+def desactivar_variante(
+    producto_id: int, variante_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)
+):
+    return _o_404(service.desactivar_variante(db, producto_id, variante_id, admin.empresa_id), "Variante no encontrada")
+
+
 # ---------- Productos del Proveedor (CU18) ----------
 @router.get("/mis-productos", response_model=list[schemas.ProductoOut])
 def listar_mis_productos(

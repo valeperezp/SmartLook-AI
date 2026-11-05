@@ -228,14 +228,124 @@ def _verificar_limite_si_reactiva(db: Session, producto: models.Producto, data: 
         empresas_service.verificar_limite(db, producto.empresa_id, "productos")
 
 
+def _validar_precio(precio: float | None) -> None:
+    """CU7 6a."""
+    if precio is not None and precio < 0:
+        raise HTTPException(status_code=400, detail="El precio no puede ser negativo")
+
+
+def _validar_datos_producto(nombre: str | None, precio: float | None) -> None:
+    if nombre is not None and not nombre.strip():
+        raise HTTPException(status_code=400, detail="Ingrese el nombre del producto")
+    _validar_precio(precio)
+
+
+def _texto_variante(db: Session, talla_id: int | None, color_id: int | None) -> str:
+    talla = db.get(models.Talla, talla_id) if talla_id else None
+    color = db.get(models.Color, color_id) if color_id else None
+    return f"talla {talla.nombre if talla else '-'} y color {color.nombre if color else '-'}"
+
+
+def _buscar_variante(db: Session, producto_id: int, talla_id: int | None, color_id: int | None):
+    return (
+        db.query(models.VarianteProducto)
+        .filter(
+            models.VarianteProducto.producto_id == producto_id,
+            models.VarianteProducto.talla_id.is_not_distinct_from(talla_id),
+            models.VarianteProducto.color_id.is_not_distinct_from(color_id),
+        )
+        .first()
+    )
+
+
+def _nueva_variante(db: Session, producto: models.Producto, data: schemas.VarianteCreate, empresa_id: int):
+    asegurar_de_empresa(db, models.Talla, data.talla_id, empresa_id, "Talla")
+    asegurar_de_empresa(db, models.Color, data.color_id, empresa_id, "Color")
+    _validar_precio(data.precio)
+    existente = _buscar_variante(db, producto.id, data.talla_id, data.color_id) if producto.id else None
+    if existente is not None and existente.activo:  # 6b
+        raise HTTPException(
+            status_code=400,
+            detail=f"El producto ya tiene la variante {_texto_variante(db, data.talla_id, data.color_id)}",
+        )
+    if existente is not None:  # estaba desactivada: se reactiva
+        existente.activo, existente.precio, existente.sku = True, data.precio, data.sku
+        return existente
+    variante = models.VarianteProducto(
+        talla_id=data.talla_id, color_id=data.color_id, precio=data.precio, sku=data.sku, activo=True,
+    )
+    producto.variantes.append(variante)
+    return variante
+
+
 def crear_producto(db: Session, data: schemas.ProductoCreate, empresa_id: int) -> models.Producto:
+    _validar_datos_producto(data.nombre, data.precio)
     _validar_referencias_producto(db, data, empresa_id)
     empresas_service.verificar_limite(db, empresa_id, "productos")
-    producto = models.Producto(**data.model_dump(), empresa_id=empresa_id)
+    combinaciones = [(v.talla_id, v.color_id) for v in data.variantes]
+    if len(combinaciones) != len(set(combinaciones)):
+        raise HTTPException(status_code=400, detail="Hay variantes repetidas: cada talla y color va una sola vez")
+    producto = models.Producto(**data.model_dump(exclude={"variantes"}), empresa_id=empresa_id)
     db.add(producto)
+    for variante in data.variantes:
+        _nueva_variante(db, producto, variante, empresa_id)
     db.commit()
     db.refresh(producto)
     return producto
+
+
+def agregar_variante(
+    db: Session, producto_id: int, data: schemas.VarianteCreate, empresa_id: int
+) -> models.VarianteProducto | None:
+    producto = obtener_producto(db, producto_id, empresa_id)
+    if not producto:
+        return None
+    variante = _nueva_variante(db, producto, data, empresa_id)
+    db.commit()
+    db.refresh(variante)
+    return variante
+
+
+def desactivar_variante(db: Session, producto_id: int, variante_id: int, empresa_id: int):
+    producto = obtener_producto(db, producto_id, empresa_id)
+    variante = next((v for v in producto.variantes if v.id == variante_id), None) if producto else None
+    if variante is None:
+        return None
+    variante.activo = False
+    db.commit()
+    db.refresh(variante)
+    return variante
+
+
+def variantes_desde_inventario(db: Session) -> int:
+    """Registra como variante cada combinación producto + talla + color que ya tiene inventario.
+
+    Sirve para bases creadas antes de que existieran las variantes. Devuelve cuántas creó.
+    """
+    from app.modules.inventario.models import Inventario  # import local: inventario depende de catálogo
+
+    combinaciones = {
+        (i.producto_id, i.talla_id, i.color_id)
+        for i in db.query(Inventario.producto_id, Inventario.talla_id, Inventario.color_id).distinct()
+    }
+    existentes = {
+        (v.producto_id, v.talla_id, v.color_id)
+        for v in db.query(models.VarianteProducto.producto_id, models.VarianteProducto.talla_id,
+                          models.VarianteProducto.color_id)
+    }
+    nuevas = sorted(combinaciones - existentes, key=lambda c: (c[0], c[1] or 0, c[2] or 0))
+    for producto_id, talla_id, color_id in nuevas:
+        db.add(models.VarianteProducto(producto_id=producto_id, talla_id=talla_id, color_id=color_id, activo=True))
+    return len(nuevas)
+
+
+def registrar_variante_si_falta(db: Session, producto_id: int, talla_id: int | None, color_id: int | None) -> None:
+    """Al cargar inventario de una combinación nueva, la variante queda registrada en el catálogo."""
+    existente = _buscar_variante(db, producto_id, talla_id, color_id)
+    if existente is None:
+        db.add(models.VarianteProducto(producto_id=producto_id, talla_id=talla_id, color_id=color_id, activo=True))
+    elif not existente.activo:
+        existente.activo = True
 
 
 def actualizar_producto(
@@ -244,6 +354,7 @@ def actualizar_producto(
     producto = obtener_producto(db, producto_id, empresa_id)
     if not producto:
         return None
+    _validar_datos_producto(data.nombre, data.precio)
     _validar_referencias_producto(db, data, empresa_id)
     _verificar_limite_si_reactiva(db, producto, data)
     _aplicar_update(producto, data)
@@ -440,6 +551,7 @@ def crear_producto_proveedor(
     db: Session, data: schemas.ProductoCreate, proveedor_id: int, empresa_id: int
 ) -> models.Producto:
     """Crea un producto asignándolo automáticamente al proveedor."""
+    _validar_datos_producto(data.nombre, data.precio)
     _validar_referencias_producto(db, data.model_copy(update={"proveedor_id": None}), empresa_id)
     empresas_service.verificar_limite(db, empresa_id, "productos")
     producto = models.Producto(

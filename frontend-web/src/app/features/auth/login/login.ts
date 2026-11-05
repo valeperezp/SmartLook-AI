@@ -127,9 +127,10 @@ export class Login implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.loading.set(false);
-        // 403: empresa dada de baja o suscripción vencida; 404: empresa inexistente.
-        const detalle = err.status === 403 || err.status === 404 ? err.error?.detail : null;
-        this.error.set(detalle || 'Email o contraseña incorrectos');
+        // CU1: 401 "Credenciales inválidas", 403 usuario inactivo o empresa suspendida, 404 empresa inexistente.
+        const detalle = [401, 403, 404].includes(err.status) && typeof err.error?.detail === 'string'
+          ? err.error.detail : null;
+        this.error.set(detalle || (err.status === 0 ? 'No se pudo conectar con el servidor' : 'Credenciales inválidas'));
       },
     });
   }

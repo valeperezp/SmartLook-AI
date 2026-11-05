@@ -69,3 +69,15 @@ export interface AjusteStockCreate {
   nueva_cantidad?: number;
   motivo?: string;
 }
+
+/** CU7 8a: variante del catálogo sin inventario en la sucursal. */
+export interface VarianteSinCargar {
+  variante_id: number;
+  producto_id: number;
+  nombre_producto: string;
+  talla_id: number | null;
+  nombre_talla: string | null;
+  color_id: number | null;
+  nombre_color: string | null;
+  precio: number;
+}

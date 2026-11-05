@@ -7,6 +7,7 @@ import {
   InventarioItem,
   MovimientoInventario,
   ResumenInventario,
+  VarianteSinCargar,
 } from '../models/inventario.model';
 
 @Injectable({ providedIn: 'root' })
@@ -70,6 +71,25 @@ export class InventarioService {
       `${this.base}/${inventarioId}/stock-minimo`,
       { stock_minimo }
     );
+  }
+
+  /** CU7 8a: variantes del catálogo que la sucursal todavía no tiene cargadas. */
+  variantesSinCargar(sucursalId?: number) {
+    let params = new HttpParams();
+    if (sucursalId) params = params.set('sucursal_id', sucursalId);
+    return this.http.get<VarianteSinCargar[]>(`${this.base}/variantes-sin-cargar`, { params });
+  }
+
+  /** CU7 8a: primera carga de una variante en la sucursal (crea el inventario + movimiento de entrada). */
+  primeraCarga(data: {
+    producto_id: number;
+    sucursal_id: number;
+    talla_id: number | null;
+    color_id: number | null;
+    cantidad_inicial: number;
+    stock_minimo: number;
+  }) {
+    return this.http.post<InventarioItem>(this.base, data);
   }
 
   miSucursal() {

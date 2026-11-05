@@ -4,6 +4,7 @@ import { environment } from '../../../environments/environment';
 import { InventarioItem } from '../models/inventario.model';
 import {
   AccionTransferencia,
+  DisponibilidadTransferencia,
   EstadoTransferencia,
   Transferencia,
   TransferenciaCreate,
@@ -21,6 +22,13 @@ export class TransferenciasService {
     return this.http.get<Transferencia[]>(this.base, { params });
   }
 
+  /** Sucursales de la empresa que tienen existencia de la prenda (paso 2). */
+  disponibilidad(productoId: number) {
+    return this.http.get<DisponibilidadTransferencia[]>(`${this.base}/disponibilidad`, {
+      params: new HttpParams().set('producto_id', productoId),
+    });
+  }
+
   stockOrigen(sucursalId: number) {
     return this.http.get<InventarioItem[]>(`${this.base}/stock-origen`, {
       params: new HttpParams().set('sucursal_id', sucursalId),
@@ -31,7 +39,12 @@ export class TransferenciasService {
     return this.http.post<Transferencia>(this.base, data);
   }
 
-  ejecutar(id: number, accion: AccionTransferencia, comentario?: string | null) {
-    return this.http.post<Transferencia>(`${this.base}/${id}/${accion}`, { comentario: comentario || null });
+  ejecutar(
+    id: number,
+    accion: AccionTransferencia,
+    comentario?: string | null,
+    recibidas: { item_id: number; cantidad_recibida: number }[] = [],
+  ) {
+    return this.http.post<Transferencia>(`${this.base}/${id}/${accion}`, { comentario: comentario || null, recibidas });
   }
 }

@@ -7,6 +7,7 @@ import { Usuario } from '../models/usuario.model';
 
 const TOKEN_KEY = 'smartlook_token';
 const EMPRESA_KEY = 'smartlook_empresa';
+export const AVISO_CERRADO_KEY = 'smartlook_aviso_vencimiento_cerrado';
 
 interface TokenResponse {
   access_token: string;
@@ -84,7 +85,11 @@ export class AuthService {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
       .pipe(
-        tap((res) => this.setToken(res.access_token)),
+        tap((res) => {
+          this.setToken(res.access_token);
+          // CU1 8a: el aviso de vencimiento cerrado vuelve a mostrarse en cada inicio de sesión.
+          try { sessionStorage.removeItem(AVISO_CERRADO_KEY); } catch { /* sin almacenamiento */ }
+        }),
         switchMap(() => this.http.get<Usuario>(`${this.apiUrl}/auth/me`)),
         tap((usuario) => this.currentUser.set(usuario))
       );

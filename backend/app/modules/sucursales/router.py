@@ -32,7 +32,7 @@ def obtener_sucursal(sucursal_id: int, db: Session = Depends(get_db), empresa_id
 
 @router.post("", response_model=schemas.SucursalOut, status_code=201)
 def crear_sucursal(data: schemas.SucursalCreate, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
-    return service.crear_sucursal(db, data, admin.empresa_id)
+    return service.crear_sucursal(db, data, admin.empresa_id, admin)
 
 
 @router.put("/{sucursal_id}", response_model=schemas.SucursalOut)
@@ -42,7 +42,7 @@ def actualizar_sucursal(
     db: Session = Depends(get_db),
     admin: Usuario = Depends(admin_only),
 ):
-    sucursal = service.actualizar_sucursal(db, sucursal_id, data, admin.empresa_id)
+    sucursal = service.actualizar_sucursal(db, sucursal_id, data, admin.empresa_id, admin)
     if not sucursal:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
     return sucursal
@@ -50,7 +50,7 @@ def actualizar_sucursal(
 
 @router.delete("/{sucursal_id}", response_model=schemas.SucursalOut)
 def eliminar_sucursal(sucursal_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(admin_only)):
-    sucursal = service.eliminar_sucursal(db, sucursal_id, admin.empresa_id)
+    sucursal = service.eliminar_sucursal(db, sucursal_id, admin.empresa_id, admin)
     if not sucursal:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
     return sucursal

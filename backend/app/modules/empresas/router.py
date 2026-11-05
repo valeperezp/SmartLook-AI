@@ -1,15 +1,16 @@
 """Endpoints multi-empresa.
 
-- /planes            CU3 — CRUD de planes (superadmin). Listado de activos: público.
-- /empresas          CU2 — CRUD de empresas contratantes (superadmin).
-- /empresas/{id}/suscripcion   CU4 — asignar/cambiar plan y estado (superadmin).
-- /mi-empresa        CU4 — el administrador ve su plan, su uso y puede cambiar de plan.
+- /planes                         CU3 — planes y sus funcionalidades (superadmin). Listado de activos: público.
+- /empresas                       CU2 — empresas contratantes: alta, edición, suspensión y reactivación (superadmin).
+- /empresas/{id}/suscripcion      CU4 — asignar/cambiar plan, renovar y cambiar estado (superadmin).
+- /mi-empresa                     CU4 2a — el administrador consulta su suscripción (solo lectura).
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import ROL_SUPERADMIN, empresa_actual_id, require_roles
 from app.modules.empresas import schemas, service
+from app.modules.usuarios.models import Usuario
 from app.shared.db.session import get_db
 
 superadmin_only = require_roles(ROL_SUPERADMIN)
@@ -27,11 +28,17 @@ def _empresa_o_404(db: Session, empresa_id: int):
     return empresa
 
 
+def _plan_o_404(plan):
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan no encontrado")
+    return plan
+
+
 # ---------------------------------------------------------------- Planes (CU3)
 
 @planes_router.get("", response_model=list[schemas.PlanOut])
 def listar_planes_activos(db: Session = Depends(get_db)):
-    """Planes que se ofrecen hoy (público: lo usa la pantalla de cambio de plan)."""
+    """Planes que se ofrecen hoy (público)."""
     return service.listar_planes(db, solo_activos=True)
 
 
@@ -40,25 +47,33 @@ def listar_todos_los_planes(db: Session = Depends(get_db)):
     return service.listar_planes(db)
 
 
-@planes_router.post("", response_model=schemas.PlanOut, status_code=201, dependencies=[Depends(superadmin_only)])
-def crear_plan(data: schemas.PlanCreate, db: Session = Depends(get_db)):
-    return service.crear_plan(db, data)
+@planes_router.get("/funcionalidades", response_model=list[schemas.FuncionalidadOut],
+                   dependencies=[Depends(superadmin_only)])
+def listar_funcionalidades(db: Session = Depends(get_db)):
+    """Lista de funcionalidades con su casilla de habilitación en el formulario de plan."""
+    return service.listar_funcionalidades(db)
 
 
-@planes_router.put("/{plan_id}", response_model=schemas.PlanOut, dependencies=[Depends(superadmin_only)])
-def actualizar_plan(plan_id: int, data: schemas.PlanUpdate, db: Session = Depends(get_db)):
-    plan = service.actualizar_plan(db, plan_id, data)
-    if not plan:
+@planes_router.post("", response_model=schemas.PlanOut, status_code=201)
+def crear_plan(data: schemas.PlanCreate, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    return service.crear_plan(db, data, actor)
+
+
+@planes_router.put("/{plan_id}", response_model=schemas.PlanOut)
+def actualizar_plan(plan_id: int, data: schemas.PlanUpdate, db: Session = Depends(get_db),
+                    actor: Usuario = Depends(superadmin_only)):
+    return _plan_o_404(service.actualizar_plan(db, plan_id, data, actor))
+
+
+@planes_router.post("/{plan_id}/desactivar", response_model=schemas.PlanOut)
+def desactivar_plan(plan_id: int, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    return _plan_o_404(service.desactivar_plan(db, plan_id, actor))
+
+
+@planes_router.delete("/{plan_id}", status_code=204)
+def eliminar_plan(plan_id: int, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    if not service.eliminar_plan(db, plan_id, actor):
         raise HTTPException(status_code=404, detail="Plan no encontrado")
-    return plan
-
-
-@planes_router.delete("/{plan_id}", response_model=schemas.PlanOut, dependencies=[Depends(superadmin_only)])
-def desactivar_plan(plan_id: int, db: Session = Depends(get_db)):
-    plan = service.desactivar_plan(db, plan_id)
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plan no encontrado")
-    return plan
 
 
 # -------------------------------------------------------------- Empresas (CU2)
@@ -82,22 +97,36 @@ def obtener_empresa(empresa_id: int, db: Session = Depends(get_db)):
     return service.detalle_empresa(db, _empresa_o_404(db, empresa_id))
 
 
-@empresas_router.post("", response_model=schemas.EmpresaDetalle, status_code=201, dependencies=[Depends(superadmin_only)])
-def crear_empresa(data: schemas.EmpresaCreate, db: Session = Depends(get_db)):
-    return service.detalle_empresa(db, service.crear_empresa(db, data))
+@empresas_router.post("", response_model=schemas.EmpresaCreada, status_code=201)
+def crear_empresa(data: schemas.EmpresaCreate, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    empresa, password_temporal = service.crear_empresa(db, data, actor)
+    detalle = service.detalle_empresa(db, empresa)
+    return schemas.EmpresaCreada(
+        **detalle.model_dump(),
+        credenciales=schemas.CredencialesAdmin(email=data.administrador.email, password_temporal=password_temporal),
+    )
 
 
-@empresas_router.put("/{empresa_id}", response_model=schemas.EmpresaDetalle, dependencies=[Depends(superadmin_only)])
-def actualizar_empresa(empresa_id: int, data: schemas.EmpresaUpdate, db: Session = Depends(get_db)):
-    empresa = service.actualizar_empresa(db, empresa_id, data)
+@empresas_router.put("/{empresa_id}", response_model=schemas.EmpresaDetalle)
+def actualizar_empresa(empresa_id: int, data: schemas.EmpresaUpdate, db: Session = Depends(get_db),
+                       actor: Usuario = Depends(superadmin_only)):
+    empresa = service.actualizar_empresa(db, empresa_id, data, actor)
     if not empresa:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return service.detalle_empresa(db, empresa)
 
 
-@empresas_router.delete("/{empresa_id}", response_model=schemas.EmpresaDetalle, dependencies=[Depends(superadmin_only)])
-def desactivar_empresa(empresa_id: int, db: Session = Depends(get_db)):
-    empresa = service.desactivar_empresa(db, empresa_id)
+@empresas_router.post("/{empresa_id}/suspender", response_model=schemas.EmpresaDetalle)
+def suspender_empresa(empresa_id: int, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    empresa = service.cambiar_estado_empresa(db, empresa_id, False, actor)
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    return service.detalle_empresa(db, empresa)
+
+
+@empresas_router.post("/{empresa_id}/reactivar", response_model=schemas.EmpresaDetalle)
+def reactivar_empresa(empresa_id: int, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    empresa = service.cambiar_estado_empresa(db, empresa_id, True, actor)
     if not empresa:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return service.detalle_empresa(db, empresa)
@@ -112,32 +141,32 @@ def desactivar_empresa(empresa_id: int, db: Session = Depends(get_db)):
 )
 def historial_suscripciones(empresa_id: int, db: Session = Depends(get_db)):
     _empresa_o_404(db, empresa_id)
-    return service.historial_suscripciones(db, empresa_id)
+    return [service.suscripcion_out(s) for s in service.historial_suscripciones(db, empresa_id)]
 
 
-@empresas_router.post(
-    "/{empresa_id}/suscripcion",
-    response_model=schemas.EmpresaDetalle,
-    dependencies=[Depends(superadmin_only)],
-)
-def asignar_plan(empresa_id: int, data: schemas.SuscripcionAsignar, db: Session = Depends(get_db)):
-    service.asignar_plan(db, empresa_id, data)
+@empresas_router.post("/{empresa_id}/suscripcion", response_model=schemas.EmpresaDetalle)
+def asignar_plan(empresa_id: int, data: schemas.SuscripcionAsignar, db: Session = Depends(get_db),
+                 actor: Usuario = Depends(superadmin_only)):
+    service.asignar_plan(db, empresa_id, data, actor)
     return service.detalle_empresa(db, _empresa_o_404(db, empresa_id))
 
 
-@empresas_router.patch(
-    "/{empresa_id}/suscripcion",
-    response_model=schemas.EmpresaDetalle,
-    dependencies=[Depends(superadmin_only)],
-)
+@empresas_router.post("/{empresa_id}/suscripcion/renovar", response_model=schemas.EmpresaDetalle)
+def renovar_suscripcion(empresa_id: int, db: Session = Depends(get_db), actor: Usuario = Depends(superadmin_only)):
+    service.renovar_suscripcion(db, empresa_id, actor)
+    return service.detalle_empresa(db, _empresa_o_404(db, empresa_id))
+
+
+@empresas_router.patch("/{empresa_id}/suscripcion", response_model=schemas.EmpresaDetalle)
 def cambiar_estado_suscripcion(
-    empresa_id: int, data: schemas.SuscripcionEstadoUpdate, db: Session = Depends(get_db)
+    empresa_id: int, data: schemas.SuscripcionEstadoUpdate, db: Session = Depends(get_db),
+    actor: Usuario = Depends(superadmin_only),
 ):
-    service.cambiar_estado_suscripcion(db, empresa_id, data)
+    service.cambiar_estado_suscripcion(db, empresa_id, data, actor)
     return service.detalle_empresa(db, _empresa_o_404(db, empresa_id))
 
 
-# ------------------------------------------- Mi empresa (administrador, CU4)
+# ------------------------------------- Mi suscripción (administrador, CU4 2a)
 
 @mi_empresa_router.get("", response_model=schemas.EmpresaDetalle, dependencies=[Depends(admin_only)])
 def mi_empresa(empresa_id: int = Depends(empresa_actual_id), db: Session = Depends(get_db)):
@@ -148,15 +177,4 @@ def mi_empresa(empresa_id: int = Depends(empresa_actual_id), db: Session = Depen
     "/suscripciones", response_model=list[schemas.SuscripcionOut], dependencies=[Depends(admin_only)]
 )
 def mi_historial(empresa_id: int = Depends(empresa_actual_id), db: Session = Depends(get_db)):
-    return service.historial_suscripciones(db, empresa_id)
-
-
-@mi_empresa_router.post("/suscripcion", response_model=schemas.EmpresaDetalle, dependencies=[Depends(admin_only)])
-def cambiar_mi_plan(
-    data: schemas.SuscripcionAsignar,
-    empresa_id: int = Depends(empresa_actual_id),
-    db: Session = Depends(get_db),
-):
-    """El administrador cambia el plan de su empresa (sube o baja, validando el uso actual)."""
-    service.asignar_plan(db, empresa_id, data)
-    return service.detalle_empresa(db, _empresa_o_404(db, empresa_id))
+    return [service.suscripcion_out(s) for s in service.historial_suscripciones(db, empresa_id)]

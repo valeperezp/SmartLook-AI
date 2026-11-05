@@ -107,8 +107,29 @@ class ProductoBase(BaseModel):
     imagen_url: str | None = None
 
 
+class VarianteCreate(BaseModel):
+    talla_id: int | None = None
+    color_id: int | None = None
+    precio: float | None = None  # None = precio del producto
+    sku: str | None = None
+
+
+class VarianteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    talla_id: int | None = None
+    nombre_talla: str | None = None
+    color_id: int | None = None
+    nombre_color: str | None = None
+    sku: str | None = None
+    precio: float | None = None
+    precio_efectivo: float
+    activo: bool
+
+
 class ProductoCreate(ProductoBase):
-    pass
+    # CU7 paso 4: variantes de talla y color (opcional; se pueden agregar después).
+    variantes: list[VarianteCreate] = []
 
 
 class ProductoUpdate(BaseModel):
@@ -140,6 +161,7 @@ class ProductoOut(BaseModel):
     categoria: CategoriaOut
     temporada: TemporadaOut | None = None
     coleccion: ColeccionOut | None = None
+    variantes: list[VarianteOut] = []
 
 
 # ---------- Disponibilidad por sucursal ----------

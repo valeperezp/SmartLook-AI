@@ -6,6 +6,7 @@ del usuario y cada request verifica que la empresa siga activa y con suscripció
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.modules.auth import schemas
@@ -33,36 +34,41 @@ def _empresa_por_slug_o_404(db: Session, slug: str) -> Empresa:
 
 
 _METODOS_DE_LECTURA = {"GET", "HEAD", "OPTIONS"}
-# POST que no modifican datos (generar/exportar reportes, chat) o que sirven para regularizar la suscripción.
-_RUTAS_PERMITIDAS_SOLO_LECTURA = ("/mi-empresa/suscripcion", "/reportes/", "/ia/chat")
+# POST que no modifican datos (generar/exportar reportes, chat).
+_RUTAS_PERMITIDAS_SOLO_LECTURA = ("/reportes/", "/ia/chat")
+
+# Mensajes del documento (CU1 4b, CU6 3a, CU7 3a).
+MSG_CREDENCIALES = "Credenciales inválidas"
+MSG_USUARIO_INACTIVO = "Usuario inactivo, contacte al administrador de su empresa"
+MSG_EMPRESA_SUSPENDIDA = "La empresa se encuentra suspendida"
+MSG_SIN_SUSCRIPCION = "La empresa no tiene una suscripción asignada. Contacte al administrador de la plataforma."
+MSG_VENCIDA_USUARIOS = "Suscripción vencida: no puede registrar usuarios"
+MSG_VENCIDA_GENERAL = "Suscripción vencida: solo puede consultar información"
 
 
 def validar_acceso_empresa(db: Session, usuario: Usuario, metodo: str = "GET", ruta: str = "") -> None:
-    """Reglas de acceso por estado de la empresa y su suscripción.
+    """Reglas de acceso por estado de la empresa y su suscripción (RN-06).
 
-    - Empresa dada de baja, suscripción suspendida o cancelada: no puede iniciar sesión (RN-06).
-    - Suscripción vencida: inicia sesión, pero solo puede consultar (RN-06).
+    - Empresa suspendida (o suscripción suspendida/cancelada): sus usuarios no inician sesión.
+    - Suscripción vencida: inicia sesión, pero solo puede consultar.
     """
     if usuario.rol == ROL_SUPERADMIN:
         return
     empresa = usuario.empresa
     if empresa is None or not empresa.activa:
-        raise HTTPException(status_code=403, detail="La empresa no está habilitada en la plataforma")
+        raise HTTPException(status_code=403, detail=MSG_EMPRESA_SUSPENDIDA)
     suscripcion = empresas_service.suscripcion_actual(db, empresa.id)
-    if suscripcion is None or suscripcion.estado != "activa":
-        raise HTTPException(
-            status_code=403,
-            detail="La suscripción de la empresa está suspendida. Contactá al administrador de la plataforma.",
-        )
+    if suscripcion is None:
+        raise HTTPException(status_code=403, detail=MSG_SIN_SUSCRIPCION)
+    if suscripcion.estado != "activa":
+        raise HTTPException(status_code=403, detail=MSG_EMPRESA_SUSPENDIDA)
     if (
         empresas_service.esta_vencida(suscripcion)
         and metodo not in _METODOS_DE_LECTURA
         and not ruta.startswith(_RUTAS_PERMITIDAS_SOLO_LECTURA)
     ):
-        raise HTTPException(
-            status_code=403,
-            detail="La suscripción de la empresa venció: solo podés consultar información hasta renovarla.",
-        )
+        mensaje = MSG_VENCIDA_USUARIOS if ruta.startswith("/usuarios") else MSG_VENCIDA_GENERAL
+        raise HTTPException(status_code=403, detail=mensaje)
 
 
 def registrar_usuario(db: Session, data: schemas.RegistroRequest) -> Usuario:
@@ -88,24 +94,40 @@ def registrar_usuario(db: Session, data: schemas.RegistroRequest) -> Usuario:
     return usuario
 
 
-def autenticar_usuario(db: Session, email: str, password: str, empresa_slug: str | None = None) -> Usuario | None:
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+def autenticar_usuario(db: Session, email: str, password: str, empresa_slug: str | None = None) -> Usuario:
+    """CU1 pasos 3 a 5. Lanza el error del flujo alternativo que corresponda."""
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email.lower()).first()
+    # 3a: no se dice qué dato falló.
     if not usuario or not usuario.password_hash or not verify_password(password, usuario.password_hash):
-        return None
-    if not usuario.activo:
-        return None
+        raise HTTPException(status_code=401, detail=MSG_CREDENCIALES)
     if empresa_slug and usuario.rol != ROL_SUPERADMIN:
         # Si el login indica empresa, el usuario tiene que pertenecer a ella.
-        empresa = _empresa_por_slug_o_404(db, empresa_slug)
-        if usuario.empresa_id != empresa.id:
-            return None
-    validar_acceso_empresa(db, usuario)
+        empresa = empresas_service.obtener_empresa_por_slug(db, empresa_slug)
+        if empresa is None or usuario.empresa_id != empresa.id:
+            raise HTTPException(status_code=401, detail=MSG_CREDENCIALES)
+    if not usuario.activo:
+        raise HTTPException(status_code=403, detail=MSG_USUARIO_INACTIVO)  # 3b
+    validar_acceso_empresa(db, usuario)  # 4b y 5 (4a: el superadmin no tiene empresa)
     return usuario
 
 
-def emitir_token(usuario: Usuario) -> str:
+def solo_lectura(db: Session, usuario: Usuario) -> bool:
+    """CU1 5a: la suscripción venció; la sesión es de solo consulta."""
+    if usuario.empresa_id is None:
+        return False
+    return empresas_service.esta_vencida(empresas_service.suscripcion_actual(db, usuario.empresa_id))
+
+
+def emitir_token(usuario: Usuario, modo_solo_lectura: bool = False) -> str:
+    """CU1 paso 6: el token lleva usuario, empresa (tenant), rol y sucursal asignada."""
     return create_access_token(
-        {"sub": str(usuario.id), "empresa_id": usuario.empresa_id, "rol": usuario.rol}
+        {
+            "sub": str(usuario.id),
+            "empresa_id": usuario.empresa_id,
+            "rol": usuario.rol,
+            "sucursal_id": usuario.sucursal_id,
+            "solo_lectura": modo_solo_lectura,
+        }
     )
 
 

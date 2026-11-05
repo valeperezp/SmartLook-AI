@@ -86,3 +86,43 @@ class Producto(Base):
     temporada = relationship("Temporada")
     coleccion = relationship("Coleccion")
     proveedor = relationship("Proveedor")
+    variantes = relationship(
+        "VarianteProducto", back_populates="producto", order_by="VarianteProducto.id",
+        cascade="all, delete-orphan",
+    )
+
+
+class VarianteProducto(Base):
+    """Variante de un producto (CU7): combinación de talla y color con su precio.
+
+    El inventario de cada sucursal se lleva por producto + talla + color; la variante existe
+    aunque una sucursal todavía no la tenga cargada (CU7 8a).
+    """
+    __tablename__ = "producto_variantes"
+    __table_args__ = (
+        UniqueConstraint("producto_id", "talla_id", "color_id", name="uq_producto_variantes_talla_color"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
+    talla_id = Column(Integer, ForeignKey("tallas.id"), nullable=True)
+    color_id = Column(Integer, ForeignKey("colores.id"), nullable=True)
+    sku = Column(String(60), nullable=True)
+    precio = Column(Numeric(10, 2), nullable=True)  # NULL = el precio del producto
+    activo = Column(Boolean, default=True, nullable=False)
+
+    producto = relationship("Producto", back_populates="variantes")
+    talla = relationship("Talla")
+    color = relationship("Color")
+
+    @property
+    def nombre_talla(self) -> str | None:
+        return self.talla.nombre if self.talla else None
+
+    @property
+    def nombre_color(self) -> str | None:
+        return self.color.nombre if self.color else None
+
+    @property
+    def precio_efectivo(self) -> float:
+        return float(self.precio if self.precio is not None else self.producto.precio)

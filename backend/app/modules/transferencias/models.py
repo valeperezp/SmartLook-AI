@@ -1,7 +1,7 @@
 """Modelos de transferencias de stock entre sucursales (CU19).
 
 Una transferencia recorre una máquina de estados (ver service.TRANSICIONES):
-solicitada → aprobada → en_transito → recibida, con salidas a rechazada o cancelada.
+solicitada → en_transito → recibida, con salidas a rechazada o cancelada.
 """
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
@@ -19,6 +19,8 @@ class Transferencia(Base):
     sucursal_destino_id = Column(Integer, ForeignKey("sucursales.id"), nullable=False)
     estado = Column(String(20), nullable=False, default="solicitada", index=True)
     motivo = Column(String(255), nullable=True)
+    # Motivo del rechazo o diferencia entre lo enviado y lo recibido (CU19 6a y 8a).
+    observacion = Column(String(500), nullable=True)
     solicitado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     creado_en = Column(DateTime(timezone=True), server_default=func.now())
     actualizado_en = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -59,6 +61,7 @@ class TransferenciaItem(Base):
     # Registro de inventario de la sucursal de origen (producto + talla + color).
     inventario_origen_id = Column(Integer, ForeignKey("inventario.id"), nullable=False)
     cantidad = Column(Integer, nullable=False)
+    cantidad_recibida = Column(Integer, nullable=True)  # se completa al confirmar la recepción
 
     transferencia = relationship("Transferencia", back_populates="items")
     inventario_origen = relationship("Inventario")

@@ -22,6 +22,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           <a routerLink="/plataforma/planes" routerLinkActive="active">
             <app-icon name="credit-card" [size]="18" /> <span>Planes</span>
           </a>
+          <a routerLink="/plataforma/bitacora" routerLinkActive="active">
+            <app-icon name="clock" [size]="18" /> <span>Bitácora</span>
+          </a>
         </nav>
       </aside>
 

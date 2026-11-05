@@ -1,15 +1,16 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { EmpresasService } from '../../../core/services/empresas.service';
 import { EmpresaDetalle } from '../../../core/models/empresa.model';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { AdminUiService } from '../../../core/services/admin-ui.service';
-import { AuthService } from '../../../core/services/auth.service';
+import { AVISO_CERRADO_KEY, AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, IconComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, IconComponent, DatePipe],
   template: `
     <div class="admin-shell">
       @if (adminUi.sidebarOpen()) {
@@ -49,6 +50,9 @@ import { AuthService } from '../../../core/services/auth.service';
           <a routerLink="/admin/suscripcion" routerLinkActive="active">
             <app-icon name="credit-card" [size]="18" /> <span>Mi suscripción</span>
           </a>
+          <a routerLink="/admin/bitacora" routerLinkActive="active">
+            <app-icon name="clock" [size]="18" /> <span>Bitácora</span>
+          </a>
           <span class="nav-group">Catálogo maestro</span>
           <a routerLink="/admin/catalogo/productos" routerLinkActive="active">
             <app-icon name="shirt" [size]="18" /> <span>Productos</span>
@@ -77,19 +81,20 @@ import { AuthService } from '../../../core/services/auth.service';
             <div class="banner banner-error" role="alert">
               <app-icon name="alert-circle" [size]="18" />
               <span>
-                La suscripción venció hace {{ -e.dias_para_vencer! }} día(s). Solo podés consultar información:
-                no se pueden registrar ventas, reservas, sucursales ni usuarios hasta renovarla.
+                Suscripción vencida: solo puede consultar información. No se pueden registrar ventas, reservas,
+                sucursales ni usuarios hasta que el administrador de la plataforma la renueve.
               </span>
-              <a routerLink="/admin/suscripcion">Renovar</a>
+              <a routerLink="/admin/suscripcion">Ver mi suscripción</a>
             </div>
-          } @else if (e.aviso_vencimiento) {
+          } @else if (e.aviso_vencimiento && !avisoCerrado()) {
             <div class="banner" role="status">
               <app-icon name="clock" [size]="18" />
               <span>
-                @if (e.dias_para_vencer === 0) { Tu suscripción vence hoy. }
-                @else { Tu suscripción vence en {{ e.dias_para_vencer }} día(s). }
+                Su plan {{ e.suscripcion?.plan?.nombre }} vence en {{ e.dias_para_vencer }} día(s),
+                el {{ e.suscripcion?.fecha_fin | date: 'dd/MM/yyyy' }}
               </span>
-              <a routerLink="/admin/suscripcion">Ver suscripción</a>
+              <a routerLink="/admin/suscripcion">Ver mi suscripción</a>
+              <button type="button" class="banner-cerrar" (click)="cerrarAviso()">Cerrar</button>
             </div>
           }
         }
@@ -115,6 +120,10 @@ import { AuthService } from '../../../core/services/auth.service';
       app-icon { color: var(--warning); }
       span { flex: 1; min-width: 14rem; }
       a { font-weight: 600; color: var(--primary); }
+      .banner-cerrar {
+        background: none; border: none; padding: 0; cursor: pointer;
+        font: inherit; color: var(--text-secondary); text-decoration: underline;
+      }
     }
     .banner-error {
       border-color: rgba(163, 64, 47, 0.35);
@@ -130,8 +139,19 @@ export class AdminLayout implements OnInit {
 
   /** RN-06 y RN-08: estado de la suscripción para los avisos de vencimiento. */
   empresa = signal<EmpresaDetalle | null>(null);
+  /** CU1 8a: "Cerrar" oculta el aviso hasta el próximo inicio de sesión. */
+  avisoCerrado = signal(this.leerAvisoCerrado());
 
   ngOnInit() {
     this.empresas.miEmpresa().subscribe({ next: (e) => this.empresa.set(e), error: () => this.empresa.set(null) });
+  }
+
+  cerrarAviso() {
+    this.avisoCerrado.set(true);
+    try { sessionStorage.setItem(AVISO_CERRADO_KEY, '1'); } catch { /* sin almacenamiento */ }
+  }
+
+  private leerAvisoCerrado(): boolean {
+    try { return sessionStorage.getItem(AVISO_CERRADO_KEY) === '1'; } catch { return false; }
   }
 }

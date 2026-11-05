@@ -341,3 +341,30 @@
     transform: scale(1);
   }
 }
+
+.sin-cargar {
+  display: grid;
+  gap: 1rem;
+
+  .sin-cargar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .muted {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .num-input {
+    width: 6rem;
+  }
+}

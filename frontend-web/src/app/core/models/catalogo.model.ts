@@ -49,6 +49,28 @@ export interface Producto {
   total_disponible?: number;
   sucursales_con_stock?: number;
   estado_global?: 'disponible' | 'bajo' | 'agotado';
+  /** Solo en el detalle (GET /catalogo/productos/{id}). */
+  variantes?: Variante[];
+}
+
+/** Variante de un producto: talla + color con su precio (CU7). */
+export interface Variante {
+  id: number;
+  talla_id: number | null;
+  nombre_talla: string | null;
+  color_id: number | null;
+  nombre_color: string | null;
+  sku: string | null;
+  precio: number | null;
+  precio_efectivo: number;
+  activo: boolean;
+}
+
+export interface VarianteCreate {
+  talla_id: number | null;
+  color_id: number | null;
+  precio?: number | null;
+  sku?: string | null;
 }
 
 export interface ProductoCreate {
@@ -62,6 +84,7 @@ export interface ProductoCreate {
   modelo_ar_url?: string;
   imagen_url?: string;
   activo?: boolean;
+  variantes?: VarianteCreate[];
 }
 
 export interface DisponibilidadTallaColor {

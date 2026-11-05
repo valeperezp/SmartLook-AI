@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 EstadoTransferencia = Literal["solicitada", "aprobada", "en_transito", "recibida", "rechazada", "cancelada"]
-Accion = Literal["aprobar", "rechazar", "despachar", "recibir", "cancelar"]
+Accion = Literal["enviar", "rechazar", "recibir", "cancelar"]
 
 
 class TransferenciaItemCreate(BaseModel):
@@ -20,8 +20,15 @@ class TransferenciaCreate(BaseModel):
     items: list[TransferenciaItemCreate] = Field(min_length=1)
 
 
+class CantidadRecibida(BaseModel):
+    item_id: int
+    cantidad_recibida: int = Field(ge=0)
+
+
 class AccionRequest(BaseModel):
-    comentario: str | None = Field(default=None, max_length=255)
+    comentario: str | None = Field(default=None, max_length=255)  # obligatorio al rechazar
+    # Solo al confirmar la recepción: lo que llegó de cada línea (por defecto, lo enviado).
+    recibidas: list[CantidadRecibida] = []
 
 
 class TransferenciaItemOut(BaseModel):
@@ -33,6 +40,7 @@ class TransferenciaItemOut(BaseModel):
     nombre_talla: str | None = None
     nombre_color: str | None = None
     cantidad: int
+    cantidad_recibida: int | None = None
 
 
 class HistorialOut(BaseModel):
@@ -53,6 +61,7 @@ class TransferenciaOut(BaseModel):
     nombre_destino: str
     estado: EstadoTransferencia
     motivo: str | None = None
+    observacion: str | None = None
     nombre_solicitante: str
     total_unidades: int
     creado_en: datetime

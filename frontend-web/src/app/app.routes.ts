@@ -163,6 +163,10 @@ export const routes: Routes = [
           import('./features/admin/suscripcion/mi-suscripcion').then((m) => m.MiSuscripcion),
       },
       {
+        path: 'bitacora',
+        loadComponent: () => import('./features/bitacora/bitacora-page').then((m) => m.BitacoraPage),
+      },
+      {
         path: 'transferencias',
         loadComponent: () =>
           import('./features/transferencias/transferencias-page').then((m) => m.TransferenciasPage),
@@ -186,6 +190,10 @@ export const routes: Routes = [
         path: 'planes',
         loadComponent: () =>
           import('./features/plataforma/planes/planes-admin').then((m) => m.PlanesAdmin),
+      },
+      {
+        path: 'bitacora',
+        loadComponent: () => import('./features/bitacora/bitacora-page').then((m) => m.BitacoraPage),
       },
     ],
   },

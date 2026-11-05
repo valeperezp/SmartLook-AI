@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../../../core/components/icon/icon';
 import { InventarioService } from '../../../core/services/inventario.service';
-import { InventarioItem } from '../../../core/models/inventario.model';
+import { AuthService } from '../../../core/services/auth.service';
+import { InventarioItem, VarianteSinCargar } from '../../../core/models/inventario.model';
 
 type ModalAccion = 'entrada' | 'salida' | 'ajuste' | 'stock_minimo' | null;
 
@@ -28,6 +29,39 @@ type ModalAccion = 'entrada' | 'salida' | 'ajuste' | 'stock_minimo' | null;
     @if (toast()) {
       <div class="toast-notification" [class.toast-error]="toastIsError()">
         {{ toast() }}
+      </div>
+    }
+
+    @if (sinCargar().length) {
+      <div class="card sin-cargar" style="margin-bottom: 1.5rem;">
+        <div class="sin-cargar-head">
+          <div>
+            <b>{{ sinCargar().length }} variante(s) del catálogo sin cargar en tu sucursal</b>
+            <p class="muted">Primera carga: se crea el inventario con la cantidad inicial y un movimiento de entrada.</p>
+          </div>
+          <button class="btn-secondary" (click)="mostrarSinCargar.set(!mostrarSinCargar())">
+            {{ mostrarSinCargar() ? 'Ocultar' : 'Ver y cargar' }}
+          </button>
+        </div>
+        @if (mostrarSinCargar()) {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Producto</th><th>Talla</th><th>Color</th><th>Cantidad inicial</th><th>Stock mínimo</th><th></th></tr></thead>
+              <tbody>
+                @for (v of sinCargar(); track v.variante_id) {
+                  <tr>
+                    <td>{{ v.nombre_producto }}</td>
+                    <td>{{ v.nombre_talla || '—' }}</td>
+                    <td>{{ v.nombre_color || '—' }}</td>
+                    <td><input type="number" min="0" class="num-input" [(ngModel)]="primera[v.variante_id].cantidad" [name]="'pc-' + v.variante_id" /></td>
+                    <td><input type="number" min="0" class="num-input" [(ngModel)]="primera[v.variante_id].stock_minimo" [name]="'pm-' + v.variante_id" /></td>
+                    <td><button class="btn-primary" [disabled]="guardando()" (click)="cargarPrimeraVez(v)">Cargar</button></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </div>
     }
 
@@ -261,6 +295,7 @@ type ModalAccion = 'entrada' | 'salida' | 'ajuste' | 'stock_minimo' | null;
 })
 export class EncargadoInventario implements OnInit {
   private inventarioService = inject(InventarioService);
+  private auth = inject(AuthService);
 
   inventario = signal<InventarioItem[]>([]);
   inventarioFiltrado = signal<InventarioItem[]>([]);
@@ -283,11 +318,53 @@ export class EncargadoInventario implements OnInit {
     motivo: '',
   };
 
+  /** CU7 8a: variantes del catálogo que esta sucursal todavía no tiene cargadas. */
+  sinCargar = signal<VarianteSinCargar[]>([]);
+  mostrarSinCargar = signal(false);
+  primera: Record<number, { cantidad: number; stock_minimo: number }> = {};
+
   ngOnInit() {
     this.cargar();
   }
 
+  cargarSinCargar() {
+    this.inventarioService.variantesSinCargar().subscribe({
+      next: (data) => {
+        this.sinCargar.set(data);
+        for (const v of data) this.primera[v.variante_id] ??= { cantidad: 1, stock_minimo: 5 };
+      },
+      error: () => this.sinCargar.set([]),
+    });
+  }
+
+  cargarPrimeraVez(v: VarianteSinCargar) {
+    const sucursalId = this.inventario()[0]?.sucursal_id ?? this.sucursalPropia;
+    const datos = this.primera[v.variante_id];
+    if (!sucursalId || !datos || datos.cantidad < 0) return;
+    this.guardando.set(true);
+    this.inventarioService
+      .primeraCarga({
+        producto_id: v.producto_id, sucursal_id: sucursalId, talla_id: v.talla_id, color_id: v.color_id,
+        cantidad_inicial: Number(datos.cantidad), stock_minimo: Number(datos.stock_minimo),
+      })
+      .subscribe({
+        next: () => {
+          this.guardando.set(false);
+          this.mostrarToast(`${v.nombre_producto} cargado en la sucursal`);
+          this.cargar();
+        },
+        error: (err) => {
+          this.guardando.set(false);
+          this.mostrarToast(err.error?.detail || 'No se pudo cargar la variante', true);
+        },
+      });
+  }
+
+  /** Sucursal del encargado (para la primera carga cuando todavía no tiene inventario). */
+  private sucursalPropia: number | null = this.auth.currentUser()?.sucursal_id ?? null;
+
   cargar() {
+    this.cargarSinCargar();
     this.cargando.set(true);
     this.inventarioService.miSucursal().subscribe({
       next: (data) => {

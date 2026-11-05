@@ -35,7 +35,9 @@ from app.modules.vestidor.router import router as vestidor_router
 from app.modules.empresas.router import empresas_router, mi_empresa_router, planes_router
 from app.modules.transferencias.router import router as transferencias_router
 from app.modules.analitica_ml.router import router as analitica_router
+from app.modules.bitacora.router import router as bitacora_router
 
+import app.modules.bitacora.models
 import app.modules.analitica_ml.models
 import app.modules.reportes.models
 import app.modules.empresas.models
@@ -86,6 +88,7 @@ app.include_router(auth_router)
 app.include_router(empresas_router)
 app.include_router(planes_router)
 app.include_router(mi_empresa_router)
+app.include_router(bitacora_router)
 app.include_router(usuarios_router)
 app.include_router(sucursales_router)
 app.include_router(proveedores_router)

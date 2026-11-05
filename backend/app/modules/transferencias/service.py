@@ -1,18 +1,21 @@
 """Lógica de transferencias de stock entre sucursales (CU19) — máquina de estados.
 
-    solicitada ──aprobar──▶ aprobada ──despachar──▶ en_transito ──recibir──▶ recibida
-        │                      │
-        ├──rechazar──▶ rechazada
-        └──cancelar──▶ cancelada ◀──cancelar──┘
+    SOLICITADA ──enviar (origen)──▶ EN TRÁNSITO ──confirmar recepción (destino)──▶ RECIBIDA
+        │
+        ├──rechazar (origen, con motivo)──▶ RECHAZADA
+        └──cancelar (destino, antes del envío)──▶ CANCELADA
 
-- despachar: descuenta el stock de la sucursal de origen (con bloqueo de fila).
-- recibir:   suma el stock en la sucursal de destino (crea el registro si no existe).
-Cada transición queda en el historial y genera movimientos de inventario.
+- El Encargado de destino solicita las prendas a otra sucursal de su empresa.
+- enviar:  en una transacción revalida la existencia, descuenta el origen y registra SALIDA POR TRANSFERENCIA.
+- recibir: en una transacción suma al destino (lo recibido, si llegan menos se guarda la observación)
+           y registra ENTRADA POR TRANSFERENCIA.
+Cada transición queda en el historial. ("aprobada" solo existe en transferencias anteriores.)
 """
 from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.modules.catalogo.models import Producto
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.sucursales.models import Sucursal
 from app.modules.transferencias import models, schemas
@@ -21,9 +24,8 @@ from app.shared.db.tenant import asegurar_de_empresa
 
 # accion -> (estados desde los que se puede, estado al que lleva)
 TRANSICIONES: dict[str, tuple[set[str], str]] = {
-    "aprobar": ({"solicitada"}, "aprobada"),
-    "rechazar": ({"solicitada"}, "rechazada"),
-    "despachar": ({"aprobada"}, "en_transito"),
+    "enviar": ({"solicitada", "aprobada"}, "en_transito"),
+    "rechazar": ({"solicitada", "aprobada"}, "rechazada"),
     "recibir": ({"en_transito"}, "recibida"),
     "cancelar": ({"solicitada", "aprobada"}, "cancelada"),
 }
@@ -46,14 +48,12 @@ def puede(usuario: Usuario, accion: str, t: models.Transferencia) -> bool:
         return False
     if _es_admin(usuario):
         return True
-    if accion in ("aprobar", "rechazar", "despachar"):
-        # Quien entrega la mercadería decide si la manda.
+    if accion in ("enviar", "rechazar"):
+        # Quien entrega la mercadería decide si la manda (CU19 paso 6 y 6a).
         return _es_encargado_de(usuario, t.sucursal_origen_id)
-    if accion == "recibir":
+    if accion in ("recibir", "cancelar"):
+        # El destino la pidió: confirma la recepción o cancela antes del envío (paso 8 y 5a).
         return _es_encargado_de(usuario, t.sucursal_destino_id)
-    if accion == "cancelar":
-        # El solicitante puede arrepentirse mientras nadie la aprobó.
-        return t.estado == "solicitada" and t.solicitado_por_id == usuario.id
     return False
 
 
@@ -121,8 +121,8 @@ def crear(db: Session, usuario: Usuario, data: schemas.TransferenciaCreate) -> m
     destino = asegurar_de_empresa(db, Sucursal, data.sucursal_destino_id, empresa_id, "Sucursal de destino")
     if not origen.activa or not destino.activa:
         raise HTTPException(status_code=400, detail="Ambas sucursales deben estar activas")
-    if not _es_admin(usuario) and usuario.sucursal_id not in (origen.id, destino.id):
-        raise HTTPException(status_code=403, detail="Solo podés crear transferencias que involucren a tu sucursal")
+    if not _es_admin(usuario) and usuario.sucursal_id != destino.id:
+        raise HTTPException(status_code=403, detail="Solo puede solicitar prendas para su propia sucursal")
 
     ids = [item.inventario_id for item in data.items]
     if len(ids) != len(set(ids)):
@@ -143,11 +143,14 @@ def crear(db: Session, usuario: Usuario, data: schemas.TransferenciaCreate) -> m
             .first()
         )
         if inv is None:
-            raise HTTPException(status_code=404, detail=f"La prenda {item.inventario_id} no está en el inventario del origen")
-        if item.cantidad > inv.cantidad_disponible:
+            raise HTTPException(status_code=404, detail="No hay existencia de esa prenda en la sucursal de origen")
+        if item.cantidad > inv.cantidad_disponible:  # 4a: se informa lo disponible para ajustar la cantidad
             raise HTTPException(
                 status_code=400,
-                detail=f"{inv.nombre_producto}: hay {inv.cantidad_disponible} disponibles en {origen.nombre}, se piden {item.cantidad}",
+                detail=(
+                    f"Existencia insuficiente de {inv.nombre_producto}: hay {inv.cantidad_disponible} "
+                    f"disponibles en {origen.nombre} y se piden {item.cantidad}. Ajuste la cantidad."
+                ),
             )
         transferencia.items.append(models.TransferenciaItem(inventario_origen_id=inv.id, cantidad=item.cantidad))
 
@@ -179,12 +182,12 @@ def _descontar_origen(db: Session, t: models.Transferencia, usuario: Usuario) ->
             db.query(Inventario).filter(Inventario.id == item.inventario_origen_id)
             .with_for_update().populate_existing().one()
         )
-        if inv.cantidad_disponible < item.cantidad:
+        if inv.cantidad_disponible < item.cantidad:  # 7a
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"Stock insuficiente de {inv.nombre_producto} en {t.nombre_origen}: "
-                    f"hay {inv.cantidad_disponible}, se necesitan {item.cantidad}"
+                    f"Existencia insuficiente de {inv.nombre_producto} en {t.nombre_origen}: "
+                    f"hay {inv.cantidad_disponible} disponibles y se piden {item.cantidad}"
                 ),
             )
         inv.cantidad_disponible -= item.cantidad
@@ -194,9 +197,21 @@ def _descontar_origen(db: Session, t: models.Transferencia, usuario: Usuario) ->
         ))
 
 
-def _sumar_destino(db: Session, t: models.Transferencia, usuario: Usuario) -> None:
+def _sumar_destino(db: Session, t: models.Transferencia, usuario: Usuario, recibidas: dict[int, int]) -> None:
+    faltantes = []
     for item in t.items:
         origen = item.inventario_origen
+        recibida = recibidas.get(item.id, item.cantidad)
+        if recibida < 0 or recibida > item.cantidad:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{origen.nombre_producto}: la cantidad recibida debe estar entre 0 y {item.cantidad}",
+            )
+        item.cantidad_recibida = recibida
+        if recibida < item.cantidad:
+            faltantes.append(f"{origen.nombre_producto}: llegaron {recibida} de {item.cantidad}")
+        if recibida == 0:
+            continue
         inv = (
             db.query(Inventario)
             .filter(
@@ -220,15 +235,52 @@ def _sumar_destino(db: Session, t: models.Transferencia, usuario: Usuario) -> No
             db.add(inv)
             db.flush()
         inv.activo = True
-        inv.cantidad_disponible += item.cantidad
+        inv.cantidad_disponible += recibida
         db.add(MovimientoInventario(
-            inventario_id=inv.id, tipo="transferencia_entrada", cantidad=item.cantidad, usuario_id=usuario.id,
+            inventario_id=inv.id, tipo="transferencia_entrada", cantidad=recibida, usuario_id=usuario.id,
             motivo=f"Transferencia #{t.id} desde {t.nombre_origen}",
         ))
+    if faltantes:  # 8a: la diferencia queda como observación de la transferencia
+        t.observacion = "Llegaron menos unidades de las enviadas. " + "; ".join(faltantes)
+
+
+def disponibilidad(
+    db: Session, usuario: Usuario, producto_id: int, talla_id: int | None, color_id: int | None
+) -> list[dict]:
+    """CU19 paso 2: sucursales de la empresa (distintas de la del encargado) con existencia de la variante."""
+    asegurar_de_empresa(db, Producto, producto_id, usuario.empresa_id, "Producto")
+    query = (
+        db.query(Inventario)
+        .join(Sucursal, Inventario.sucursal_id == Sucursal.id)
+        .filter(
+            Sucursal.empresa_id == usuario.empresa_id,
+            Sucursal.activa.is_(True),
+            Inventario.producto_id == producto_id,
+            Inventario.activo.is_(True),
+            Inventario.cantidad_disponible > 0,
+        )
+    )
+    if talla_id is not None:
+        query = query.filter(Inventario.talla_id == talla_id)
+    if color_id is not None:
+        query = query.filter(Inventario.color_id == color_id)
+    if usuario.sucursal_id is not None:
+        query = query.filter(Inventario.sucursal_id != usuario.sucursal_id)
+    return [
+        {
+            "inventario_id": inv.id, "sucursal_id": inv.sucursal_id, "nombre_sucursal": inv.nombre_sucursal,
+            "producto_id": inv.producto_id, "nombre_producto": inv.nombre_producto,
+            "talla_id": inv.talla_id, "nombre_talla": inv.nombre_talla,
+            "color_id": inv.color_id, "nombre_color": inv.nombre_color,
+            "cantidad_disponible": inv.cantidad_disponible,
+        }
+        for inv in query.order_by(Inventario.cantidad_disponible.desc()).all()
+    ]
 
 
 def ejecutar(
-    db: Session, usuario: Usuario, transferencia_id: int, accion: str, comentario: str | None
+    db: Session, usuario: Usuario, transferencia_id: int, accion: str, comentario: str | None,
+    recibidas: dict[int, int] | None = None,
 ) -> models.Transferencia:
     obtener(db, usuario, transferencia_id)  # 404 si no es de su empresa o no la puede ver
     t = _bloquear(db, transferencia_id)
@@ -239,12 +291,16 @@ def ejecutar(
             detail=f"No se puede {accion} una transferencia en estado '{t.estado}'",
         )
     if not puede(usuario, accion, t):
-        raise HTTPException(status_code=403, detail=f"No tenés permiso para {accion} esta transferencia")
+        raise HTTPException(status_code=403, detail=f"No tiene permiso para {accion} esta transferencia")
 
-    if accion == "despachar":
+    if accion == "rechazar" and not (comentario and comentario.strip()):
+        raise HTTPException(status_code=400, detail="Indique el motivo del rechazo")  # 6a
+    if accion == "enviar":
         _descontar_origen(db, t, usuario)
     elif accion == "recibir":
-        _sumar_destino(db, t, usuario)
+        _sumar_destino(db, t, usuario, recibidas or {})
+    elif accion == "rechazar":
+        t.observacion = f"Motivo del rechazo: {comentario.strip()}"
 
     t.historial.append(models.TransferenciaHistorial(
         estado_anterior=t.estado, estado_nuevo=hacia, usuario_id=usuario.id, comentario=comentario,

@@ -4,6 +4,7 @@ Los modelos se entrenan y se consultan por empresa (RN-29). Cada entrenamiento g
 modelo con joblib y, en la tabla modelos_ml, sus métricas y resultados ya calculados, así
 el dashboard puede mostrar los últimos resultados aunque el motor no esté disponible.
 """
+import io
 import os
 from datetime import datetime
 
@@ -159,6 +160,23 @@ def _ruta_modelo(empresa_id: int, tipo: str, version: int) -> str:
     return os.path.join(carpeta, f"{tipo}_v{version}.joblib")
 
 
+def _serializar(objeto: dict, archivo: str) -> bytes:
+    """Serializa el modelo (joblib comprimido): copia en disco y bytes para guardar en la base."""
+    buffer = io.BytesIO()
+    joblib.dump(objeto, buffer, compress=3)
+    contenido = buffer.getvalue()
+    with open(archivo, "wb") as f:
+        f.write(contenido)
+    return contenido
+
+
+def cargar_modelo(m: models.ModeloML) -> dict:
+    """Recupera un modelo entrenado: de la base (compartida) o, si no está, de la copia local."""
+    if m.contenido:
+        return joblib.load(io.BytesIO(m.contenido))
+    return joblib.load(m.archivo)
+
+
 def _siguiente_version(db: Session, empresa_id: int, tipo: str) -> int:
     actual = (
         db.query(func.max(models.ModeloML.version))
@@ -192,11 +210,11 @@ def entrenar(db: Session, usuario: Usuario) -> dict:
         )
     version = _siguiente_version(db, empresa_id, "demanda")
     archivo = _ruta_modelo(empresa_id, "demanda", version)
-    joblib.dump({"modelo": demanda.modelo, "parametros": demanda.parametros}, archivo)
+    contenido = _serializar({"modelo": demanda.modelo, "parametros": demanda.parametros}, archivo)
     db.add(models.ModeloML(
         empresa_id=empresa_id, tipo="demanda", algoritmo="RandomForestRegressor", version=version,
         metricas=demanda.metricas, parametros=demanda.parametros, resultado={"series": series},
-        archivo=archivo, entrenado_por_id=usuario.id,
+        archivo=archivo, contenido=contenido, entrenado_por_id=usuario.id,
     ))
 
     # --- no supervisado: segmentación de clientes ---
@@ -213,13 +231,13 @@ def entrenar(db: Session, usuario: Usuario) -> dict:
         ]
     version = _siguiente_version(db, empresa_id, "segmentacion")
     archivo = _ruta_modelo(empresa_id, "segmentacion", version)
-    joblib.dump({"modelo": seg.modelo, "escalador": seg.escalador, "parametros": seg.parametros}, archivo)
+    contenido = _serializar({"modelo": seg.modelo, "escalador": seg.escalador, "parametros": seg.parametros}, archivo)
     db.add(models.ModeloML(
         empresa_id=empresa_id, tipo="segmentacion", algoritmo="KMeans", version=version,
         metricas=seg.metricas, parametros=seg.parametros,
         resultado={"segmentos": seg.segmentos, "por_sucursal": por_sucursal,
                    "interpretacion": _interpretar_segmentos(seg.segmentos)},
-        archivo=archivo, entrenado_por_id=usuario.id,
+        archivo=archivo, contenido=contenido, entrenado_por_id=usuario.id,
     ))
     db.commit()
     return consultar(db, usuario, None)

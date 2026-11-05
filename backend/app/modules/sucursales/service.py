@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
+from app.modules.bitacora import service as bitacora
 from app.modules.empresas import service as empresas_service
 from app.modules.sucursales import models, schemas
 from app.modules.sucursales.models import Sucursal, SucursalQR
@@ -29,17 +30,18 @@ def obtener_sucursal(db: Session, sucursal_id: int, empresa_id: int) -> models.S
     )
 
 
-def crear_sucursal(db: Session, data: schemas.SucursalCreate, empresa_id: int) -> models.Sucursal:
-    empresas_service.verificar_limite(db, empresa_id, "sucursales")
+def crear_sucursal(db: Session, data: schemas.SucursalCreate, empresa_id: int, actor=None) -> models.Sucursal:
+    empresas_service.verificar_limite(db, empresa_id, "sucursales")  # RN-04
     sucursal = models.Sucursal(**data.model_dump(), empresa_id=empresa_id)
     db.add(sucursal)
+    bitacora.registrar(db, "sucursal.crear", sucursal.nombre, usuario=actor, empresa_id=empresa_id)
     db.commit()
     db.refresh(sucursal)
     return sucursal
 
 
 def actualizar_sucursal(
-    db: Session, sucursal_id: int, data: schemas.SucursalUpdate, empresa_id: int
+    db: Session, sucursal_id: int, data: schemas.SucursalUpdate, empresa_id: int, actor=None
 ) -> models.Sucursal | None:
     sucursal = obtener_sucursal(db, sucursal_id, empresa_id)
     if not sucursal:
@@ -49,16 +51,19 @@ def actualizar_sucursal(
         empresas_service.verificar_limite(db, sucursal.empresa_id, "sucursales")
     for campo, valor in cambios.items():
         setattr(sucursal, campo, valor)
+    bitacora.registrar(db, "sucursal.editar", f"{sucursal.nombre}: {', '.join(cambios) or 'sin cambios'}",
+                       usuario=actor, empresa_id=empresa_id)
     db.commit()
     db.refresh(sucursal)
     return sucursal
 
 
-def eliminar_sucursal(db: Session, sucursal_id: int, empresa_id: int) -> models.Sucursal | None:
+def eliminar_sucursal(db: Session, sucursal_id: int, empresa_id: int, actor=None) -> models.Sucursal | None:
     sucursal = obtener_sucursal(db, sucursal_id, empresa_id)
     if not sucursal:
         return None
     sucursal.activa = False
+    bitacora.registrar(db, "sucursal.desactivar", sucursal.nombre, usuario=actor, empresa_id=empresa_id)
     db.commit()
     db.refresh(sucursal)
     return sucursal

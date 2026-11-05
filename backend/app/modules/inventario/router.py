@@ -183,6 +183,19 @@ def crear_inventario(
     return service.crear_o_inicializar_inventario(db, data, usuario.empresa_id, usuario_id=usuario.id)
 
 
+@router.get("/variantes-sin-cargar")
+def variantes_sin_cargar(
+    sucursal_id: int | None = Query(None, description="Sucursal (el encargado usa la suya)"),
+    usuario: Usuario = Depends(admin_or_encargado),
+    db: Session = Depends(get_db),
+):
+    """Variantes del catálogo que la sucursal todavía no tiene cargadas (CU7 8a: primera carga)."""
+    sucursal_efectiva = _validar_sucursal_usuario(db, usuario, sucursal_id)
+    if sucursal_efectiva is None:
+        raise HTTPException(status_code=400, detail="Elija una sucursal")
+    return service.variantes_sin_cargar(db, sucursal_efectiva, usuario.empresa_id)
+
+
 @router.post("/movimientos", response_model=schemas.MovimientoInventarioOut, status_code=201)
 def registrar_movimiento(
     data: schemas.MovimientoCreate,

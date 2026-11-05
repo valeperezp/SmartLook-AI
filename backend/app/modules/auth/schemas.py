@@ -12,3 +12,6 @@ class RegistroRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    rol: str | None = None
+    # CU1 5a: la suscripción venció y la sesión es de solo consulta.
+    solo_lectura: bool = False
