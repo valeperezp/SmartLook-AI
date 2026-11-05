@@ -391,16 +391,16 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: Colors.white24),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Row(
                 children: [
-                  Icon(Icons.receipt_long, size: 20, color: Colors.black87),
+                  Icon(Icons.receipt_long, size: 20, color: Colors.white70),
                   SizedBox(width: 8),
                   Text(
                     'Comprobante de Pago',
@@ -409,9 +409,9 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
+              const Text(
                 'Una vez realizada la transferencia, subí una captura o foto de la constancia de pago para que la sucursal la valide.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 12, color: Colors.white70),
               ),
               const SizedBox(height: 14),
 

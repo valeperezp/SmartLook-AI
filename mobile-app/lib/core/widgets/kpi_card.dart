@@ -29,7 +29,7 @@ class KpiCard extends StatelessWidget {
         side: const BorderSide(color: AppTheme.border, width: 1),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -40,7 +40,7 @@ class KpiCard extends StatelessWidget {
                 color: effectiveColor.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icono, color: effectiveColor, size: 24),
+              child: Icon(icono, color: effectiveColor, size: 22),
             ),
             const Spacer(),
             Text(

@@ -10,6 +10,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../providers/pos_provider.dart';
 import '../widgets/carrito_pos_widget.dart';
 import '../widgets/producto_busqueda_tile.dart';
+import '../../../../core/widgets/hoja_clara.dart';
 
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
@@ -44,11 +45,7 @@ class _PosScreenState extends State<PosScreen> {
   void _abrirSelectorVariante(BuildContext context, Producto producto) async {
     final provider = context.read<PosProvider>();
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
+    mostrarHojaClara(context, (ctx) {
         return FutureBuilder<ProductoDisponibilidad>(
           future: provider.consultarDisponibilidad(producto.id),
           builder: (context, snapshot) {
@@ -167,7 +164,7 @@ class _PosScreenState extends State<PosScreen> {
                               },
                               selectedColor: Colors.blue.shade100,
                               labelStyle: TextStyle(
-                                color: isSelected ? Colors.blue.shade900 : Colors.black87,
+                                color: isSelected ? Colors.blue.shade900 : Colors.white70,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                               ),
                             );
@@ -252,11 +249,7 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   void _abrirCarritoModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
+    mostrarHojaClara(context, (ctx) {
         return Consumer<PosProvider>(
           builder: (context, provider, child) {
             return Container(
@@ -293,12 +286,7 @@ class _PosScreenState extends State<PosScreen> {
     final auth = context.read<AuthProvider>();
     final sucursalId = auth.usuario?.sucursalId ?? 1;
 
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
+    mostrarHojaClaraConFondo(context, (ctx) {
         return Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -417,7 +405,7 @@ class _PosScreenState extends State<PosScreen> {
     if (!mounted) return;
 
     if (venta != null) {
-      context.go('/cajero/qr?ventaId=${venta.id}&monto=${venta.total}');
+      context.push('/cajero/qr?ventaId=${venta.id}&monto=${venta.total}');
     } else {
       messenger.showSnackBar(
         SnackBar(
@@ -529,7 +517,7 @@ class _PosScreenState extends State<PosScreen> {
                                         )
                                       : null,
                                   filled: true,
-                                  fillColor: Colors.grey.shade100,
+                                  fillColor: Colors.white.withValues(alpha: 0.06),
                                   contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 16, vertical: 12),
                                   border: OutlineInputBorder(

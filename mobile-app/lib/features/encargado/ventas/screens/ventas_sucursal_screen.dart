@@ -8,6 +8,7 @@ import '../../../../core/widgets/loading_state.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../providers/ventas_sucursal_provider.dart';
 import '../widgets/venta_sucursal_tile.dart';
+import '../../../../core/widgets/hoja_clara.dart';
 
 class VentasSucursalScreen extends StatefulWidget {
   const VentasSucursalScreen({super.key});
@@ -43,11 +44,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
     final provider = context.read<VentasSucursalProvider>();
     provider.seleccionarVenta(venta);
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
+    mostrarHojaClara(context, (ctx) {
         return Consumer<VentasSucursalProvider>(
           builder: (context, prov, child) {
             final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
@@ -334,7 +331,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
         labelStyle: TextStyle(
           fontSize: 12,
           fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          color: selected ? Colors.orange.shade900 : Colors.black87,
+          color: selected ? Colors.orange.shade900 : Colors.white70,
         ),
       ),
     );
@@ -397,7 +394,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: Colors.grey.shade100,
+                                fillColor: Colors.white.withValues(alpha: 0.06),
                                 contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 12),
                                 border: OutlineInputBorder(

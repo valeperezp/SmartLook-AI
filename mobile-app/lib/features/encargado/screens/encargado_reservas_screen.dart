@@ -5,6 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../providers/encargado_provider.dart';
 import '../widgets/detalle_reserva_encargado_modal.dart';
 import '../../../core/utils/app_notifications.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class EncargadoReservasScreen extends StatefulWidget {
   const EncargadoReservasScreen({super.key});
@@ -136,11 +137,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
 
     if (!mounted) return;
 
-    await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DetalleReservaEncargadoModal(reserva: detalle),
+    await mostrarHojaClara<bool>(context, (ctx) => DetalleReservaEncargadoModal(reserva: detalle),
     );
   }
 
@@ -313,7 +310,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
+                                fillColor: Colors.white.withValues(alpha: 0.06),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 12,
@@ -340,7 +337,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                     selected: isSelected,
                                     selectedColor: Colors.orange.shade100,
                                     labelStyle: TextStyle(
-                                      color: isSelected ? Colors.orange.shade900 : Colors.black87,
+                                      color: isSelected ? Colors.orange.shade900 : Colors.white70,
                                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                     ),
                                     onSelected: (selected) {
@@ -362,7 +359,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Colors.white70,
                               ),
                             ),
                           ),

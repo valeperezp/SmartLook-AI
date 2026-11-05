@@ -7,6 +7,7 @@ import '../../../core/services/catalogo_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../catalogo/widgets/detalle_producto_modal.dart';
 import '../providers/proveedor_provider.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class ProveedorCatalogoScreen extends StatefulWidget {
   const ProveedorCatalogoScreen({super.key});
@@ -128,19 +129,20 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
   }
 
   void _verDetalle(Producto prod) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DetalleProductoModal(
+    mostrarHojaClara(
+      context,
+      (_) => DetalleProductoModal(
         producto: prod,
         service: _catalogoService,
       ),
     );
   }
 
+  // La pantalla está diseñada sobre fondo claro: con el tema oscuro sus textos quedaban oscuros sobre oscuro.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => HojaClara(child: Builder(builder: _pantalla));
+
+  Widget _pantalla(BuildContext context) {
     final usuario = context.watch<AuthProvider>().usuario;
     final miProveedorId = usuario?.proveedorId;
     final misProductos = context.watch<ProveedorProvider>().misProductos;

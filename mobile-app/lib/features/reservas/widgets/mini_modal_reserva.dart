@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/reserva.dart';
 import '../../../core/utils/app_notifications.dart';
+import '../../../core/widgets/hoja_clara.dart';
 import '../providers/reservas_provider.dart';
 
 class MiniModalReserva extends StatefulWidget {
@@ -116,7 +117,8 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
     final theme = Theme.of(context);
     final reservas = context.watch<ReservasProvider>();
 
-    return Center(
+    return HojaClara(
+      child: Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 500,
@@ -361,6 +363,7 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
           ),
         ),
       ),
+    ),
     );
   }
 }

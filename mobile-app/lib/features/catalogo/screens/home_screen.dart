@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/producto.dart';
+import '../../../core/widgets/hoja_clara.dart';
 import '../../../core/services/catalogo_service.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/estado_badge.dart';
@@ -67,11 +68,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showDetalleModal(BuildContext context, Producto producto) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DetalleProductoModal(
+    mostrarHojaClara(
+      context,
+      (_) => DetalleProductoModal(
         producto: producto,
         service: _catalogoService,
       ),
@@ -88,9 +87,12 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(Icons.checkroom, color: Colors.white),
             SizedBox(width: 8),
-            Text(
-              'SmartLook AI',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            Flexible(
+              child: Text(
+                'SmartLook AI',
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -146,11 +148,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.cloud_off, color: Colors.white),
             tooltip: 'Catálogo offline',
             onPressed: () => context.push('/offline/catalogo'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.receipt_long, color: Colors.white),
-            tooltip: 'Mis Reservas',
-            onPressed: () => context.go('/mis-reservas'),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),

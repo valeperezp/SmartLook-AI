@@ -150,7 +150,7 @@ class _AdminInventarioScreenState extends State<AdminInventarioScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Colors.white70,
                               ),
                             ),
                           ),

@@ -385,12 +385,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   decoration: BoxDecoration(
                                     color: checkout.metodoPago == 'tarjeta'
                                         ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                                        : Colors.grey.shade50,
+                                        : Colors.white.withValues(alpha: 0.06),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: checkout.metodoPago == 'tarjeta'
                                           ? theme.colorScheme.primary
-                                          : Colors.grey.shade300,
+                                          : Colors.white24,
                                       width: checkout.metodoPago == 'tarjeta' ? 2 : 1,
                                     ),
                                   ),
@@ -426,13 +426,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                                   decoration: BoxDecoration(
                                     color: checkout.metodoPago == 'qr'
-                                        ? Colors.purple.shade50
-                                        : Colors.grey.shade50,
+                                        ? Colors.purple.withValues(alpha: 0.2)
+                                        : Colors.white.withValues(alpha: 0.06),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: checkout.metodoPago == 'qr'
                                           ? Colors.purple.shade700
-                                          : Colors.grey.shade300,
+                                          : Colors.white24,
                                       width: checkout.metodoPago == 'qr' ? 2 : 1,
                                     ),
                                   ),

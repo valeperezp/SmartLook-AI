@@ -6,6 +6,7 @@ import '../../../core/services/catalogo_service.dart';
 import '../../catalogo/widgets/detalle_producto_modal.dart';
 import '../models/producto_ar.dart';
 import '../providers/vestidor_provider.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class VestidorScreen extends StatefulWidget {
   final int? productoId;
@@ -36,11 +37,9 @@ class _VestidorScreenState extends State<VestidorScreen> {
       final productoCompleto =
           await catService.obtenerProducto(prod.productoId);
       if (!context.mounted) return;
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => DetalleProductoModal(
+      mostrarHojaClara(
+        context,
+        (_) => DetalleProductoModal(
           producto: productoCompleto,
           service: catService,
         ),
@@ -53,8 +52,11 @@ class _VestidorScreenState extends State<VestidorScreen> {
     }
   }
 
+  // La pantalla está diseñada sobre fondo claro: tema claro para que los textos sin color se lean.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => HojaClara(child: Builder(builder: _pantalla));
+
+  Widget _pantalla(BuildContext context) {
     final provider = context.watch<VestidorProvider>();
     final primaryColor = Colors.indigo.shade800;
 

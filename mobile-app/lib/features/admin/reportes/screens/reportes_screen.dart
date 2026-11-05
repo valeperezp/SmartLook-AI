@@ -11,6 +11,7 @@ import '../widgets/grafico_barras.dart';
 import '../widgets/grafico_torta.dart';
 import '../widgets/kpi_card.dart';
 import '../widgets/reportes_chat_widget.dart';
+import '../../../../core/widgets/hoja_clara.dart';
 
 class ReportesScreen extends StatefulWidget {
   const ReportesScreen({super.key});
@@ -101,12 +102,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   void _mostrarDialogoExportar(int? sucursalId) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
+    mostrarHojaClaraConFondo(context, (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
           child: Column(

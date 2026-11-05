@@ -234,7 +234,7 @@ class _PagosPendientesScreenState extends State<PagosPendientesScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
             ],

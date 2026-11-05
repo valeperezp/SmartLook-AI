@@ -125,10 +125,10 @@ class PagoPendienteCard extends StatelessWidget {
                       pago.montoFormateado.isNotEmpty
                           ? pago.montoFormateado
                           : '\$${pago.monto.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -149,9 +149,9 @@ class PagoPendienteCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(color: Colors.white24),
                   ),
                   child: Row(
                     children: [
@@ -160,7 +160,7 @@ class PagoPendienteCard extends StatelessWidget {
                         child: Container(
                           width: 60,
                           height: 60,
-                          color: Colors.grey.shade200,
+                          color: Colors.white.withValues(alpha: 0.06),
                           child: urlComprobante.isNotEmpty
                               ? Image.network(
                                   urlComprobante,

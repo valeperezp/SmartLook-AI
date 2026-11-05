@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/reportes_chat_provider.dart';
+import '../../../../core/widgets/hoja_clara.dart';
 
 class ReportesChatModal extends StatefulWidget {
   final int? sucursalId;
@@ -11,11 +12,7 @@ class ReportesChatModal extends StatefulWidget {
   });
 
   static void mostrar(BuildContext context, {int? sucursalId}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => ChangeNotifierProvider(
+    mostrarHojaClara(context, (ctx) => ChangeNotifierProvider(
         create: (_) => ReportesChatProvider(),
         child: ReportesChatModal(sucursalId: sucursalId),
       ),

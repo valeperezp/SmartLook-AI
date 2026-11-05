@@ -122,7 +122,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.4,
+                    childAspectRatio: 1.2,
                     children: [
                       KpiCard(
                         label: 'Ventas de hoy',
@@ -168,7 +168,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     color: Colors.blue.shade800,
                     child: InkWell(
-                      onTap: () => context.go('/cajero/pos'),
+                      onTap: () => context.push('/cajero/pos'),
                       borderRadius: BorderRadius.circular(16),
                       child: const Padding(
                         padding: EdgeInsets.all(20),
@@ -250,7 +250,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                           elevation: 1.5,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           child: InkWell(
-                            onTap: () => context.go('/cajero/mis-ventas'),
+                            onTap: () => context.push('/cajero/mis-ventas'),
                             borderRadius: BorderRadius.circular(14),
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -287,7 +287,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                           elevation: 1.5,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           child: InkWell(
-                            onTap: () => context.go('/cajero/qr'),
+                            onTap: () => context.push('/cajero/qr'),
                             borderRadius: BorderRadius.circular(14),
                             child: Padding(
                               padding: const EdgeInsets.all(16),

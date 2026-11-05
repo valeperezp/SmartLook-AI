@@ -144,7 +144,7 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
                                   style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: Colors.white70,
                                   ),
                                 ),
                                 const Icon(Icons.people_outline,

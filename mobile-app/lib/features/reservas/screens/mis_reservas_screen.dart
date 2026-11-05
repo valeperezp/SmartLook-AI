@@ -7,6 +7,7 @@ import '../../../core/utils/app_notifications.dart';
 import '../../../core/widgets/estado_badge.dart';
 import '../providers/reservas_provider.dart';
 import '../widgets/detalle_reserva_modal.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class MisReservasScreen extends StatefulWidget {
   const MisReservasScreen({super.key});
@@ -28,12 +29,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
 
   void _verDetalle(BuildContext context, Reserva reserva) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => DetalleReservaModal(reserva: reserva),
-    );
+    mostrarHojaClara(context, (_) => DetalleReservaModal(reserva: reserva));
   }
 
   Future<void> _confirmarCancelar(Reserva reserva) async {

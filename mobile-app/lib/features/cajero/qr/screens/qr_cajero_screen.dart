@@ -23,6 +23,15 @@ class QrCajeroScreen extends StatefulWidget {
 }
 
 class _QrCajeroScreenState extends State<QrCajeroScreen> {
+  /// Vuelve a la pantalla anterior (el POS). Si no hay historial (se abrió por enlace) va al POS directamente.
+  void _volverAlPos() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/cajero/pos');
+    }
+  }
+
   late final QrCajeroProvider _qr;
 
   @override
@@ -112,7 +121,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                   hintText: 'Ej: Comprobante ilegible o monto incorrecto...',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
             ],
@@ -177,14 +186,14 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
           backgroundColor: Colors.blue.shade800,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.go('/cajero/pos'),
+            onPressed: () => _volverAlPos(),
           ),
         ),
         body: EmptyState(
           icono: Icons.qr_code,
           titulo: 'Sin venta activa',
           mensaje: 'No hay ninguna venta seleccionada para cobro QR. Creá una venta desde el POS.',
-          onReintentar: () => context.go('/cajero/pos'),
+          onReintentar: () => _volverAlPos(),
         ),
       );
     }
@@ -201,7 +210,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             provider.detenerPolling();
-            context.go('/cajero/pos');
+            _volverAlPos();
           },
         ),
       ),
@@ -263,7 +272,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                         ),
                                         onPressed: () {
                                           provider.reset();
-                                          context.go('/cajero/pos');
+                                          _volverAlPos();
                                         },
                                       ),
                                     ),
@@ -446,7 +455,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                               label: const Text('Cancelar cobro QR y volver al POS'),
                               onPressed: () {
                                 provider.detenerPolling();
-                                context.go('/cajero/pos');
+                                _volverAlPos();
                               },
                             ),
                           ],

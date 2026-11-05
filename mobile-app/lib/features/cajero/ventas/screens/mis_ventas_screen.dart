@@ -8,6 +8,7 @@ import '../../../../core/widgets/loading_state.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../providers/mis_ventas_provider.dart';
 import '../widgets/venta_cajero_tile.dart';
+import '../../../../core/widgets/hoja_clara.dart';
 
 class MisVentasScreen extends StatefulWidget {
   const MisVentasScreen({super.key});
@@ -44,11 +45,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
     final provider = context.read<MisVentasProvider>();
     provider.seleccionarVenta(venta);
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
+    mostrarHojaClara(context, (ctx) {
         return Consumer<MisVentasProvider>(
           builder: (context, prov, child) {
             final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
@@ -264,7 +261,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
         labelStyle: TextStyle(
           fontSize: 12,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? Colors.blue.shade900 : Colors.black87,
+          color: isSelected ? Colors.blue.shade900 : Colors.white70,
         ),
       ),
     );
@@ -327,7 +324,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: Colors.grey.shade100,
+                                fillColor: Colors.white.withValues(alpha: 0.06),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),

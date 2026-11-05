@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/proveedor_provider.dart';
 import '../widgets/modal_producto_form.dart';
 import '../../../core/utils/app_notifications.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class ProveedorProductosScreen extends StatefulWidget {
   const ProveedorProductosScreen({super.key});
@@ -71,7 +72,8 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) {
+      backgroundColor: Colors.white,
+      builder: (ctx) => HojaClara(child: Builder(builder: (ctx) {
         final nombre = prod['nombre']?.toString() ?? 'Producto';
         final descripcion = prod['descripcion']?.toString() ?? 'Sin descripción';
         final precio = (prod['precio'] as num?)?.toDouble() ?? 0.0;
@@ -127,17 +129,15 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
             ),
           ),
         );
-      },
+      })),
     );
   }
 
   Future<void> _abrirModalProducto([Map<String, dynamic>? producto]) async {
     final proveedor = context.read<ProveedorProvider>();
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
+    final result = await mostrarHojaClara<bool>(
+      context,
+      (ctx) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
@@ -194,8 +194,11 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
     }
   }
 
+  // La pantalla está diseñada sobre fondo claro: con el tema oscuro sus textos quedaban oscuros sobre oscuro.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => HojaClara(child: Builder(builder: _pantalla));
+
+  Widget _pantalla(BuildContext context) {
     final proveedor = context.watch<ProveedorProvider>();
     final productos = proveedor.productosFiltrados;
 
@@ -349,7 +352,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                     ),
                                   )
                                 : ListView.builder(
-                                    padding: const EdgeInsets.all(12),
+                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 88), // espacio para el botón flotante
                                     itemCount: productos.length,
                                     itemBuilder: (context, index) {
                                       final item = productos[index];

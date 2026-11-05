@@ -200,7 +200,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.people),
                                     label: const Text('Usuarios'),
                                     onPressed: () =>
-                                        context.go('/admin/usuarios'),
+                                        context.push('/admin/usuarios'),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -218,7 +218,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.checkroom),
                                     label: const Text('Productos'),
                                     onPressed: () =>
-                                        context.go('/admin/productos'),
+                                        context.push('/admin/productos'),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -236,7 +236,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.inventory),
                                     label: const Text('Inventario'),
                                     onPressed: () =>
-                                        context.go('/admin/inventario'),
+                                        context.push('/admin/inventario'),
                                   ),
                                 ),
                               ],
@@ -259,7 +259,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.analytics),
                                     label: const Text('Reportes'),
                                     onPressed: () =>
-                                        context.go('/admin/reportes'),
+                                        context.push('/admin/reportes'),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -277,7 +277,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.local_offer),
                                     label: const Text('Promociones'),
                                     onPressed: () =>
-                                        context.go('/admin/promociones'),
+                                        context.push('/admin/promociones'),
                                   ),
                                 ),
                               ],
@@ -300,7 +300,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.auto_awesome),
                                     label: const Text('Config IA'),
                                     onPressed: () =>
-                                        context.go('/admin/ia-config'),
+                                        context.push('/admin/ia-config'),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -318,7 +318,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     icon: const Icon(Icons.storefront),
                                     label: const Text('Sucursales'),
                                     onPressed: () =>
-                                        context.go('/admin/sucursales'),
+                                        context.push('/admin/sucursales'),
                                   ),
                                 ),
                               ],

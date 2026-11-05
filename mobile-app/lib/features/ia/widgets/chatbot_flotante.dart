@@ -10,6 +10,8 @@ class ChatbotFlotante extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true, // sin esto, con el teclado abierto la cabecera pasa bajo la barra de estado
       backgroundColor: Colors.transparent,
       builder: (ctx) => const _ChatbotBottomSheet(),
     );
@@ -92,12 +94,15 @@ class _ChatbotBottomSheetState extends State<_ChatbotBottomSheet> {
     final ia = context.watch<IaProvider>();
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
+    final topPadding = MediaQuery.of(context).padding.top;
+    // Con el teclado abierto el panel ocupa todo el alto útil, sin pasar bajo la barra de estado
+    final maxHeight = bottomInset > 0 ? screenHeight - topPadding - 8 : screenHeight * 0.85;
 
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 600,
-          maxHeight: screenHeight * 0.85,
+          maxHeight: maxHeight,
         ),
         child: Container(
           decoration: const BoxDecoration(
@@ -236,7 +241,7 @@ class _ChatbotBottomSheetState extends State<_ChatbotBottomSheet> {
                     itemBuilder: (context, i) {
                       final sug = ia.sugerencias[i];
                       return ActionChip(
-                        label: Text(sug, style: const TextStyle(fontSize: 12)),
+                        label: Text(sug, style: TextStyle(fontSize: 12, color: Colors.purple.shade900)),
                         backgroundColor: Colors.purple.shade50,
                         side: BorderSide(color: Colors.purple.shade200),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -259,9 +264,12 @@ class _ChatbotBottomSheetState extends State<_ChatbotBottomSheet> {
                         focusNode: _focusNode,
                         textInputAction: TextInputAction.send,
                         onSubmitted: _enviar,
+                        // El panel es blanco aunque la app sea oscura: el texto debe ser oscuro explícitamente
+                        style: const TextStyle(color: Colors.black87, fontSize: 14),
+                        cursorColor: Colors.purple.shade700,
                         decoration: InputDecoration(
                           hintText: 'Escribí tu consulta...',
-                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           filled: true,
                           fillColor: Colors.grey.shade100,

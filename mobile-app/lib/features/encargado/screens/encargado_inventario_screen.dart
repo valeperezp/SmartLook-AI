@@ -5,6 +5,7 @@ import '../providers/encargado_provider.dart';
 import '../widgets/modal_ajuste.dart';
 import '../widgets/modal_movimiento.dart';
 import '../widgets/modal_stock_minimo.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class EncargadoInventarioScreen extends StatefulWidget {
   const EncargadoInventarioScreen({super.key});
@@ -98,11 +99,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
   }
 
   Future<void> _abrirModal(Widget modal) async {
-    final result = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
+    final result = await mostrarHojaClara<bool>(context, (ctx) => Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
@@ -116,12 +113,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
   }
 
   void _mostrarMenuGestion(BuildContext context, Map<String, dynamic> item) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
+    mostrarHojaClaraConFondo(context, (ctx) {
         final nombreProducto = item['nombre_producto']?.toString() ?? 'Producto';
         final nombreTalla = item['nombre_talla']?.toString() ?? '-';
         final nombreColor = item['nombre_color']?.toString() ?? '-';
@@ -278,7 +270,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
+                                fillColor: Colors.white.withValues(alpha: 0.06),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 12,
@@ -305,7 +297,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                                     selected: isSelected,
                                     selectedColor: Colors.orange.shade100,
                                     labelStyle: TextStyle(
-                                      color: isSelected ? Colors.orange.shade900 : Colors.black87,
+                                      color: isSelected ? Colors.orange.shade900 : Colors.white70,
                                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                     ),
                                     onSelected: (selected) {
@@ -329,7 +321,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Colors.white70,
                               ),
                             ),
                           ),

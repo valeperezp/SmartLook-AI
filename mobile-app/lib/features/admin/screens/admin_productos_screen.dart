@@ -166,7 +166,7 @@ class _AdminProductosScreenState extends State<AdminProductosScreen> {
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Colors.white70,
                               ),
                             ),
                           ),

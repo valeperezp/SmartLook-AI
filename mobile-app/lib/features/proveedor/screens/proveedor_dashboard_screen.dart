@@ -121,7 +121,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                               physics: const NeverScrollableScrollPhysics(),
                               crossAxisSpacing: 12,
                               mainAxisSpacing: 12,
-                              childAspectRatio: 1.35,
+                              childAspectRatio: 1.2,
                               children: [
                                 KpiCard(
                                   label: 'Total productos',
@@ -174,7 +174,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                     ),
                                     icon: const Icon(Icons.checkroom),
                                     label: const Text('Mis Productos'),
-                                    onPressed: () => context.go('/proveedor/productos'),
+                                    onPressed: () => context.push('/proveedor/productos'),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -190,7 +190,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                     ),
                                     icon: const Icon(Icons.menu_book),
                                     label: const Text('Catálogo'),
-                                    onPressed: () => context.go('/proveedor/catalogo'),
+                                    onPressed: () => context.push('/proveedor/catalogo'),
                                   ),
                                 ),
                               ],
@@ -210,7 +210,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                 ),
                                 if (proveedor.misProductos.isNotEmpty)
                                   TextButton(
-                                    onPressed: () => context.go('/proveedor/productos'),
+                                    onPressed: () => context.push('/proveedor/productos'),
                                     child: const Text('Ver todos'),
                                   ),
                               ],
@@ -265,7 +265,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                         ),
                                       ],
                                     ),
-                                    onTap: () => context.go('/proveedor/productos'),
+                                    onTap: () => context.push('/proveedor/productos'),
                                   ),
                                 );
                               }),

@@ -59,6 +59,11 @@ class EstadoBadge extends StatelessWidget {
         break;
     }
 
+    // Los colores del tema oscuro son claros: sobre una hoja clara el texto se oscurece para que se lea.
+    final colorTexto = Theme.of(context).brightness == Brightness.light
+        ? HSLColor.fromColor(color).withLightness(0.28).toColor()
+        : color;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -69,7 +74,7 @@ class EstadoBadge extends StatelessWidget {
       child: Text(
         displayLabel,
         style: TextStyle(
-          color: color,
+          color: colorTexto,
           fontWeight: FontWeight.w600,
           fontSize: 11,
         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../core/models/venta.dart';
+import '../../../core/widgets/hoja_clara.dart';
 
 class VentaTile extends StatelessWidget {
   final Venta venta;
@@ -39,11 +40,7 @@ class VentaTile extends StatelessWidget {
   }
 
   void _mostrarDetalle(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Center(
+    mostrarHojaClara(context, (ctx) => Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: 600,
@@ -287,7 +284,7 @@ class VentaTile extends StatelessWidget {
       elevation: 0.5,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: const BorderSide(color: Colors.white24),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -351,26 +348,26 @@ class VentaTile extends StatelessWidget {
               // Fecha y sucursal
               Row(
                 children: [
-                  Icon(Icons.calendar_today,
-                      size: 13, color: Colors.grey.shade500),
+                  const Icon(Icons.calendar_today,
+                      size: 13, color: Colors.white60),
                   const SizedBox(width: 4),
                   Text(
                     DateFormat('dd/MM/yyyy HH:mm').format(venta.creadaEn),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: Colors.white70,
                     ),
                   ),
                   if (venta.nombreSucursal != null) ...[
                     const SizedBox(width: 12),
-                    Icon(Icons.store, size: 13, color: Colors.grey.shade500),
+                    const Icon(Icons.store, size: 13, color: Colors.white60),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         venta.nombreSucursal!,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Colors.white70,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -385,9 +382,9 @@ class VentaTile extends StatelessWidget {
                 children: [
                   Text(
                     '${venta.totalItems} ${venta.totalItems == 1 ? 'prenda' : 'prendas'} (${venta.totalUnidades} un.)',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color: Colors.white70,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
