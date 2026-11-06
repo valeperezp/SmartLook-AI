@@ -21,8 +21,12 @@ def _buscar_inventario(db: Session, producto_id: int, sucursal_id: int, talla_id
     return query.with_for_update().populate_existing().first()
 
 
-def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, cajero_id: int) -> models.Venta:
-    """Crea una venta presencial atómica: crea venta + items + descuenta stock + registra movimientos."""
+def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, cajero_id: int, commit: bool = True) -> models.Venta:
+    """Crea una venta presencial atómica: crea venta + items + descuenta stock + registra movimientos.
+
+    Con `commit=False` no confirma la transacción (solo hace flush): quien llama decide cuándo guardar. La
+    sincronización móvil lo usa para guardar la venta y su registro de idempotencia juntos.
+    """
     # 1. Crear la venta
     venta = models.Venta(
         cliente_id=data.cliente_id,
@@ -83,6 +87,9 @@ def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, caj
 
     # 3. Actualizar total
     venta.total = total
+    if not commit:
+        db.flush()
+        return venta
     db.commit()
     db.refresh(venta)
 

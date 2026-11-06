@@ -57,8 +57,8 @@ def _ajustar_stock_reserva(
     return inventario
 
 
-def crear_reserva(db: Session, data: schemas.ReservaCreate, cliente_id: int) -> models.Reserva:
-    """Crea una reserva con sus items y ajusta el stock."""
+def crear_reserva(db: Session, data: schemas.ReservaCreate, cliente_id: int, commit: bool = True) -> models.Reserva:
+    """Crea una reserva con sus items y ajusta el stock. Con `commit=False` solo hace flush (decide quien llama)."""
     reserva = models.Reserva(
         cliente_id=cliente_id,
         sucursal_id=data.sucursal_id,
@@ -88,6 +88,9 @@ def crear_reserva(db: Session, data: schemas.ReservaCreate, cliente_id: int) -> 
         )
         db.add(item)
 
+    if not commit:
+        db.flush()
+        return reserva
     db.commit()
     db.refresh(reserva)
     return reserva
