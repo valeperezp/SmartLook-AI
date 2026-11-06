@@ -186,7 +186,7 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
       boxShadow: [
         BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
       ],
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: Theme.of(context).colorScheme.outline),
     );
 
     Widget contenido;
@@ -209,7 +209,7 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
             child: Text(
               'No se pudo mostrar la imagen del QR de la sucursal.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
             ),
           ),
         ),
@@ -223,19 +223,19 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(fallo ? Icons.wifi_off : Icons.qr_code_2, size: 48, color: Colors.grey.shade500),
+              Icon(fallo ? Icons.wifi_off : Icons.qr_code_2, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 10),
               Text(
                 fallo ? _errorQrSucursal! : 'La sucursal todavía no cargó su QR',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade800, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
               ),
               if (!fallo) ...[
                 const SizedBox(height: 6),
                 Text(
                   'Coordiná la transferencia por otro medio y subí el comprobante más abajo.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 11),
                 ),
               ],
               if (fallo) ...[
@@ -348,7 +348,7 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
         const SizedBox(height: 12),
         Text(
           'Pago ID: #${_pago?.id ?? widget.ventaId}',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600, letterSpacing: 1),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant, letterSpacing: 1),
         ),
         const SizedBox(height: 12),
 
@@ -367,7 +367,7 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
             ),
             child: QrImageView(
               data: _qrData!,
@@ -381,7 +381,7 @@ class _QrPaymentWidgetState extends State<QrPaymentWidget> {
             'Escaneá este código con otro celular para abrir la página donde subir el comprobante. '
             'No sirve para pagar.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
         const SizedBox(height: 24),

@@ -112,10 +112,10 @@ class _PosScreenState extends State<PosScreen> {
                                 ),
                                 Text(
                                   '\$${producto.precio.toStringAsFixed(2)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.deepOrange,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                               ],
@@ -299,10 +299,10 @@ class _PosScreenState extends State<PosScreen> {
               const SizedBox(height: 6),
               Text(
                 'Total: \$${provider.total.toStringAsFixed(2)} (${provider.unidades} prendas)',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Colors.deepOrange,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 20),
@@ -333,10 +333,10 @@ class _PosScreenState extends State<PosScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.credit_card, color: Colors.blue.shade700),
+                  child: Icon(Icons.credit_card, color: Theme.of(context).colorScheme.primary),
                 ),
                 title: const Text('Tarjeta de Débito / Crédito',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -440,8 +440,8 @@ class _PosScreenState extends State<PosScreen> {
                   style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
               Text('Total cobrado: \$${venta.total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
               const SizedBox(height: 4),
               Text('${venta.totalItems} artículos (${venta.totalUnidades} prendas)'),
             ],
@@ -522,7 +522,7 @@ class _PosScreenState extends State<PosScreen> {
                                       horizontal: 16, vertical: 12),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
-                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                   ),
                                 ),
                                 onChanged: (val) => provider.setBusqueda(val),
@@ -541,6 +541,10 @@ class _PosScreenState extends State<PosScreen> {
                                         selected: provider.categoriaSeleccionada == null,
                                         onSelected: (_) => provider.setCategoria(null),
                                         selectedColor: Colors.blue.shade100,
+                                        labelStyle: TextStyle(
+                                          color: provider.categoriaSeleccionada == null ? Colors.blue.shade900 : Theme.of(context).colorScheme.onSurface,
+                                          fontWeight: provider.categoriaSeleccionada == null ? FontWeight.bold : FontWeight.normal,
+                                        ),
                                       ),
                                     ),
                                     ...categorias.map((cat) {
@@ -551,6 +555,10 @@ class _PosScreenState extends State<PosScreen> {
                                           selected: provider.categoriaSeleccionada == cat.id,
                                           onSelected: (_) => provider.setCategoria(cat.id),
                                           selectedColor: Colors.blue.shade100,
+                                          labelStyle: TextStyle(
+                                            color: provider.categoriaSeleccionada == cat.id ? Colors.blue.shade900 : Theme.of(context).colorScheme.onSurface,
+                                            fontWeight: provider.categoriaSeleccionada == cat.id ? FontWeight.bold : FontWeight.normal,
+                                          ),
                                         ),
                                       );
                                     }),

@@ -69,7 +69,7 @@ class PagoPendienteCard extends StatelessWidget {
                     Text(
                       'Venta #${pago.ventaId}',
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
                       ),
@@ -117,7 +117,7 @@ class PagoPendienteCard extends StatelessWidget {
                       'Monto a verificar:',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -135,7 +135,7 @@ class PagoPendienteCard extends StatelessWidget {
                 ),
                 Text(
                   fechaStr,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -165,15 +165,15 @@ class PagoPendienteCard extends StatelessWidget {
                               ? Image.network(
                                   urlComprobante,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                  errorBuilder: (context, error, stackTrace) => Icon(
                                     Icons.receipt_long,
-                                    color: Colors.grey,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     size: 30,
                                   ),
                                 )
-                              : const Icon(
+                              : Icon(
                                   Icons.receipt_long,
-                                  color: Colors.grey,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   size: 30,
                                 ),
                         ),
@@ -195,13 +195,13 @@ class PagoPendienteCard extends StatelessWidget {
                               'Tocar para ver imagen en pantalla completa',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.blue.shade700,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Icon(Icons.zoom_in, color: Colors.blue.shade700),
+                      Icon(Icons.zoom_in, color: Theme.of(context).colorScheme.primary),
                     ],
                   ),
                 ),

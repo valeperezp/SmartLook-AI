@@ -94,7 +94,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                             Text(
                               'Terminal de cobro y punto de venta',
                               style: TextStyle(
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 14,
                               ),
                             ),
@@ -103,11 +103,11 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                       ),
                       const SizedBox(width: 8),
                       Chip(
-                        avatar: const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                        avatar: Icon(Icons.location_on, size: 16, color: Theme.of(context).colorScheme.primary),
                         label: Text(nombreSucursal),
-                        backgroundColor: Colors.blue.shade50,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         labelStyle: TextStyle(
-                          color: Colors.blue.shade900,
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -273,7 +273,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Historial de tickets',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -310,7 +310,7 @@ class _CajeroDashboardScreenState extends State<CajeroDashboardScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Verificar transferencias',
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                                   ),
                                 ],
                               ),

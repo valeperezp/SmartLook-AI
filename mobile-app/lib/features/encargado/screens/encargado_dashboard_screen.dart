@@ -52,7 +52,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
       badgeIcon = Icons.arrow_upward;
     } else {
       // AJUSTE
-      badgeColor = Colors.blue.shade50;
+      badgeColor = Theme.of(context).colorScheme.surfaceContainerHighest;
       badgeTextColor = Colors.blue.shade800;
       badgeIcon = Icons.tune;
     }
@@ -72,7 +72,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
         ),
         subtitle: Text(
           fechaStr,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -178,7 +178,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                       Text(
                                         'Control operativo y gestión de stock',
                                         style: TextStyle(
-                                          color: Colors.grey.shade600,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -268,7 +268,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
-                                      backgroundColor: Colors.teal.shade600,
+                                      backgroundColor: Colors.orange.shade700,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -284,7 +284,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
-                                      backgroundColor: Colors.deepPurple.shade600,
+                                      backgroundColor: Colors.orange.shade700,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -304,7 +304,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
-                                      backgroundColor: Colors.indigo.shade600,
+                                      backgroundColor: Colors.orange.shade700,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -320,7 +320,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
-                                      backgroundColor: Colors.amber.shade800,
+                                      backgroundColor: Colors.orange.shade700,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -336,7 +336,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
-                                      backgroundColor: Colors.blueGrey.shade700,
+                                      backgroundColor: Colors.orange.shade700,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -366,7 +366,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   Text(
                                     '${encargado.alertas.length} alertas',
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -399,7 +399,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                           Text(
                                             'No hay alertas críticas ni stock bajo en este momento.',
                                             style: TextStyle(
-                                              color: Colors.grey.shade600,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               fontSize: 13,
                                             ),
                                           ),
@@ -441,7 +441,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                     ),
                                     subtitle: Text(
                                       'Talla: $talla • Color: $color (Mínimo: $stockMin un.)',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                     ),
                                     trailing: EstadoBadge(
                                       estado: isAgotado ? 'agotado' : 'bajo',
@@ -468,7 +468,7 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   Text(
                                     '${encargado.movimientos.length} en total',
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -484,11 +484,11 @@ class _EncargadoDashboardScreenState extends State<EncargadoDashboardScreen> {
                                   padding: const EdgeInsets.all(20.0),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.info_outline, color: Colors.grey.shade500, size: 30),
+                                      Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 30),
                                       const SizedBox(width: 14),
                                       Text(
                                         'No hay movimientos registrados en la sucursal.',
-                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                                       ),
                                     ],
                                   ),

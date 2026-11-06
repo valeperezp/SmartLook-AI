@@ -138,7 +138,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Talla: $nombreTalla  •  Color: $nombreColor  •  Disponible: $cantDisponible un.',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -163,7 +163,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.tune, color: Colors.blue, size: 28),
+                  leading: Icon(Icons.tune, color: Theme.of(context).colorScheme.primary, size: 28),
                   title: const Text('Ajustar stock', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Corrección tras auditoría o conteo físico'),
                   onTap: () {
@@ -277,7 +277,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                                 ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 ),
                               ),
                             ),
@@ -334,13 +334,13 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                                        Icon(Icons.search_off, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                         const SizedBox(height: 12),
                                         Text(
                                           'No se encontraron productos con estos filtros',
                                           style: TextStyle(
                                             fontSize: 15,
-                                            color: Colors.grey.shade600,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],
@@ -430,7 +430,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                                                           'Talla: $nombreTalla  •  Color: $nombreColor',
                                                           style: TextStyle(
                                                             fontSize: 13,
-                                                            color: Colors.grey.shade700,
+                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                           ),
                                                         ),
                                                         const SizedBox(height: 4),
@@ -439,7 +439,7 @@ class _EncargadoInventarioScreenState extends State<EncargadoInventarioScreen> {
                                                           style: TextStyle(
                                                             fontSize: 12,
                                                             fontWeight: FontWeight.w500,
-                                                            color: Colors.grey.shade600,
+                                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                           ),
                                                         ),
                                                       ],

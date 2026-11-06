@@ -162,12 +162,12 @@ class _VestidorScreenState extends State<VestidorScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '1. Elegí la prenda para probarte:',
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 10),
@@ -194,7 +194,7 @@ class _VestidorScreenState extends State<VestidorScreen> {
                     border: Border.all(
                       color: isSelected
                           ? Colors.indigo.shade700
-                          : Colors.grey.shade300,
+                          : Theme.of(context).colorScheme.outline,
                       width: isSelected ? 2 : 1,
                     ),
                     boxShadow: isSelected
@@ -244,7 +244,7 @@ class _VestidorScreenState extends State<VestidorScreen> {
                               isSelected ? FontWeight.bold : FontWeight.normal,
                           color: isSelected
                               ? Colors.indigo.shade900
-                              : Colors.black87,
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       Text(
@@ -316,7 +316,7 @@ class _VestidorScreenState extends State<VestidorScreen> {
         Text(
           'Para que la Inteligencia Artificial genere cómo te quedaría "${provider.productoActual?.nombre ?? 'la prenda'}", tomate una foto de cuerpo completo o medio cuerpo.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
         ),
         const SizedBox(height: 24),
         Row(
@@ -428,12 +428,12 @@ class _VestidorScreenState extends State<VestidorScreen> {
               children: [
                 Text(
                   _mensajeEstado(provider.estadoJob),
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Puede tardar hasta 60 segundos',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -496,8 +496,8 @@ class _VestidorScreenState extends State<VestidorScreen> {
                 if (progress == null) return child;
                 return const Center(child: CircularProgressIndicator());
               },
-              errorBuilder: (context, error, stackTrace) => const Center(
-                child: Icon(Icons.broken_image, size: 48, color: Colors.grey),
+              errorBuilder: (context, error, stackTrace) => Center(
+                child: Icon(Icons.broken_image, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
           ),
@@ -547,14 +547,14 @@ class _VestidorScreenState extends State<VestidorScreen> {
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: 60,
                         height: 60,
-                        color: Colors.grey.shade100,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         child: const Icon(Icons.checkroom),
                       ),
                     )
                   : Container(
                       width: 60,
                       height: 60,
-                      color: Colors.grey.shade100,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       child: const Icon(Icons.checkroom),
                     ),
             ),

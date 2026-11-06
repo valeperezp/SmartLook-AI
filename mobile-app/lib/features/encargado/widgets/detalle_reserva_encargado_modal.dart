@@ -41,8 +41,8 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
         break;
       case 'cancelada':
       default:
-        textColor = Colors.grey.shade800;
-        bgColor = Colors.grey.shade200;
+        textColor = Theme.of(context).colorScheme.onSurface;
+        bgColor = Theme.of(context).colorScheme.outline;
         label = 'Cancelada';
         break;
     }
@@ -206,17 +206,17 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                               emailCliente,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
+                                Icon(Icons.calendar_today, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Creada: $fechaStr',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 ),
                               ],
                             ),
@@ -224,11 +224,11 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Icon(Icons.schedule, size: 14, color: Colors.grey.shade600),
+                                  Icon(Icons.schedule, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   const SizedBox(width: 4),
                                   Text(
                                     'Horario aproximado: $horarioAprox',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                 ],
                               ),
@@ -245,16 +245,16 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.storefront, size: 18, color: Colors.grey.shade700),
+                        Icon(Icons.storefront, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         const SizedBox(width: 8),
                         Text(
                           'Sucursal: ',
-                          style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         Text(
                           nombreSucursal,
@@ -278,7 +278,7 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                   if (items.isEmpty)
                     Text(
                       'No hay detalles de artículos disponibles',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     )
                   else
                     ...items.map((it) {
@@ -294,7 +294,7 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                         elevation: 1,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(color: Colors.grey.shade200),
+                          side: BorderSide(color: Theme.of(context).colorScheme.outline),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
@@ -334,7 +334,7 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                                       'Talla: $talla  •  Color: $color',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey.shade600,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ],
@@ -354,7 +354,7 @@ class _DetalleReservaEncargadoModalState extends State<DetalleReservaEncargadoMo
                                     '\$${precio.toStringAsFixed(2)} c/u',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.grey.shade500,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],

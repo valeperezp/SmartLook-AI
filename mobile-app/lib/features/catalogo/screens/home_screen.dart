@@ -194,13 +194,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
-                    const Icon(Icons.storefront, size: 20, color: Colors.blue),
+                    Icon(Icons.storefront, size: 20, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: Theme.of(context).colorScheme.outline),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: DropdownButtonHideUnderline(
@@ -358,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       child: Container(
                                                         width: double.infinity,
                                                         decoration: BoxDecoration(
-                                                          color: Colors.blue.shade50,
+                                                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                           borderRadius:
                                                               BorderRadius.circular(8),
                                                         ),
@@ -390,13 +390,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                                                               Icon(
                                                                         Icons.checkroom_rounded,
                                                                         size: 56,
-                                                                        color: Colors.blue.shade400,
+                                                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                                       ),
                                                                     )
                                                                   : Icon(
                                                                       Icons.checkroom_rounded,
                                                                       size: 56,
-                                                                      color: Colors.blue.shade400,
+                                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                                     ),
                                                             ),
                                                           ),
@@ -412,7 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               horizontal: 6,
                                                               vertical: 2),
                                                       decoration: BoxDecoration(
-                                                        color: Colors.grey.shade200,
+                                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                                         borderRadius:
                                                             BorderRadius.circular(4),
                                                       ),
@@ -420,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                         producto.categoriaNombre,
                                                         style: TextStyle(
                                                           fontSize: 11,
-                                                          color: Colors.grey.shade800,
+                                                          color: Theme.of(context).colorScheme.onSurface,
                                                           fontWeight: FontWeight.w500,
                                                         ),
                                                       ),
@@ -443,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     Text(
                                                       'Bs. ${producto.precio.toStringAsFixed(2)}',
                                                       style: TextStyle(
-                                                        color: Colors.blue.shade700,
+                                                        color: Theme.of(context).colorScheme.primary,
                                                         fontWeight: FontWeight.bold,
                                                         fontSize: 15,
                                                       ),
@@ -465,8 +465,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                                               : 'Sin stock',
                                                           style: TextStyle(
                                                             fontSize: 11,
-                                                            color:
-                                                                Colors.grey.shade600,
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
                                                           ),
                                                         ),
                                                       ],

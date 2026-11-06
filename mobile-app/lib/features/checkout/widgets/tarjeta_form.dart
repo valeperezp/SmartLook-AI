@@ -252,15 +252,15 @@ class _TarjetaFormState extends State<TarjetaForm> {
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade200),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(Icons.verified_user_outlined,
-                  color: Colors.blue.shade800, size: 22),
+                  color: Theme.of(context).colorScheme.primary, size: 22),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -269,7 +269,7 @@ class _TarjetaFormState extends State<TarjetaForm> {
                     Text(
                       'Stripe PaymentSheet Nativo',
                       style: TextStyle(
-                        color: Colors.blue.shade900,
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -278,7 +278,7 @@ class _TarjetaFormState extends State<TarjetaForm> {
                     Text(
                       'Procesamiento bancario seguro integrado con Google Pay y tarjeta con certificación PCI-DSS.',
                       style: TextStyle(
-                        color: Colors.blue.shade800,
+                        color: Theme.of(context).colorScheme.primary,
                         fontSize: 12,
                       ),
                     ),
@@ -337,9 +337,9 @@ class _TarjetaFormState extends State<TarjetaForm> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -463,13 +463,13 @@ class _TarjetaFormState extends State<TarjetaForm> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.lock, size: 14, color: Colors.green),
-                  SizedBox(width: 4),
+                  const Icon(Icons.lock, size: 14, color: Colors.green),
+                  const SizedBox(width: 4),
                   Text(
                     'Pago encriptado TLS',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),

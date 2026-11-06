@@ -69,11 +69,11 @@ class GraficoTorta extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.pie_chart_outline, size: 48, color: Colors.grey.shade400),
+                Icon(Icons.pie_chart_outline, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(height: 8),
                 Text(
                   'No hay estados registrados actualmente',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                 ),
               ],
             ),

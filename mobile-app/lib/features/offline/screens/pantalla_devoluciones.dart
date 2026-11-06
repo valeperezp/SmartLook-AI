@@ -176,10 +176,14 @@ class _PantallaDevolucionesState extends State<PantallaDevoluciones> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.lock, size: 18),
+          Icon(Icons.lock, size: 18, color: Colors.amber.shade900),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Tu caja está cerrada: ábrela para registrar cambios y devoluciones.')),
-          TextButton(onPressed: () => context.push('/offline/turno'), child: const Text('Abrir caja')),
+          Expanded(child: Text('Tu caja está cerrada: ábrela para registrar cambios y devoluciones.', style: TextStyle(color: Colors.amber.shade900))),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.brown.shade800),
+            onPressed: () => context.push('/offline/turno'),
+            child: const Text('Abrir caja', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );

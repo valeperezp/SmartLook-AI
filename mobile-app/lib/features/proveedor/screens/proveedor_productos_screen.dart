@@ -34,13 +34,13 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: activo ? Colors.green.shade50 : Colors.grey.shade200,
+        color: activo ? Colors.green.shade50 : Theme.of(context).colorScheme.outline,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         activo ? 'Activo' : 'Inactivo',
         style: TextStyle(
-          color: activo ? Colors.green.shade800 : Colors.grey.shade800,
+          color: activo ? Colors.green.shade800 : Theme.of(context).colorScheme.onSurface,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
@@ -104,7 +104,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                 const SizedBox(height: 10),
                 Text(
                   descripcion,
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 14),
                 const Divider(),
@@ -112,11 +112,11 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                 Text('Precio: \$${precio.toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 6),
-                Text('Categoría: $categoria', style: TextStyle(color: Colors.grey.shade800)),
+                Text('Categoría: $categoria', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                 const SizedBox(height: 4),
-                Text('Temporada: $temporada', style: TextStyle(color: Colors.grey.shade800)),
+                Text('Temporada: $temporada', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                 const SizedBox(height: 4),
-                Text('Colección: $coleccion', style: TextStyle(color: Colors.grey.shade800)),
+                Text('Colección: $coleccion', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                 const SizedBox(height: 16),
                 Align(
                   alignment: Alignment.centerRight,
@@ -272,14 +272,14 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
+                                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 12,
                                 ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 ),
                               ),
                             ),
@@ -298,7 +298,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                     selected: isSelected,
                                     selectedColor: Colors.teal.shade100,
                                     labelStyle: TextStyle(
-                                      color: isSelected ? Colors.teal.shade900 : Colors.black87,
+                                      color: isSelected ? Colors.teal.shade900 : Theme.of(context).colorScheme.onSurface,
                                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                     ),
                                     onSelected: (selected) {
@@ -317,10 +317,10 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                             child: Text(
                               '${productos.length} productos',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -335,7 +335,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.checkroom_outlined, size: 52, color: Colors.grey.shade400),
+                                          Icon(Icons.checkroom_outlined, size: 52, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                           const SizedBox(height: 12),
                                           Text(
                                             proveedor.misProductos.isEmpty
@@ -344,7 +344,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontSize: 15,
-                                              color: Colors.grey.shade600,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                         ],
@@ -379,7 +379,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12),
                                             side: BorderSide(
-                                              color: activo ? Colors.grey.shade200 : Colors.red.shade100,
+                                              color: activo ? Theme.of(context).colorScheme.outline : Colors.red.shade100,
                                             ),
                                           ),
                                         child: Padding(
@@ -469,7 +469,7 @@ class _ProveedorProductosScreenState extends State<ProveedorProductosScreen> {
                                                   '${temporada != null ? "Temporada: $temporada" : ""}${temporada != null && coleccion != null ? "  •  " : ""}${coleccion != null ? "Colección: $coleccion" : ""}',
                                                   style: TextStyle(
                                                     fontSize: 12,
-                                                    color: Colors.grey.shade600,
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                   ),
                                                 ),
                                               ],

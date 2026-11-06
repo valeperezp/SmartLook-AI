@@ -161,7 +161,7 @@ class _SmartLookAppState extends State<SmartLookApp> {
         ChangeNotifierProvider<VentaOfflineProvider>(
           create: (_) => VentaOfflineProvider(),
         ),
-        // Servidor simulado hasta que exista el endpoint real de sincronización
+        // Sincroniza con POST /sync/operaciones; si el endpoint aún no existe (404) la cola queda pendiente
         // lazy: false → empieza a escuchar la red desde el arranque; dispose cancela la suscripción
         Provider<SyncService>(
           lazy: false,

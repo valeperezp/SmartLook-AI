@@ -95,8 +95,13 @@ class _PantallaMiCuentaState extends State<PantallaMiCuenta> {
 
   Widget _tarjetaPuntos(PuntosProvider puntos) {
     final porPunto = OfflineConfig.centavosPorPunto / 100;
+    final esquema = Theme.of(context).colorScheme;
     return Card(
-      color: Colors.amber.shade50,
+      color: esquema.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: esquema.primary.withValues(alpha: 0.6)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -104,12 +109,12 @@ class _PantallaMiCuentaState extends State<PantallaMiCuenta> {
           children: [
             Row(
               children: [
-                Icon(Icons.stars, color: Colors.amber.shade800),
+                Icon(Icons.stars, color: esquema.primary),
                 const SizedBox(width: 8),
-                const Text('Mis puntos', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('Mis puntos', style: TextStyle(fontWeight: FontWeight.bold, color: esquema.onSurface)),
               ],
             ),
-            Text('${puntos.saldo}', style: const TextStyle(fontSize: 44, fontWeight: FontWeight.bold)),
+            Text('${puntos.saldo}', style: TextStyle(fontSize: 44, fontWeight: FontWeight.bold, color: esquema.primary)),
             Text('Ganas 1 punto por cada \$${porPunto.toStringAsFixed(0)} de compra.', style: Theme.of(context).textTheme.bodySmall),
             if (puntos.error != null) Text(puntos.error!, style: const TextStyle(color: Colors.red)),
             if (puntos.movimientos.isNotEmpty) ...[

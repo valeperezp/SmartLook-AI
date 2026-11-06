@@ -250,7 +250,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                     const SizedBox(height: 8),
                                     Text(
                                       'Venta #$vId pagada exitosamente por \$${montoTotal.toStringAsFixed(2)}',
-                                      style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 15),
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 28),
@@ -294,7 +294,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text('Ticket #$vId',
-                                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
                                         const SizedBox(height: 2),
                                         const Text('Monto a Cobrar',
                                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -302,10 +302,10 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                     ),
                                     Text(
                                       '\$${montoTotal.toStringAsFixed(2)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.deepOrange,
+                                        color: Theme.of(context).colorScheme.primary,
                                       ),
                                     ),
                                   ],
@@ -327,9 +327,9 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: Colors.blue.shade200),
+                                  border: Border.all(color: Theme.of(context).colorScheme.outline),
                                 ),
                                 child: Row(
                                   children: [
@@ -345,7 +345,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
-                                          color: Colors.blue.shade900,
+                                          color: Theme.of(context).colorScheme.primary,
                                         ),
                                       ),
                                     ),
@@ -367,13 +367,13 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                       children: [
                                         Icon(Icons.check_circle, color: Colors.green.shade700, size: 22),
                                         const SizedBox(width: 10),
-                                        const Expanded(
+                                        Expanded(
                                           child: Text(
                                             '¡Comprobante de pago recibido!',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
+                                              color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),
                                         ),
@@ -391,7 +391,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
                                           fit: BoxFit.contain,
                                           errorBuilder: (context, error, stackTrace) => Container(
                                             height: 100,
-                                            color: Colors.grey.shade200,
+                                            color: Theme.of(context).colorScheme.outline,
                                             child: const Center(
                                               child: Text('Error al cargar imagen del comprobante'),
                                             ),
@@ -450,7 +450,7 @@ class _QrCajeroScreenState extends State<QrCajeroScreen> {
 
                             // Botón cancelar
                             TextButton.icon(
-                              style: TextButton.styleFrom(foregroundColor: Colors.grey.shade700),
+                              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant),
                               icon: const Icon(Icons.close),
                               label: const Text('Cancelar cobro QR y volver al POS'),
                               onPressed: () {

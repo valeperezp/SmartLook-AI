@@ -93,7 +93,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                       Text(
                                         'Gestión de catálogo y prendas suministradas',
                                         style: TextStyle(
-                                          color: Colors.grey.shade600,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           fontSize: 14,
                                         ),
                                       ),
@@ -139,7 +139,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                   label: 'Productos inactivos',
                                   valor: proveedor.totalInactivos.toString(),
                                   icono: Icons.cancel,
-                                  color: Colors.grey.shade700,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                                 KpiCard(
                                   label: 'Categorías cubiertas',
@@ -182,7 +182,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                   child: ElevatedButton.icon(
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
-                                      backgroundColor: Colors.blueGrey.shade700,
+                                      backgroundColor: Colors.teal.shade700,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -247,7 +247,7 @@ class _ProveedorDashboardScreenState extends State<ProveedorDashboardScreen> {
                                     ),
                                     subtitle: Text(
                                       'Categoría: $categoria',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                     ),
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,

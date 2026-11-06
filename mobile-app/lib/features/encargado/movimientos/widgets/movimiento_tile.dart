@@ -153,7 +153,7 @@ class MovimientoTile extends StatelessWidget {
                       movimiento.motivo!,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -168,13 +168,13 @@ class MovimientoTile extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.person_outline,
-                              size: 14, color: Colors.grey.shade600),
+                              size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           const SizedBox(width: 4),
                           Text(
                             movimiento.nombreUsuario ?? 'Sistema',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -183,13 +183,13 @@ class MovimientoTile extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.access_time,
-                              size: 14, color: Colors.grey.shade600),
+                              size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           const SizedBox(width: 4),
                           Text(
                             _formatoFecha(movimiento.creadoEn),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -218,7 +218,7 @@ class MovimientoTile extends StatelessWidget {
                   'unidades',
                   style: TextStyle(
                     fontSize: 11,
-                    color: Colors.grey.shade600,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],

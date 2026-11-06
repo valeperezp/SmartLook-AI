@@ -28,11 +28,11 @@ class GraficoBarras extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.bar_chart, size: 48, color: Colors.grey.shade400),
+                Icon(Icons.bar_chart, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(height: 8),
                 Text(
                   'No hay datos para mostrar en este período',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                 ),
               ],
             ),

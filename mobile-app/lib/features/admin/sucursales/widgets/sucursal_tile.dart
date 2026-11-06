@@ -22,7 +22,7 @@ class SucursalTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         side: BorderSide(
-          color: sucursal.activa ? AppTheme.border : Colors.grey.shade300,
+          color: sucursal.activa ? AppTheme.border : Theme.of(context).colorScheme.outline,
           width: 1,
         ),
       ),
@@ -37,12 +37,12 @@ class SucursalTile extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: sucursal.activa
                       ? Colors.indigo.shade50
-                      : Colors.grey.shade200,
+                      : Theme.of(context).colorScheme.outline,
                   child: Icon(
                     Icons.storefront,
                     color: sucursal.activa
                         ? Colors.indigo.shade800
-                        : Colors.grey.shade600,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -57,7 +57,7 @@ class SucursalTile extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: sucursal.activa
                               ? AppTheme.textPrimary
-                              : Colors.grey.shade600,
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       if (sucursal.ciudad != null &&
@@ -67,7 +67,7 @@ class SucursalTile extends StatelessWidget {
                           sucursal.ciudad!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -88,7 +88,7 @@ class SucursalTile extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.location_on_outlined,
-                    size: 16, color: Colors.grey.shade600),
+                    size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -97,7 +97,7 @@ class SucursalTile extends StatelessWidget {
                         : 'Sin dirección especificada',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -110,13 +110,13 @@ class SucursalTile extends StatelessWidget {
               Row(
                 children: [
                   Icon(Icons.phone_outlined,
-                      size: 16, color: Colors.grey.shade600),
+                      size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Text(
                     sucursal.telefono!,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey.shade700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -136,12 +136,12 @@ class SucursalTile extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: sucursal.activa
                           ? Colors.teal.shade800
-                          : Colors.grey.shade700,
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   backgroundColor: sucursal.activa
                       ? Colors.teal.shade50
-                      : Colors.grey.shade200,
+                      : Theme.of(context).colorScheme.outline,
                   side: BorderSide.none,
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,

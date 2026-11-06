@@ -120,7 +120,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                     Icon(
                       Icons.receipt_long_outlined,
                       size: 72,
-                      color: Colors.grey.shade400,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -136,7 +136,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -192,8 +192,8 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                             // Detalles
                             Row(
                               children: [
-                                const Icon(Icons.storefront,
-                                    size: 16, color: Colors.blue),
+                                Icon(Icons.storefront,
+                                    size: 16, color: Theme.of(context).colorScheme.primary),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -207,14 +207,14 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(Icons.calendar_today,
-                                    size: 16, color: Colors.grey),
+                                Icon(Icons.calendar_today,
+                                    size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Creada: ${_dateFormat.format(reserva.creadaEn)}',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey.shade700,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -222,14 +222,14 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(Icons.inventory_2_outlined,
-                                    size: 16, color: Colors.grey),
+                                Icon(Icons.inventory_2_outlined,
+                                    size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Items: ${reserva.totalItems}  |  Unidades: ${reserva.totalUnidades}',
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey.shade700,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],

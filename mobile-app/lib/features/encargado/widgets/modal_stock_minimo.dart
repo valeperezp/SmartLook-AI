@@ -109,7 +109,7 @@ class _ModalStockMinimoState extends State<ModalStockMinimo> {
                           nombreProducto,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -152,7 +152,7 @@ class _ModalStockMinimoState extends State<ModalStockMinimo> {
               // Campo Nuevo stock mínimo
               Text(
                 'Nuevo stock mínimo *',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade800),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(height: 6),
               TextFormField(
@@ -182,14 +182,14 @@ class _ModalStockMinimoState extends State<ModalStockMinimo> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.grey.shade600),
+                  Icon(Icons.info_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Cuando el stock baje de este valor, se mostrará una alerta en el panel.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),

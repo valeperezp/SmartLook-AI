@@ -157,7 +157,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                   width: 72,
                                   height: 72,
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Hero(
@@ -213,7 +213,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: Colors.grey.shade200,
+                                          color: Theme.of(context).colorScheme.outline,
                                           borderRadius:
                                               BorderRadius.circular(6),
                                         ),
@@ -221,7 +221,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                           widget.producto.categoriaNombre,
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.grey.shade800,
+                                            color: Theme.of(context).colorScheme.onSurface,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -238,7 +238,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                               Text(
                                 widget.producto.descripcion!,
                                 style: TextStyle(
-                                  color: Colors.grey.shade700,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   fontSize: 14,
                                   height: 1.4,
                                 ),
@@ -268,9 +268,9 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey.shade200),
+                                border: Border.all(color: Theme.of(context).colorScheme.outline),
                               ),
                               child: Row(
                                 mainAxisAlignment:
@@ -278,10 +278,10 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                 children: [
                                   Column(
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Stock total',
                                         style: TextStyle(
-                                            fontSize: 12, color: Colors.grey),
+                                            fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -296,13 +296,13 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                   Container(
                                       width: 1,
                                       height: 32,
-                                      color: Colors.grey.shade300),
+                                      color: Theme.of(context).colorScheme.outline),
                                   Column(
                                     children: [
-                                      const Text(
+                                      Text(
                                         'Disponibilidad',
                                         style: TextStyle(
-                                            fontSize: 12, color: Colors.grey),
+                                            fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
@@ -337,7 +337,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                     const EdgeInsets.symmetric(vertical: 16),
                                 child: Text(
                                   'No hay información de sucursales disponible.',
-                                  style: TextStyle(color: Colors.grey.shade600),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 ),
                               )
                             else
@@ -348,7 +348,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     side: BorderSide(
-                                        color: Colors.grey.shade200),
+                                        color: Theme.of(context).colorScheme.outline),
                                   ),
                                   child: Padding(
                                     padding: const EdgeInsets.all(14.0),
@@ -396,7 +396,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
-                                            color: Colors.grey.shade700,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                         const SizedBox(height: 12),
@@ -407,7 +407,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                             'Sin items registrados',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.grey.shade500,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                             ),
                                           )
                                         else
@@ -427,14 +427,14 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                                                         vertical: 6),
                                                 decoration: BoxDecoration(
                                                   color: tieneStock
-                                                      ? Colors.blue.shade50
-                                                      : Colors.grey.shade100,
+                                                      ? Theme.of(context).colorScheme.surfaceContainerHighest
+                                                      : Theme.of(context).colorScheme.surfaceContainerHighest,
                                                   borderRadius:
                                                       BorderRadius.circular(20),
                                                   border: Border.all(
                                                     color: tieneStock
                                                         ? Colors.blue.shade200
-                                                        : Colors.grey.shade300,
+                                                        : Theme.of(context).colorScheme.outline,
                                                   ),
                                                 ),
                                                 child: Row(
@@ -816,7 +816,7 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                           widget.producto.nombre,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade700,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         Text(
@@ -880,10 +880,10 @@ class _DetalleProductoModalState extends State<DetalleProductoModal> {
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                    color: Colors.grey.shade300),
+                                    color: Theme.of(context).colorScheme.outline),
                               ),
                               child: Row(
                                 children: [

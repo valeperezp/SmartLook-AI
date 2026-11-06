@@ -42,7 +42,7 @@ class PromocionTile extends StatelessWidget {
         side: BorderSide(
           color: promocion.activo
               ? AppTheme.border
-              : Colors.grey.shade300,
+              : Theme.of(context).colorScheme.outline,
           width: 1,
         ),
       ),
@@ -69,7 +69,7 @@ class PromocionTile extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: promocion.activo
                                     ? AppTheme.textPrimary
-                                    : Colors.grey.shade600,
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -82,12 +82,12 @@ class PromocionTile extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: promocion.activo
                                   ? Colors.red.shade50
-                                  : Colors.grey.shade200,
+                                  : Theme.of(context).colorScheme.outline,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: promocion.activo
                                     ? Colors.red.shade200
-                                    : Colors.grey.shade400,
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                             child: Text(
@@ -97,7 +97,7 @@ class PromocionTile extends StatelessWidget {
                                 fontWeight: FontWeight.bold,
                                 color: promocion.activo
                                     ? Colors.red.shade700
-                                    : Colors.grey.shade600,
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -110,7 +110,7 @@ class PromocionTile extends StatelessWidget {
                           promocion.descripcion!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade600,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -136,13 +136,13 @@ class PromocionTile extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.date_range, size: 15, color: Colors.grey.shade600),
+                    Icon(Icons.date_range, size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text(
                       '${_formatearFecha(promocion.fechaInicio)} — ${_formatearFecha(promocion.fechaFin)}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -151,7 +151,7 @@ class PromocionTile extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.inventory_2_outlined,
-                        size: 15, color: Colors.grey.shade600),
+                        size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
                     Text(
                       promocion.totalProductos > 0
@@ -159,7 +159,7 @@ class PromocionTile extends StatelessWidget {
                           : 'General (todos)',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -180,12 +180,12 @@ class PromocionTile extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: promocion.activo
                           ? Colors.teal.shade800
-                          : Colors.grey.shade700,
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   backgroundColor: promocion.activo
                       ? Colors.teal.shade50
-                      : Colors.grey.shade200,
+                      : Theme.of(context).colorScheme.outline,
                   side: BorderSide.none,
                   padding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,

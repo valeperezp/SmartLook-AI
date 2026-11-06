@@ -39,14 +39,14 @@ class VentaCajeroTile extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           '#${venta.id}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
+                            color: Theme.of(context).colorScheme.primary,
                             fontSize: 13,
                           ),
                         ),
@@ -76,7 +76,7 @@ class VentaCajeroTile extends StatelessWidget {
 
               Row(
                 children: [
-                  Icon(Icons.person_outline, size: 16, color: Colors.grey.shade600),
+                  Icon(Icons.person_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -90,7 +90,7 @@ class VentaCajeroTile extends StatelessWidget {
                   ),
                   Text(
                     fechaStr,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                   ),
                 ],
               ),
@@ -101,20 +101,20 @@ class VentaCajeroTile extends StatelessWidget {
                 children: [
                   Text(
                     '${venta.totalItems} ítems (${venta.totalUnidades} un.)',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   Row(
                     children: [
                       Text(
                         '\$${venta.total.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.deepOrange,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.chevron_right, size: 20, color: Colors.grey.shade400),
+                      Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ],
                   ),
                 ],

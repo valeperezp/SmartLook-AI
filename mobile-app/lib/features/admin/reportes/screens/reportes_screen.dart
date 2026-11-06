@@ -114,9 +114,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Seleccione el formato para descargar el informe consolidado:',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
               ListTile(
@@ -290,7 +290,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         side: const BorderSide(color: AppTheme.border, width: 1),
       ),
-      child: Padding(
+      child: SizedBox(
+        width: double.infinity, // ocupa todo el ancho (sin esto la tarjeta se encogía al contenido)
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,8 +313,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
               children: [
                 // Selector de sucursal
                 SizedBox(
-                  width: 240,
+                  width: 280,
                   child: DropdownButtonFormField<int?>(
+                    isExpanded: true, // el texto se recorta con "…" en vez de desbordar el campo
                     initialValue: prov.sucursalSeleccionadaId,
                     decoration: InputDecoration(
                       labelText: 'Sucursal',
@@ -346,8 +349,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 ),
 
                 // Selector de rango en días
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                Wrap(
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     const Text(
                       'Período: ',
@@ -357,13 +361,9 @@ class _ReportesScreenState extends State<ReportesScreen> {
                         color: AppTheme.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 6),
                     _buildFiltroChip(prov, 7, '7d'),
-                    const SizedBox(width: 6),
                     _buildFiltroChip(prov, 14, '14d'),
-                    const SizedBox(width: 6),
                     _buildFiltroChip(prov, 30, '30d'),
-                    const SizedBox(width: 6),
                     _buildFiltroChip(prov, 60, '60d'),
                   ],
                 ),
@@ -371,6 +371,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -382,7 +383,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       selected: selected,
       selectedColor: AppTheme.primary,
       labelStyle: TextStyle(
-        color: selected ? Colors.white : AppTheme.textPrimary,
+        color: selected ? AppTheme.background : AppTheme.textPrimary,
         fontWeight: selected ? FontWeight.bold : FontWeight.normal,
         fontSize: 12,
       ),
@@ -397,11 +398,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
   Widget _buildKpisGrid(dynamic resumen) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 750
-            ? 3
-            : constraints.maxWidth > 480
-                ? 2
-                : 1;
+        // En teléfono, 2 columnas (con 1 sola cada tarjeta ocupaba media pantalla)
+        final crossAxisCount = constraints.maxWidth > 750 ? 3 : 2;
 
         return GridView.count(
           crossAxisCount: crossAxisCount,
@@ -409,7 +407,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.6,
+          childAspectRatio: crossAxisCount == 2 ? 1.15 : 1.6,
           children: [
             KpiCard(
               label: 'Total Reservas',

@@ -90,12 +90,12 @@ class _QrMostrarWidgetState extends State<QrMostrarWidget> {
                     errorBuilder: (context, error, stackTrace) => Container(
                       width: 220,
                       height: 220,
-                      color: Colors.grey.shade100,
-                      child: const Center(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      child: Center(
                         child: Text(
                           'No se pudo cargar QR de sucursal',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                         ),
                       ),
                     ),
@@ -109,7 +109,7 @@ class _QrMostrarWidgetState extends State<QrMostrarWidget> {
               ? 'El cliente escanea este QR para cargar su comprobante desde su celular.'
               : 'Código QR bancario/billetera oficial de la sucursal para transferir.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );

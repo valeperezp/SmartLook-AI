@@ -34,6 +34,13 @@ class AppTheme {
         onSecondary: background,
         surface: surface,
         onSurface: textPrimary,
+        onSurfaceVariant: textSecondary,
+        surfaceContainerLowest: background,
+        surfaceContainerLow: surface,
+        surfaceContainer: surface,
+        surfaceContainerHigh: surfaceVariant,
+        surfaceContainerHighest: surfaceVariant,
+        outlineVariant: border,
         error: error,
         onError: background,
         outline: border,
@@ -112,6 +119,71 @@ class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       ),
       dividerTheme: const DividerThemeData(color: border, thickness: 1),
+      listTileTheme: const ListTileThemeData(
+        iconColor: textSecondary,
+        textColor: textPrimary,
+        subtitleTextStyle: TextStyle(color: textSecondary, fontSize: 13),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: primary,
+        foregroundColor: background,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: primary,
+        circularTrackColor: border,
+        linearTrackColor: border,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        indicatorColor: primary.withValues(alpha: 0.9),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: states.contains(WidgetState.selected) ? textPrimary : textSecondary,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(color: states.contains(WidgetState.selected) ? background : textSecondary),
+        ),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: surfaceVariant,
+        textStyle: const TextStyle(color: textPrimary, fontSize: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusSm)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surface,
+        modalBackgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected) ? background : textPrimary,
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected) ? primary : surface,
+          ),
+          side: const WidgetStatePropertyAll(BorderSide(color: border)),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? background : textSecondary),
+        trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? primary : border),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? primary : Colors.transparent),
+        checkColor: const WidgetStatePropertyAll(background),
+        side: const BorderSide(color: textSecondary, width: 1.5),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? primary : textSecondary),
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(color: surfaceVariant, borderRadius: BorderRadius.circular(radiusSm), border: Border.all(color: border)),
+        textStyle: const TextStyle(color: textPrimary, fontSize: 12),
+      ),
       iconTheme: const IconThemeData(color: textSecondary),
       textTheme: const TextTheme(
         displayLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontFamily: 'serif'),

@@ -327,7 +327,7 @@ class _IaConfigScreenState extends State<IaConfigScreen> {
                                           size: 15,
                                           color: config?.apiKeyConfigurada == true
                                               ? Colors.teal.shade700
-                                              : Colors.grey.shade600,
+                                              : Theme.of(context).colorScheme.onSurfaceVariant,
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
@@ -338,7 +338,7 @@ class _IaConfigScreenState extends State<IaConfigScreen> {
                                             fontSize: 12,
                                             color: config?.apiKeyConfigurada == true
                                                 ? Colors.teal.shade700
-                                                : Colors.grey.shade600,
+                                                : Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],

@@ -466,8 +466,8 @@ class _ModalProductoFormState extends State<ModalProductoForm> {
                       errorBuilder: (context, error, stackTrace) => Container(
                         height: 80,
                         width: 80,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                        color: Theme.of(context).colorScheme.outline,
+                        child: Icon(Icons.broken_image, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ),
                   ),

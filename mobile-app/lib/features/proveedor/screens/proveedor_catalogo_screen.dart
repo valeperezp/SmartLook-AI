@@ -269,14 +269,14 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                       )
                                     : null,
                                 filled: true,
-                                fillColor: Colors.grey.shade50,
+                                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 12,
                                 ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 ),
                               ),
                             ),
@@ -294,7 +294,7 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                     labelStyle: TextStyle(
                                       color: _categoriaIdSeleccionada == null
                                           ? Colors.teal.shade900
-                                          : Colors.black87,
+                                          : Theme.of(context).colorScheme.onSurface,
                                       fontWeight: _categoriaIdSeleccionada == null
                                           ? FontWeight.bold
                                           : FontWeight.normal,
@@ -320,7 +320,7 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                         labelStyle: TextStyle(
                                           color: isSelected
                                               ? Colors.teal.shade900
-                                              : Colors.black87,
+                                              : Theme.of(context).colorScheme.onSurface,
                                           fontWeight: isSelected
                                               ? FontWeight.bold
                                               : FontWeight.normal,
@@ -342,10 +342,10 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                             // 4. Contador de productos
                             Text(
                               '${productosFiltrados.length} productos',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 12),
@@ -361,14 +361,14 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                       Icon(
                                         Icons.search_off,
                                         size: 56,
-                                        color: Colors.grey.shade400,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                       const SizedBox(height: 12),
                                       Text(
                                         'No hay productos que coincidan',
                                         style: TextStyle(
                                           fontSize: 16,
-                                          color: Colors.grey.shade600,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -400,7 +400,7 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                       side: BorderSide(
                                         color: esTuyo
                                             ? Colors.teal.shade200
-                                            : Colors.grey.shade200,
+                                            : Theme.of(context).colorScheme.outline,
                                       ),
                                     ),
                                     clipBehavior: Clip.antiAlias,
@@ -560,7 +560,7 @@ class _ProveedorCatalogoScreenState extends State<ProveedorCatalogoScreen> {
                                                   '${prod.sucursalesConStock} sucursales',
                                                   style: TextStyle(
                                                     fontSize: 11,
-                                                    color: Colors.grey.shade600,
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                   ),
                                                 ),
                                               ],

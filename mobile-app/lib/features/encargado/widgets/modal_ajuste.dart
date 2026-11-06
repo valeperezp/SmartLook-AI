@@ -97,8 +97,8 @@ class _ModalAjusteState extends State<ModalAjuste> {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.blue.shade50,
-                    child: Icon(Icons.tune, color: Colors.blue.shade700, size: 26),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    child: Icon(Icons.tune, color: Theme.of(context).colorScheme.primary, size: 26),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -110,14 +110,14 @@ class _ModalAjusteState extends State<ModalAjuste> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade800,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                         Text(
                           '$nombreProducto (Talla: $nombreTalla • Color: $nombreColor)',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -136,16 +136,16 @@ class _ModalAjusteState extends State<ModalAjuste> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.inventory_2_outlined, size: 20, color: Colors.grey.shade700),
+                    Icon(Icons.inventory_2_outlined, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 8),
                     Text(
                       'Disponible actual: ',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade800),
+                      style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                     ),
                     Text(
                       '$cantDisponible unidades',
@@ -159,7 +159,7 @@ class _ModalAjusteState extends State<ModalAjuste> {
               // Campo Nueva cantidad real
               Text(
                 'Nueva cantidad real (conteo físico) *',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade800),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(height: 6),
               TextFormField(
@@ -188,7 +188,7 @@ class _ModalAjusteState extends State<ModalAjuste> {
               // Campo Motivo
               Text(
                 'Motivo del ajuste (opcional)',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade800),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(height: 6),
               TextFormField(

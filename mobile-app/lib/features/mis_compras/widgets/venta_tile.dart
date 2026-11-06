@@ -77,7 +77,7 @@ class VentaTile extends StatelessWidget {
                                   .format(venta.creadaEn),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -117,14 +117,14 @@ class VentaTile extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             'Canal: ${venta.canal.toUpperCase()}',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey.shade800,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -136,13 +136,13 @@ class VentaTile extends StatelessWidget {
                       Row(
                         children: [
                           Icon(Icons.store,
-                              size: 15, color: Colors.blue.shade700),
+                              size: 15, color: Theme.of(context).colorScheme.primary),
                           const SizedBox(width: 6),
                           Text(
                             'Sucursal: ${venta.nombreSucursal}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade800,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -163,7 +163,7 @@ class VentaTile extends StatelessWidget {
                       child: ListView.separated(
                         itemCount: venta.items.length,
                         separatorBuilder: (context, index) =>
-                            Divider(color: Colors.grey.shade200, height: 1),
+                            Divider(color: Theme.of(context).colorScheme.outline, height: 1),
                         itemBuilder: (context, i) {
                           final item = venta.items[i];
                           return Padding(
@@ -175,13 +175,13 @@ class VentaTile extends StatelessWidget {
                                   width: 36,
                                   height: 36,
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade50,
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
                                     Icons.checkroom,
                                     size: 20,
-                                    color: Colors.blue.shade700,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -202,14 +202,14 @@ class VentaTile extends StatelessWidget {
                                         'Talla: ${item.nombreTalla ?? "-"} | Color: ${item.nombreColor ?? "-"}',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade600,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       Text(
                                         '${item.cantidad} x \$${item.precioUnitario.toStringAsFixed(2)}',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade700,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -312,7 +312,7 @@ class VentaTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -320,7 +320,7 @@ class VentaTile extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade700,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),

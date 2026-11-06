@@ -75,7 +75,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Column(
+                                Expanded(
+                                  child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
@@ -89,12 +90,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     Text(
                                       'Resumen general del inventario y operaciones',
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         fontSize: 14,
                                       ),
                                     ),
                                   ],
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Chip(
                                   label: const Text('Administrador'),
                                   backgroundColor: Colors.indigo.shade50,
@@ -209,7 +212,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 14),
-                                      backgroundColor: Colors.teal.shade600,
+                                      backgroundColor: Colors.indigo.shade600,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -227,7 +230,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 14),
-                                      backgroundColor: Colors.blueGrey.shade700,
+                                      backgroundColor: Colors.indigo.shade600,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -250,7 +253,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 14),
-                                      backgroundColor: Colors.purple.shade700,
+                                      backgroundColor: Colors.indigo.shade600,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -268,7 +271,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 14),
-                                      backgroundColor: Colors.deepOrange.shade600,
+                                      backgroundColor: Colors.indigo.shade600,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -291,7 +294,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 14),
-                                      backgroundColor: Colors.indigo.shade800,
+                                      backgroundColor: Colors.indigo.shade600,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -309,7 +312,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     style: ElevatedButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 14),
-                                      backgroundColor: Colors.brown.shade600,
+                                      backgroundColor: Colors.indigo.shade600,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(10),
@@ -340,7 +343,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                   Text(
                                     '${admin.alertas.length} en total',
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -375,7 +378,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                           Text(
                                             'No hay alertas críticas ni stock bajo en este momento.',
                                             style: TextStyle(
-                                              color: Colors.grey.shade600,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               fontSize: 13,
                                             ),
                                           ),
@@ -426,7 +429,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                       '${alerta["nombre_sucursal"] ?? ""} — ${alerta["mensaje"] ?? ""}',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey.shade700,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                     trailing: EstadoBadge(

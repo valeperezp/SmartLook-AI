@@ -74,8 +74,8 @@ class _PagosPendientesScreenState extends State<PagosPendientesScreen> {
               Align(
                 alignment: Alignment.topRight,
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
@@ -126,7 +126,7 @@ class _PagosPendientesScreenState extends State<PagosPendientesScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

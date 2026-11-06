@@ -43,10 +43,10 @@ class CarruselRecomendaciones extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.auto_awesome, size: 18, color: Colors.amber.shade900),
+                  child: Icon(Icons.auto_awesome, size: 18, color: Theme.of(context).colorScheme.primary),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -64,7 +64,7 @@ class CarruselRecomendaciones extends StatelessWidget {
                         'Selección inteligente basada en tus preferencias',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -100,9 +100,9 @@ class CarruselRecomendaciones extends StatelessWidget {
     return Container(
       width: 160,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: theme.colorScheme.outline),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -142,7 +142,7 @@ class CarruselRecomendaciones extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: theme.colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -150,7 +150,7 @@ class CarruselRecomendaciones extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade800,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ),
@@ -160,9 +160,10 @@ class CarruselRecomendaciones extends StatelessWidget {
                     rec.nombre,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -181,7 +182,7 @@ class CarruselRecomendaciones extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.grey.shade600,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -210,10 +211,12 @@ class CarruselRecomendaciones extends StatelessWidget {
   }
 
   Widget _buildPlaceholder() {
-    return Container(
-      color: Colors.grey.shade100,
-      child: Center(
-        child: Icon(Icons.checkroom, color: Colors.grey.shade400, size: 36),
+    return Builder(
+      builder: (context) => Container(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: Center(
+          child: Icon(Icons.checkroom, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 36),
+        ),
       ),
     );
   }
@@ -231,7 +234,7 @@ class CarruselRecomendaciones extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -240,7 +243,7 @@ class CarruselRecomendaciones extends StatelessWidget {
                 width: 180,
                 height: 18,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -256,7 +259,7 @@ class CarruselRecomendaciones extends StatelessWidget {
               itemBuilder: (context, index) => Container(
                 width: 150,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),

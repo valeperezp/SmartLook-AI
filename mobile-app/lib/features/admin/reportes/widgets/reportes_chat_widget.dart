@@ -159,7 +159,7 @@ class _ReportesChatModalState extends State<ReportesChatModal> {
                           child: Text(
                             msg.texto,
                             style: TextStyle(
-                              color: isUser ? Colors.white : Colors.black87,
+                              color: isUser ? Colors.white : Theme.of(context).colorScheme.onSurface,
                               fontSize: 14,
                               height: 1.35,
                             ),
@@ -170,9 +170,9 @@ class _ReportesChatModalState extends State<ReportesChatModal> {
                         const SizedBox(width: 8),
                         CircleAvatar(
                           radius: 14,
-                          backgroundColor: Colors.grey.shade300,
-                          child: const Icon(Icons.person,
-                              size: 16, color: Colors.black54),
+                          backgroundColor: Theme.of(context).colorScheme.outline,
+                          child: Icon(Icons.person,
+                              size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ],
@@ -196,7 +196,7 @@ class _ReportesChatModalState extends State<ReportesChatModal> {
                   const SizedBox(width: 8),
                   Text(
                     'La IA está analizando los datos...',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -246,9 +246,9 @@ class _ReportesChatModalState extends State<ReportesChatModal> {
                     onSubmitted: (txt) => _enviar(provider, txt),
                     decoration: InputDecoration(
                       hintText: 'Preguntá sobre ventas, inventario...',
-                      hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                      hintStyle: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       contentPadding:
                           const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       border: OutlineInputBorder(

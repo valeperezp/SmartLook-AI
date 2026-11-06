@@ -19,6 +19,7 @@ import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'schema_v1_fixture.dart';
+import 'servidor_simulado.dart';
 
 const _camiseta = 101, _jean = 103, _falda = 107, _short = 109;
 const _cliente = 55;
@@ -381,8 +382,7 @@ void main() {
             devolucionDao: devoluciones,
             puntosDao: puntos,
             hayRed: () async => true,
-            enviar: enviar,
-            sorteo: sorteo ?? () => 0.9,
+            enviar: enviar ?? servidorSimulado(sorteo: sorteo ?? () => 0.9),
           );
 
       Map<String, dynamic> ok(Map<String, dynamic> lote) => {
@@ -425,6 +425,31 @@ void main() {
 
         final r2 = await servicio(enviar: (l) async => ok(l)).sincronizarPendientes();
         expect(r2.sincronizadas, 2);
+      });
+
+      test('si el servidor responde "pendiente" a los puntos, siguen pendientes con su mensaje', () async {
+        await vender();
+        Map<String, dynamic> pendientes(Map<String, dynamic> lote) => {
+              'resultados': [
+                for (final o in (lote['operaciones'] as List? ?? const [])) {'uuid': o['uuid'], 'status': 'ok', 'id_servidor': 7},
+                for (final m in (lote['movimientos_puntos'] as List? ?? const []))
+                  {'uuid': m['uuid'], 'status': 'pendiente', 'message': 'La operación de origen aún no está sincronizada'},
+              ],
+            };
+
+        final r = await servicio(enviar: (l) async => pendientes(l)).sincronizarPendientes();
+
+        expect((r.sincronizadas, r.enEspera, r.fallidas, r.rechazadas), (1, 1, 0, 0));
+        expect(r.resumen, contains('La operación de origen aún no está sincronizada'));
+        final fila = (await (await appDb.database)!.query(Schema.tablaSyncQueue, where: "tipo_operacion = 'PUNTOS_OTORGADOS'")).single;
+        expect(fila['estado'], 'pendiente');
+        expect(fila['intentos'], 1);
+        expect(fila['ultimo_error'], 'La operación de origen aún no está sincronizada');
+        expect((await (await appDb.database)!.query(Schema.tablaMovimientosPuntos)).single['estado_sync'], 'pendiente');
+
+        final r2 = await servicio(enviar: (l) async => ok(l)).sincronizarPendientes();
+        expect(r2.sincronizadas, 1);
+        expect((await (await appDb.database)!.query(Schema.tablaMovimientosPuntos)).single['estado_sync'], 'sincronizado');
       });
 
       test('si el servidor rechaza la venta, los puntos se anulan y no se envían', () async {

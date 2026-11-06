@@ -10,6 +10,7 @@ import 'package:smartlook_mobile/features/offline/providers/conectividad_provide
 import 'package:smartlook_mobile/features/offline/providers/venta_offline_provider.dart';
 import 'package:smartlook_mobile/features/offline/services/sync_service.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'servidor_simulado.dart';
 
 const _sinRed = [ConnectivityResult.none];
 const _wifi = [ConnectivityResult.wifi];
@@ -71,7 +72,7 @@ void main() {
       final r = await SyncService(
         colaDao: cola,
         hayRed: () async => true,
-        sorteo: () => 0.0, // conflict
+        enviar: servidorSimulado(sorteo: () => 0.0), // conflict
       ).sincronizarPendientes();
 
       expect(r.rechazadas, 1);
@@ -85,7 +86,7 @@ void main() {
       final antes = await stock(101);
       await vender(101, 2);
 
-      await SyncService(colaDao: cola, hayRed: () async => true, sorteo: () => 0.9).sincronizarPendientes();
+      await SyncService(colaDao: cola, hayRed: () async => true, enviar: servidorSimulado(sorteo: () => 0.9)).sincronizarPendientes();
 
       expect(await stock(101), antes - 2);
     });

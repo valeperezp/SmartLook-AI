@@ -452,7 +452,7 @@ class _PromocionFormScreenState extends State<PromocionFormScreen> {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: _productosSeleccionados.isEmpty
-                                      ? Colors.grey.shade600
+                                      ? Theme.of(context).colorScheme.onSurfaceVariant
                                       : AppTheme.primary,
                                 ),
                               ),
@@ -463,7 +463,7 @@ class _PromocionFormScreenState extends State<PromocionFormScreen> {
                             'Si no selecciona ningún producto, la promoción aplicará como descuento general a todo el catálogo.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -527,7 +527,7 @@ class _PromocionFormScreenState extends State<PromocionFormScreen> {
                                               '\$$precio',
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: Colors.grey.shade600,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                             dense: true,

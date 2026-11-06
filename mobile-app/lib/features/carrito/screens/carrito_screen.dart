@@ -85,7 +85,7 @@ class CarritoScreen extends StatelessWidget {
                       width: 96,
                       height: 96,
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -108,7 +108,7 @@ class CarritoScreen extends StatelessWidget {
                       'Aún no añadiste ninguna prenda. Explorá nuestro catálogo y descubrí las últimas tendencias.',
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.grey.shade600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         height: 1.4,
                       ),
                       textAlign: TextAlign.center,
@@ -172,7 +172,8 @@ class CarritoScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.06),
@@ -194,7 +195,7 @@ class CarritoScreen extends StatelessWidget {
                           Text(
                             'Prendas (${carrito.cantidadTotal} ${carrito.cantidadTotal == 1 ? 'unidad' : 'unidades'})',
                             style: TextStyle(
-                                fontSize: 14, color: Colors.grey.shade600),
+                                fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           Text(
                             '\$${carrito.total.toStringAsFixed(2)}',
@@ -229,20 +230,20 @@ class CarritoScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
                             Icon(Icons.store,
-                                size: 16, color: Colors.blue.shade800),
+                                size: 16, color: Theme.of(context).colorScheme.primary),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Seleccionarás la sucursal de retiro o despacho en el siguiente paso.',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.blue.shade900,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),

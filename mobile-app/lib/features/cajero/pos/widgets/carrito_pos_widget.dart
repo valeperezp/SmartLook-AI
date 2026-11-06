@@ -32,7 +32,7 @@ class CarritoPosWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.shopping_cart_outlined, size: 54, color: Colors.grey.shade400),
+              Icon(Icons.shopping_cart_outlined, size: 54, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 12),
               const Text(
                 'Carrito POS vacío',
@@ -42,7 +42,7 @@ class CarritoPosWidget extends StatelessWidget {
               Text(
                 'Buscá prendas y pulsa "Agregar" para armar la venta presencial.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               ),
             ],
           ),
@@ -60,7 +60,7 @@ class CarritoPosWidget extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.point_of_sale, size: 20, color: Colors.blue),
+                  Icon(Icons.point_of_sale, size: 20, color: Theme.of(context).colorScheme.primary),
                   const SizedBox(width: 8),
                   Text(
                     'Ticket Actual ($unidades un.)',
@@ -107,7 +107,7 @@ class CarritoPosWidget extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           '${item.nombreTalla != null ? "Talla: ${item.nombreTalla} | " : ""}${item.nombreColor != null ? "Color: ${item.nombreColor} | " : ""}\$${item.precio.toStringAsFixed(2)} c/u',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -119,7 +119,7 @@ class CarritoPosWidget extends StatelessWidget {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.remove_circle_outline, size: 20),
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => onActualizarCantidad(index, -1),
@@ -133,7 +133,7 @@ class CarritoPosWidget extends StatelessWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.add_circle_outline, size: 20),
-                        color: Colors.blue.shade700,
+                        color: Theme.of(context).colorScheme.primary,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => onActualizarCantidad(index, 1),
@@ -150,7 +150,7 @@ class CarritoPosWidget extends StatelessWidget {
 
                   // Botón eliminar
                   IconButton(
-                    icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                    icon: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     onPressed: () => onEliminarItem(index),
                   ),
                 ],
@@ -185,10 +185,10 @@ class CarritoPosWidget extends StatelessWidget {
                     ),
                     Text(
                       '\$${total.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],

@@ -28,7 +28,7 @@ class ProductoBusquedaTile extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: ClipRRect(
@@ -43,13 +43,13 @@ class ProductoBusquedaTile extends StatelessWidget {
                         errorBuilder:
                             (context, error, stackTrace) => Icon(
                           Icons.checkroom,
-                          color: Colors.blue.shade700,
+                          color: Theme.of(context).colorScheme.primary,
                           size: 26,
                         ),
                       )
                     : Icon(
                         Icons.checkroom,
-                        color: Colors.blue.shade700,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 26,
                       ),
               ),
@@ -77,7 +77,7 @@ class ProductoBusquedaTile extends StatelessWidget {
                         producto.categoriaNombre,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -108,10 +108,10 @@ class ProductoBusquedaTile extends StatelessWidget {
               children: [
                 Text(
                   '\$${producto.precio.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.deepOrange,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 4),

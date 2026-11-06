@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
+import '../../../core/network/dio_client.dart';
 import '../data/devolucion_dao.dart';
 import '../data/puntos_dao.dart';
 import '../data/sync_queue_dao.dart';
@@ -20,6 +21,9 @@ class ResultadoSync {
     this.fallidas = 0,
     this.sinRed = false,
     this.yaEnCurso = false,
+    this.sesionExpirada = false,
+    this.enEspera = 0,
+    this.motivoEspera,
   });
 
   final int sincronizadas;
@@ -30,16 +34,28 @@ class ResultadoSync {
   final bool sinRed;
   final bool yaEnCurso;
 
-  int get total => sincronizadas + rechazadas + fallidas;
+  /// El servidor respondió 401: nada se perdió (todo sigue pendiente) pero hay que volver a iniciar sesión.
+  final bool sesionExpirada;
+
+  /// El servidor respondió `pendiente`: todavía no puede decidir (p. ej. falta sincronizar la venta original). No es un
+  /// error ni un rechazo: la operación sigue 'pendiente' en SQLite y se reenvía en la próxima sincronización.
+  final int enEspera;
+
+  /// Mensaje del servidor de la primera operación en espera (p. ej. "La venta original aún no está sincronizada").
+  final String? motivoEspera;
+
+  int get total => sincronizadas + rechazadas + fallidas + enEspera;
 
   String get resumen {
     if (yaEnCurso) return 'Ya hay una sincronización en curso.';
     if (sinRed) return 'Sin conexión: no se sincronizó nada.';
+    if (sesionExpirada) return 'Sesión expirada: vuelve a iniciar sesión. Tus operaciones siguen guardadas en el dispositivo.';
     if (total == 0) return 'No hay operaciones pendientes.';
     final partes = <String>[
       if (sincronizadas > 0) '$sincronizadas ${sincronizadas == 1 ? "sincronizada" : "sincronizadas"}',
       if (rechazadas > 0) '$rechazadas ${rechazadas == 1 ? "rechazada" : "rechazadas"}',
       if (fallidas > 0) '$fallidas ${fallidas == 1 ? "pendiente de reintentar" : "pendientes de reintentar"}',
+      if (enEspera > 0) '$enEspera en espera${motivoEspera == null ? "" : " (${motivoEspera!})"}',
     ];
     return partes.join(', ');
   }
@@ -48,9 +64,21 @@ class ResultadoSync {
 /// Envío al backend: recibe el lote y devuelve `{"resultados": [{uuid, status, id_servidor?, message?}]}`.
 typedef EnviarLote = Future<Map<String, dynamic>> Function(Map<String, dynamic> lote);
 
+/// El servidor respondió 401: la sesión venció. Las operaciones NO se pierden, quedan pendientes.
+class SesionExpiradaSync implements Exception {
+  const SesionExpiradaSync();
+
+  @override
+  String toString() => 'Sesión expirada (401).';
+}
+
 /// Lee la cola de SQLite, arma el lote JSON (con el uuid local de cada operación, que sirve de clave de
-/// idempotencia) y lo envía. HOY EL SERVIDOR ESTÁ SIMULADO: ~80 % `ok` y ~20 % `conflict` por operación.
-/// Cuando exista el endpoint real basta con pasar otro [enviar] (p. ej. un POST con `package:http`).
+/// idempotencia) y lo envía con `POST /sync/operaciones` (Bearer token del [DioClient]).
+///
+/// Respuesta esperada (200): `{"resultados": [{uuid, status: ok|conflict, id_servidor?, message?}]}`; también se
+/// acepta un `{"status": "ok"|"conflict"}` para todo el lote. Con 401 el lote queda pendiente y se detiene la
+/// sincronización ([ResultadoSync.sesionExpirada]); con error de red, timeout, 404 o 5xx todo queda pendiente
+/// para reintentar. En pruebas se inyecta [enviar] o un [Dio] falso.
 class SyncService {
   SyncService({
     SyncQueueDao? colaDao,
@@ -59,8 +87,7 @@ class SyncService {
     PuntosDao? puntosDao,
     Future<bool> Function()? hayRed,
     EnviarLote? enviar,
-    double Function()? sorteo,
-    this.probabilidadConflicto = 0.2,
+    Dio? dio,
     this.cambiosDeRed,
     this.esperaTrasReconexion = const Duration(seconds: 3),
     this.intervaloMinimoAuto = const Duration(seconds: 15),
@@ -70,8 +97,8 @@ class SyncService {
         _devolucionDao = devolucionDao ?? DevolucionDao(),
         _puntosDao = puntosDao ?? PuntosDao(),
         _hayRed = hayRed ?? _hayRedPorDefecto,
-        _sorteo = sorteo ?? Random().nextDouble {
-    _enviar = enviar ?? _simularServidor;
+        _dioInyectado = dio {
+    _enviar = enviar ?? _enviarPorHttp;
   }
 
   final SyncQueueDao _colaDao;
@@ -79,8 +106,8 @@ class SyncService {
   final DevolucionDao _devolucionDao;
   final PuntosDao _puntosDao;
   final Future<bool> Function() _hayRed;
-  final double Function() _sorteo;
-  final double probabilidadConflicto;
+  final Dio? _dioInyectado;
+  late final Dio _dio = _dioInyectado ?? DioClient().dio;
   final Stream<List<ConnectivityResult>>? cambiosDeRed;
 
   /// Tras volver la red se espera este tiempo SIN nuevos cambios antes de sincronizar (un wifi que
@@ -104,7 +131,6 @@ class SyncService {
   /// Resultado de cada sincronización AUTOMÁTICA que movió algo (para refrescar pantallas y avisar).
   Stream<ResultadoSync> get alSincronizarAutomaticamente => _resultadosAuto.stream;
   bool _enCurso = false;
-  int _idServidorSimulado = 900000000; // ids claramente falsos, para no confundirlos con los reales
 
   /// connectivity_plus solo sabe si hay una interfaz de red activa (wifi/datos), no si llega a internet:
   /// por eso un fallo de envío igualmente deja la operación pendiente.
@@ -162,7 +188,7 @@ class SyncService {
     try {
       final r = await sincronizarPendientes();
       if (_liberado) return;
-      if (r.total > 0) _resultadosAuto.add(r);
+      if (r.total > 0 || r.sesionExpirada) _resultadosAuto.add(r);
     } catch (e, st) {
       debugPrint('[SyncService] Falló la sincronización automática: $e\n$st');
     }
@@ -207,16 +233,30 @@ class SyncService {
       ];
       final cierres = [for (final p in pendientes) if (p['tipo_operacion'] == Schema.tipoCierreCaja) p];
 
-      final resultados = [
-        operaciones.isEmpty ? const ResultadoSync() : await _enviarOperaciones(operaciones),
-        devoluciones.isEmpty ? const ResultadoSync() : await _enviarDevoluciones(devoluciones),
-        puntos.isEmpty ? const ResultadoSync() : await _enviarPuntos(puntos),
-        cierres.isEmpty ? const ResultadoSync() : await _enviarCierres(cierres),
+      final etapas = <Future<ResultadoSync> Function()>[
+        if (operaciones.isNotEmpty) () => _enviarOperaciones(operaciones),
+        if (devoluciones.isNotEmpty) () => _enviarDevoluciones(devoluciones),
+        if (puntos.isNotEmpty) () => _enviarPuntos(puntos),
+        if (cierres.isNotEmpty) () => _enviarCierres(cierres),
       ];
+      final resultados = <ResultadoSync>[];
+      var sesionExpirada = false;
+      for (final etapa in etapas) {
+        final r = await etapa();
+        resultados.add(r);
+        if (r.sesionExpirada) {
+          // 401: no tiene sentido seguir con las demás etapas, el token ya no vale. Lo pendiente queda pendiente.
+          sesionExpirada = true;
+          break;
+        }
+      }
       return ResultadoSync(
         sincronizadas: resultados.fold(0, (s, r) => s + r.sincronizadas),
         rechazadas: resultados.fold(0, (s, r) => s + r.rechazadas),
         fallidas: resultados.fold(0, (s, r) => s + r.fallidas),
+        sesionExpirada: sesionExpirada,
+        enEspera: resultados.fold(0, (s, r) => s + r.enEspera),
+        motivoEspera: resultados.map((r) => r.motivoEspera).whereType<String>().firstOrNull,
       );
     } finally {
       _enCurso = false;
@@ -235,7 +275,7 @@ class SyncService {
       for (final p in pendientes) {
         await _colaDao.devolverAPendiente(p['id'] as String, 'Error de envío: $e');
       }
-      return ResultadoSync(fallidas: pendientes.length);
+      return ResultadoSync(fallidas: pendientes.length, sesionExpirada: e is SesionExpiradaSync);
     }
 
     return _procesarRespuesta(pendientes, respuesta);
@@ -285,14 +325,15 @@ class SyncService {
       for (final p in listas) {
         await _colaDao.devolverAPendiente(p['id'] as String, 'Error de envío: $e');
       }
-      return ResultadoSync(rechazadas: rechazadas, fallidas: fallidas + listas.length);
+      return ResultadoSync(rechazadas: rechazadas, fallidas: fallidas + listas.length, sesionExpirada: e is SesionExpiradaSync);
     }
 
     final resultados = <String, Map<String, dynamic>>{
       for (final r in (respuesta['resultados'] as List? ?? const []))
         if (r is Map && r['uuid'] is String) r['uuid'] as String: Map<String, dynamic>.from(r),
     };
-    var sincronizadas = 0;
+    var sincronizadas = 0, enEspera = 0;
+    String? motivoEspera;
     for (final p in listas) {
       final id = p['devolucion_id'] as String;
       final r = resultados[id];
@@ -306,6 +347,11 @@ class SyncService {
           case 'conflict':
             await _devolucionDao.marcarRechazada(id, (r!['message'] as String?) ?? 'Rechazada por el servidor');
             rechazadas++;
+          case 'pendiente':
+            final motivo = (r!['message'] as String?) ?? 'En espera de otra operación';
+            await _colaDao.devolverAPendiente(p['id'] as String, motivo);
+            enEspera++;
+            motivoEspera ??= motivo;
           default:
             throw FormatException('respuesta desconocida del servidor: ${r?['status']}');
         }
@@ -315,7 +361,7 @@ class SyncService {
         fallidas++;
       }
     }
-    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas);
+    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
   }
 
   /// Envía los movimientos de puntos cuya venta o devolución de origen ya está en el servidor; los demás esperan.
@@ -357,14 +403,15 @@ class SyncService {
       for (final p in listos) {
         await _colaDao.devolverAPendiente(p['id'] as String, 'Error de envío: $e');
       }
-      return ResultadoSync(fallidas: fallidas + listos.length);
+      return ResultadoSync(fallidas: fallidas + listos.length, sesionExpirada: e is SesionExpiradaSync);
     }
 
     final resultados = <String, Map<String, dynamic>>{
       for (final r in (respuesta['resultados'] as List? ?? const []))
         if (r is Map && r['uuid'] is String) r['uuid'] as String: Map<String, dynamic>.from(r),
     };
-    var sincronizadas = 0, rechazadas = 0;
+    var sincronizadas = 0, rechazadas = 0, enEspera = 0;
+    String? motivoEspera;
     for (final p in listos) {
       final id = p['movimiento_puntos_id'] as String;
       final r = resultados[id];
@@ -376,6 +423,11 @@ class SyncService {
           case 'conflict':
             await _puntosDao.marcarRechazado(id, (r!['message'] as String?) ?? 'Rechazado por el servidor');
             rechazadas++;
+          case 'pendiente':
+            final motivo = (r!['message'] as String?) ?? 'En espera de otra operación';
+            await _colaDao.devolverAPendiente(p['id'] as String, motivo);
+            enEspera++;
+            motivoEspera ??= motivo;
           default:
             throw FormatException('respuesta desconocida del servidor: ${r?['status']}');
         }
@@ -385,7 +437,7 @@ class SyncService {
         fallidas++;
       }
     }
-    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas);
+    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
   }
 
   /// Envía los cierres de caja cuyo turno ya no tiene ventas sin resolver. Si todavía queda alguna (p. ej. falló
@@ -419,14 +471,15 @@ class SyncService {
       for (final c in listos) {
         await _colaDao.devolverAPendiente(c['id'] as String, 'Error de envío: $e');
       }
-      return ResultadoSync(fallidas: listos.length);
+      return ResultadoSync(fallidas: listos.length, sesionExpirada: e is SesionExpiradaSync);
     }
 
     final resultados = <String, Map<String, dynamic>>{
       for (final r in (respuesta['resultados'] as List? ?? const []))
         if (r is Map && r['uuid'] is String) r['uuid'] as String: Map<String, dynamic>.from(r),
     };
-    var sincronizadas = 0, rechazadas = 0, fallidas = 0;
+    var sincronizadas = 0, rechazadas = 0, fallidas = 0, enEspera = 0;
+    String? motivoEspera;
     for (final c in listos) {
       final turnoUuid = c['turno_uuid'] as String;
       final r = resultados[turnoUuid];
@@ -440,6 +493,11 @@ class SyncService {
           case 'conflict':
             await _turnoDao.marcarCierreRechazado(turnoUuid, (r!['message'] as String?) ?? 'Rechazado por el servidor');
             rechazadas++;
+          case 'pendiente':
+            final motivo = (r!['message'] as String?) ?? 'En espera de otra operación';
+            await _colaDao.devolverAPendiente(c['id'] as String, motivo);
+            enEspera++;
+            motivoEspera ??= motivo;
           default:
             throw FormatException('respuesta desconocida del servidor: ${r?['status']}');
         }
@@ -449,7 +507,7 @@ class SyncService {
         fallidas++;
       }
     }
-    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas);
+    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
   }
 
   // ---------------------------------------------------------------------------
@@ -492,7 +550,8 @@ class SyncService {
         if (r is Map && r['uuid'] is String) r['uuid'] as String: Map<String, dynamic>.from(r),
     };
 
-    var sincronizadas = 0, rechazadas = 0, fallidas = 0;
+    var sincronizadas = 0, rechazadas = 0, fallidas = 0, enEspera = 0;
+    String? motivoEspera;
     for (final p in pendientes) {
       final uuid = p['operacion_uuid'] as String;
       final colaId = p['id'] as String;
@@ -507,6 +566,11 @@ class SyncService {
           case 'conflict':
             await _colaDao.marcarRechazada(uuid, (r!['message'] as String?) ?? 'Rechazada por el servidor');
             rechazadas++;
+          case 'pendiente':
+            final motivo = (r!['message'] as String?) ?? 'En espera de otra operación';
+            await _colaDao.devolverAPendiente(colaId, motivo); // sigue pendiente (el intento ya se contó al enviarla)
+            enEspera++;
+            motivoEspera ??= motivo;
           default:
             throw FormatException('respuesta desconocida del servidor: ${r?['status']}');
         }
@@ -516,31 +580,59 @@ class SyncService {
         fallidas++;
       }
     }
-    debugPrint('[SyncService] $sincronizadas sincronizadas, $rechazadas rechazadas, $fallidas por reintentar.');
-    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas);
+    debugPrint('[SyncService] $sincronizadas sincronizadas, $rechazadas rechazadas, $fallidas por reintentar, $enEspera en espera.');
+    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
   }
 
-  /// SERVIDOR SIMULADO: cada operación sale `ok` (con un id falso) o `conflict` según [probabilidadConflicto].
-  /// Los cierres de caja y los movimientos de puntos se aceptan siempre: no tienen un conflicto de negocio que simular.
-  Future<Map<String, dynamic>> _simularServidor(Map<String, dynamic> lote) async {
-    await Future<void>.delayed(const Duration(milliseconds: 400)); // latencia de red de mentira
-    return {
-      'resultados': [
-        for (final cierre in (lote['cierres_caja'] as List? ?? const []))
-          {'uuid': (cierre as Map)['uuid'], 'status': 'ok', 'id_servidor': _idServidorSimulado++},
-        for (final mov in (lote['movimientos_puntos'] as List? ?? const []))
-          {'uuid': (mov as Map)['uuid'], 'status': 'ok'},
-        for (final dev in (lote['devoluciones'] as List? ?? const []))
-          if (_sorteo() < probabilidadConflicto)
-            {'uuid': (dev as Map)['uuid'], 'status': 'conflict', 'message': 'Stock insuficiente'}
-          else
-            {'uuid': (dev as Map)['uuid'], 'status': 'ok', 'id_servidor': _idServidorSimulado++},
-        for (final op in (lote['operaciones'] as List? ?? const []))
-          if (_sorteo() < probabilidadConflicto)
-            {'uuid': (op as Map)['uuid'], 'status': 'conflict', 'message': 'Stock insuficiente'}
-          else
-            {'uuid': (op as Map)['uuid'], 'status': 'ok', 'id_servidor': _idServidorSimulado++},
-      ],
-    };
+  /// Id que se guarda cuando el servidor acepta un lote entero (`{"status": "ok"}`) sin devolver ids por operación:
+  /// la tabla exige un `id_servidor` para marcar 'sincronizada'. Lo normal es que el servidor devuelva `resultados`.
+  static const int idServidorDesconocido = 0;
+
+  /// Envío real: `POST /sync/operaciones` con el token del usuario (lo pone el [DioClient]).
+  Future<Map<String, dynamic>> _enviarPorHttp(Map<String, dynamic> lote) async {
+    try {
+      final r = await _dio.post<dynamic>(
+        '/sync/operaciones',
+        data: lote,
+        options: Options(sendTimeout: const Duration(seconds: 30), receiveTimeout: const Duration(seconds: 30)),
+      );
+      return normalizarRespuesta(lote, r.data);
+    } on DioException catch (e) {
+      final codigo = e.response?.statusCode;
+      if (codigo == 401) throw const SesionExpiradaSync();
+      if (codigo == 404) {
+        // El backend todavía no tiene el endpoint: no es un error de la app, la cola espera.
+        throw StateError('El servidor aún no tiene /sync/operaciones (404).');
+      }
+      rethrow; // sin red, timeout, 5xx...: el llamador deja las operaciones pendientes
+    }
+  }
+
+  /// Convierte la respuesta HTTP en `{"resultados": [...]}`. Acepta `resultados` por operación o un `status`
+  /// global (`ok` / `conflict`) que se aplica a todo el lote; cualquier otra cosa se rechaza (queda pendiente).
+  @visibleForTesting
+  static Map<String, dynamic> normalizarRespuesta(Map<String, dynamic> lote, Object? datos) {
+    if (datos is Map && datos['resultados'] is List) return Map<String, dynamic>.from(datos);
+    if (datos is Map && (datos['status'] == 'ok' || datos['status'] == 'conflict')) {
+      final ok = datos['status'] == 'ok';
+      final idServidor = datos['id_servidor'] is int ? datos['id_servidor'] as int : idServidorDesconocido;
+      final uuids = <String>[
+        for (final clave in const ['operaciones', 'devoluciones', 'movimientos_puntos', 'cierres_caja'])
+          for (final x in (lote[clave] as List? ?? const []))
+            if (x is Map && x['uuid'] is String) x['uuid'] as String,
+      ];
+      return {
+        'resultados': [
+          for (final uuid in uuids)
+            {
+              'uuid': uuid,
+              'status': datos['status'],
+              if (ok) 'id_servidor': idServidor,
+              if (!ok) 'message': (datos['message'] as String?) ?? 'Rechazada por el servidor',
+            },
+        ],
+      };
+    }
+    throw FormatException('respuesta no reconocida del servidor: $datos');
   }
 }

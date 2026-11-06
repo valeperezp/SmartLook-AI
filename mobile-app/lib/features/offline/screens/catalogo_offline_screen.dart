@@ -159,9 +159,9 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.cloud_off, size: 18),
+                  Icon(Icons.cloud_off, size: 18, color: Colors.amber.shade900),
                   const SizedBox(width: 8),
-                  Text('${provider.pendientes} reserva(s) pendiente(s) de sincronizar'),
+                  Text('${provider.pendientes} reserva(s) pendiente(s) de sincronizar', style: TextStyle(color: Colors.amber.shade900, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),

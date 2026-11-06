@@ -29,7 +29,7 @@ class CarritoItemTile extends StatelessWidget {
       elevation: 0.5,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -43,7 +43,7 @@ class CarritoItemTile extends StatelessWidget {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: item.imagenUrl != null && item.imagenUrl!.isNotEmpty
@@ -91,16 +91,16 @@ class CarritoItemTile extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(4),
                                 border:
-                                    Border.all(color: Colors.grey.shade300),
+                                    Border.all(color: Theme.of(context).colorScheme.outline),
                               ),
                               child: Text(
                                 'Talla: ${item.nombreTalla}',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey.shade800,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -111,16 +111,16 @@ class CarritoItemTile extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(4),
                                 border:
-                                    Border.all(color: Colors.grey.shade300),
+                                    Border.all(color: Theme.of(context).colorScheme.outline),
                               ),
                               child: Text(
                                 'Color: ${item.nombreColor}',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.grey.shade800,
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -132,7 +132,7 @@ class CarritoItemTile extends StatelessWidget {
                         '\$${item.precio.toStringAsFixed(2)} c/u',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -141,7 +141,7 @@ class CarritoItemTile extends StatelessWidget {
                 // Botón eliminar
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
-                  color: Colors.grey.shade500,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   splashRadius: 18,
                   onPressed: onDelete,
                   tooltip: 'Quitar del carrito',
@@ -158,9 +158,9 @@ class CarritoItemTile extends StatelessWidget {
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(color: Theme.of(context).colorScheme.outline),
                       ),
                       child: Row(
                         children: [
@@ -178,7 +178,7 @@ class CarritoItemTile extends StatelessWidget {
                                 size: 16,
                                 color: item.cantidad == 1
                                     ? Colors.red.shade700
-                                    : Colors.black87,
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -204,8 +204,8 @@ class CarritoItemTile extends StatelessWidget {
                                 Icons.add,
                                 size: 16,
                                 color: maxAlcanzado
-                                    ? Colors.grey.shade400
-                                    : Colors.black87,
+                                    ? Theme.of(context).colorScheme.onSurfaceVariant
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),

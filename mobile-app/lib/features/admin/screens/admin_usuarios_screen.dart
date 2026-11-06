@@ -35,6 +35,11 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
         textColor = Colors.orange.shade900;
         label = 'Encargado';
         break;
+      case 'cajero':
+        bgColor = Colors.blue.shade100;
+        textColor = Colors.blue.shade900;
+        label = 'Cajero';
+        break;
       case 'proveedor':
         bgColor = Colors.green.shade100;
         textColor = Colors.green.shade900;
@@ -42,8 +47,8 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
         break;
       case 'cliente':
       default:
-        bgColor = Colors.grey.shade200;
-        textColor = Colors.grey.shade800;
+        bgColor = Theme.of(context).colorScheme.outline;
+        textColor = Theme.of(context).colorScheme.onSurface;
         label = 'Cliente';
         break;
     }
@@ -69,16 +74,16 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: activo ? Colors.green.shade50 : Colors.grey.shade100,
+        color: activo ? Colors.green.shade50 : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: activo ? Colors.green.shade200 : Colors.grey.shade300,
+          color: activo ? Colors.green.shade200 : Theme.of(context).colorScheme.outline,
         ),
       ),
       child: Text(
         activo ? 'Activo' : 'Inactivo',
         style: TextStyle(
-          color: activo ? Colors.green.shade800 : Colors.grey.shade600,
+          color: activo ? Colors.green.shade800 : Theme.of(context).colorScheme.onSurfaceVariant,
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
@@ -147,8 +152,8 @@ class _AdminUsuariosScreenState extends State<AdminUsuariosScreen> {
                                     color: Colors.white70,
                                   ),
                                 ),
-                                const Icon(Icons.people_outline,
-                                    color: Colors.grey),
+                                Icon(Icons.people_outline,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant),
                               ],
                             ),
                           ),

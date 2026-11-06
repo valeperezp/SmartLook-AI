@@ -65,7 +65,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
+                        color: Theme.of(context).colorScheme.outline,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -90,7 +90,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                               fechaStr,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -177,7 +177,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                         if (venta.items.isEmpty)
                           Text(
                             'No hay ítems registrados en esta venta.',
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           )
                         else
                           ...venta.items.map((item) {
@@ -185,9 +185,9 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey.shade200),
+                                border: Border.all(color: Theme.of(context).colorScheme.outline),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +208,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                                           '${item.nombreTalla != null ? "Talla: ${item.nombreTalla} | " : ""}${item.nombreColor != null ? "Color: ${item.nombreColor} | " : ""}${item.cantidad} un. x \$${item.precioUnitario.toStringAsFixed(2)}',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.grey.shade600,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                       ],
@@ -231,7 +231,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -278,7 +278,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                             'No se encontraron registros de pago asociados.',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
                             ),
                           )
@@ -399,7 +399,7 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                                     horizontal: 16, vertical: 12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 ),
                               ),
                               onChanged: (val) => provider.setBusqueda(val),
@@ -546,23 +546,23 @@ class _VentasSucursalScreenState extends State<VentasSucursalScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
+                                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.blue.shade200),
+                                      border: Border.all(color: Theme.of(context).colorScheme.outline),
                                     ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text('Ticket Prom.',
                                             style: TextStyle(
-                                                fontSize: 12, color: Colors.blue.shade800)),
+                                                fontSize: 12, color: Theme.of(context).colorScheme.primary)),
                                         const SizedBox(height: 4),
                                         Text(
                                           '\$${provider.ticketPromedio.toStringAsFixed(1)}',
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.blue.shade900,
+                                            color: Theme.of(context).colorScheme.primary,
                                           ),
                                         ),
                                       ],

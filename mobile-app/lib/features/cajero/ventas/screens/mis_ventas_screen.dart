@@ -65,7 +65,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
+                        color: Theme.of(context).colorScheme.outline,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -82,7 +82,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                               'Ticket #${venta.id}',
                               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
-                            Text(fechaStr, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                            Text(fechaStr, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           ],
                         ),
                         IconButton(
@@ -102,9 +102,9 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.blue.shade100),
+                            border: Border.all(color: Theme.of(context).colorScheme.outline),
                           ),
                           child: Column(
                             children: [
@@ -116,7 +116,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                                     venta.canal.toUpperCase(),
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.blue.shade900,
+                                      color: Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                 ],
@@ -148,16 +148,16 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                         const Text('Artículos Vendidos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 10),
                         if (venta.items.isEmpty)
-                          Text('No hay ítems registrados.', style: TextStyle(color: Colors.grey.shade600))
+                          Text('No hay ítems registrados.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant))
                         else
                           ...venta.items.map((item) {
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey.shade200),
+                                border: Border.all(color: Theme.of(context).colorScheme.outline),
                               ),
                               child: Row(
                                 children: [
@@ -169,7 +169,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                                         const SizedBox(height: 2),
                                         Text(
                                           '${item.nombreTalla != null ? "Talla: ${item.nombreTalla} | " : ""}${item.nombreColor != null ? "Color: ${item.nombreColor} | " : ""}${item.cantidad} un. x \$${item.precioUnitario.toStringAsFixed(2)}',
-                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                         ),
                                       ],
                                     ),
@@ -188,7 +188,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -197,10 +197,10 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                               const Text('TOTAL COBRADO:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               Text(
                                 '\$${venta.total.toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.deepOrange,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ],
@@ -216,7 +216,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                         else if (prov.pagosVenta.isEmpty)
                           Text(
                             'Sin registros de pago detallados.',
-                            style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
                           )
                         else
                           ...prov.pagosVenta.map((p) {
@@ -328,7 +328,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 ),
                               ),
                               onChanged: (val) => provider.setBusqueda(val),
@@ -378,7 +378,7 @@ class _MisVentasScreenState extends State<MisVentasScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
+                                      color: Colors.blue.shade50, // pastel, como las otras dos tarjetas de la fila
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(color: Colors.blue.shade200),
                                     ),

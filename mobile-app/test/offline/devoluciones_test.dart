@@ -14,6 +14,7 @@ import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'schema_v1_fixture.dart';
+import 'servidor_simulado.dart';
 
 // Catálogo mock (sucursal 1): 101 camiseta $19.99 (25) · 103 jean $59.99 (9) · 107 falda $39.99 (0)
 //                             109 short $24.99 (30)    · 110 abrigo $129.99 (2)
@@ -297,7 +298,7 @@ void main() {
 
   group('sincronización de devoluciones', () {
     SyncService servicio({EnviarLote? enviar, double Function()? sorteo}) =>
-        SyncService(colaDao: cola, turnoDao: turnos, devolucionDao: dao, hayRed: () async => true, enviar: enviar, sorteo: sorteo ?? () => 0.9);
+        SyncService(colaDao: cola, turnoDao: turnos, devolucionDao: dao, hayRed: () async => true, enviar: enviar ?? servidorSimulado(sorteo: sorteo ?? () => 0.9));
 
     Map<String, dynamic> respuestaOk(Map<String, dynamic> lote) => {
           'resultados': [
@@ -356,6 +357,33 @@ void main() {
 
       final r2 = await servicio(enviar: (l) async => respuestaOk(l)).sincronizarPendientes();
       expect(r2.sincronizadas, 3);
+    });
+
+    test('si el servidor responde "pendiente" a la devolución, sigue pendiente con su mensaje (no error ni rechazo)', () async {
+      final r = await registrar('DEVOLUCION', [item(_jean, 1)], []);
+      Map<String, dynamic> pendiente(Map<String, dynamic> lote) => {
+            'resultados': [
+              for (final o in (lote['operaciones'] as List? ?? const [])) {'uuid': o['uuid'], 'status': 'ok', 'id_servidor': 5},
+              for (final x in (lote['devoluciones'] as List? ?? const []))
+                {'uuid': x['uuid'], 'status': 'pendiente', 'message': 'Falta sincronizar la venta original'},
+            ],
+          };
+      final antes = ((await (await appDb.database)!.query(Schema.tablaDevoluciones, where: 'id = ?', whereArgs: [r.id])).single)['estado'];
+
+      final res = await servicio(enviar: (l) async => pendiente(l)).sincronizarPendientes();
+
+      expect((res.sincronizadas, res.enEspera, res.fallidas, res.rechazadas), (1, 1, 0, 0)); // la venta sí; la devolución espera
+      expect(res.resumen, contains('Falta sincronizar la venta original'));
+      final fila = (await (await appDb.database)!.query(Schema.tablaSyncQueue, where: "tipo_operacion = 'DEVOLUCION'")).single;
+      expect(fila['estado'], 'pendiente');
+      expect(fila['intentos'], 1);
+      expect(fila['ultimo_error'], 'Falta sincronizar la venta original');
+      final d = (await (await appDb.database)!.query(Schema.tablaDevoluciones, where: 'id = ?', whereArgs: [r.id])).single;
+      expect(d['estado'], antes, reason: 'la devolución no cambia de estado');
+
+      final res2 = await servicio(enviar: (l) async => respuestaOk(l)).sincronizarPendientes();
+      expect(res2.sincronizadas, 1);
+      expect((await (await appDb.database)!.query(Schema.tablaDevoluciones, where: 'id = ?', whereArgs: [r.id])).single['estado'], 'sincronizada');
     });
 
     test('si el servidor rechaza la venta original, su devolución se rechaza y el stock queda como al inicio', () async {

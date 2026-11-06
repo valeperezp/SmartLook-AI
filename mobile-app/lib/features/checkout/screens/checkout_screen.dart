@@ -44,6 +44,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           title: Text(esQR ? 'Pago en Revisión' : '¡Compra Confirmada!'),
           centerTitle: true,
           automaticallyImplyLeading: false,
+          backgroundColor: Colors.blue.shade700, // mismo azul que el resto del flujo del cliente
+          foregroundColor: Colors.white,
         ),
         body: Center(
           child: SingleChildScrollView(
@@ -79,16 +81,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: Theme.of(context).colorScheme.outline),
                     ),
                     child: Text(
                       'Orden #$ordenId',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -100,7 +102,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey.shade700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),
                   ),
@@ -146,20 +148,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // 2. Si el carrito está vacío y no hay orden en curso
     if (carrito.estaVacio && checkout.ventaId == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Checkout')),
+        appBar: AppBar(
+          title: const Text('Checkout'),
+          backgroundColor: Colors.blue.shade700,
+          foregroundColor: Colors.white,
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.remove_shopping_cart_outlined, size: 70, color: Colors.grey.shade400),
+                Icon(Icons.remove_shopping_cart_outlined, size: 70, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(height: 16),
                 const Text('Tu carrito está vacío', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Text(
                   'Agregá productos antes de iniciar el proceso de checkout.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -178,6 +184,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Finalizar Compra'),
+        backgroundColor: Colors.blue.shade700, // mismo azul que el resto del flujo del cliente
+        foregroundColor: Colors.white,
         centerTitle: true,
       ),
       body: Center(
@@ -193,7 +201,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
+                    side: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -275,7 +283,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
+                    side: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -312,7 +320,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       ),
                                       Text(
                                         'Talla: ${item.nombreTalla ?? "-"} • Color: ${item.nombreColor ?? "-"} (x${item.cantidad})',
-                                        style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
                                       ),
                                     ],
                                   ),
@@ -351,7 +359,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: Colors.grey.shade200),
+                    side: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -400,7 +408,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         Icons.credit_card,
                                         color: checkout.metodoPago == 'tarjeta'
                                             ? theme.colorScheme.primary
-                                            : Colors.grey.shade700,
+                                            : Theme.of(context).colorScheme.onSurfaceVariant,
                                         size: 26,
                                       ),
                                       const SizedBox(height: 4),
@@ -442,7 +450,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         Icons.qr_code_scanner,
                                         color: checkout.metodoPago == 'qr'
                                             ? Colors.purple.shade700
-                                            : Colors.grey.shade700,
+                                            : Theme.of(context).colorScheme.onSurfaceVariant,
                                         size: 26,
                                       ),
                                       const SizedBox(height: 4),
@@ -531,7 +539,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: Colors.grey.shade200),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outline),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),

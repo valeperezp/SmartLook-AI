@@ -123,7 +123,7 @@ class _ModalMovimientoState extends State<ModalMovimiento> {
                           '$nombreProducto (Talla: $nombreTalla • Color: $nombreColor)',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade700,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -142,16 +142,16 @@ class _ModalMovimientoState extends State<ModalMovimiento> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.inventory_2_outlined, size: 20, color: Colors.grey.shade700),
+                    Icon(Icons.inventory_2_outlined, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     const SizedBox(width: 8),
                     Text(
                       'Disponible actual: ',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade800),
+                      style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
                     ),
                     Text(
                       '$cantDisponible unidades',
@@ -165,7 +165,7 @@ class _ModalMovimientoState extends State<ModalMovimiento> {
               // Campo Cantidad
               Text(
                 'Cantidad a registrar *',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade800),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(height: 6),
               TextFormField(
@@ -197,7 +197,7 @@ class _ModalMovimientoState extends State<ModalMovimiento> {
               // Campo Motivo
               Text(
                 'Motivo (opcional)',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey.shade800),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
               ),
               const SizedBox(height: 6),
               TextFormField(

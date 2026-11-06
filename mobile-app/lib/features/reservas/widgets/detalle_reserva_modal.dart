@@ -99,7 +99,7 @@ class DetalleReservaModal extends StatelessWidget {
                             reserva.nombreSucursal ?? 'Sucursal principal',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey.shade700,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -114,9 +114,9 @@ class DetalleReservaModal extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: Theme.of(context).colorScheme.outline),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,8 +124,8 @@ class DetalleReservaModal extends StatelessWidget {
                         if (reserva.nombreCliente != null) ...[
                           Row(
                             children: [
-                              const Icon(Icons.person_outline,
-                                  size: 16, color: Colors.grey),
+                              Icon(Icons.person_outline,
+                                  size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               const SizedBox(width: 8),
                               Text('Cliente: ${reserva.nombreCliente!}'),
                             ],
@@ -135,8 +135,8 @@ class DetalleReservaModal extends StatelessWidget {
                         if (reserva.emailCliente != null) ...[
                           Row(
                             children: [
-                              const Icon(Icons.email_outlined,
-                                  size: 16, color: Colors.grey),
+                              Icon(Icons.email_outlined,
+                                  size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                               const SizedBox(width: 8),
                               Text('Email: ${reserva.emailCliente!}'),
                             ],
@@ -145,8 +145,8 @@ class DetalleReservaModal extends StatelessWidget {
                         ],
                         Row(
                           children: [
-                            const Icon(Icons.access_time,
-                                size: 16, color: Colors.grey),
+                            Icon(Icons.access_time,
+                                size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             const SizedBox(width: 8),
                             Text('Creada: ${fechaFormat.format(reserva.creadaEn)}'),
                           ],
@@ -155,14 +155,14 @@ class DetalleReservaModal extends StatelessWidget {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.calendar_today,
-                                  size: 16, color: Colors.blue),
+                              Icon(Icons.calendar_today,
+                                  size: 16, color: Theme.of(context).colorScheme.primary),
                               const SizedBox(width: 8),
                               Text(
                                 'Horario estimado: ${fechaFormat.format(reserva.horarioAproximado!)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.blue,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ],
@@ -191,7 +191,7 @@ class DetalleReservaModal extends StatelessWidget {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: Colors.grey.shade300),
+                        side: BorderSide(color: Theme.of(context).colorScheme.outline),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
@@ -200,11 +200,11 @@ class DetalleReservaModal extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.checkroom,
-                                  size: 24, color: Colors.blue),
+                              child: Icon(Icons.checkroom,
+                                  size: 24, color: Theme.of(context).colorScheme.primary),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -223,7 +223,7 @@ class DetalleReservaModal extends StatelessWidget {
                                     'Talla: ${item.nombreTalla ?? "-"}  |  Color: ${item.nombreColor ?? "-"}',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade700,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -231,7 +231,7 @@ class DetalleReservaModal extends StatelessWidget {
                                     '${item.cantidad} x \$${item.precioUnitario.toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -257,7 +257,7 @@ class DetalleReservaModal extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(

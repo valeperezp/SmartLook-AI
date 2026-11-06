@@ -75,7 +75,7 @@ class _QrUploadWidgetState extends State<QrUploadWidget> {
                   height: 220,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Image.memory(
                     _previewBytes!,
@@ -88,7 +88,7 @@ class _QrUploadWidgetState extends State<QrUploadWidget> {
                 _selectedFile!.name,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -154,7 +154,7 @@ class _QrUploadWidgetState extends State<QrUploadWidget> {
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade300, style: BorderStyle.solid),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline, style: BorderStyle.solid),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
@@ -181,7 +181,7 @@ class _QrUploadWidgetState extends State<QrUploadWidget> {
             const SizedBox(height: 8),
             Text(
               'Subí la imagen del código QR oficial de cobro (MercadoPago, Banco, Simple, etc.). Formatos: PNG, JPG, WEBP (máx. 5MB).',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),

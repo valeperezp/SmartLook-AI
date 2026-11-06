@@ -54,8 +54,8 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
         break;
       case 'cancelada':
       default:
-        textColor = Colors.grey.shade800;
-        bgColor = Colors.grey.shade200;
+        textColor = Theme.of(context).colorScheme.onSurface;
+        bgColor = Theme.of(context).colorScheme.outline;
         label = 'Cancelada';
         break;
     }
@@ -262,7 +262,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                   title: 'Confirmadas',
                                   count: encargado.totalConfirmadas,
                                   color: Colors.blue.shade900,
-                                  bgColor: Colors.blue.shade50,
+                                  bgColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                                   filterKey: 'confirmadas',
                                   currentFilter: encargado.filtroReservas,
                                   onTap: () => encargado.setFiltroReservas('confirmadas'),
@@ -281,8 +281,8 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                 _buildKpiChip(
                                   title: 'Canceladas',
                                   count: encargado.totalCanceladas,
-                                  color: Colors.grey.shade800,
-                                  bgColor: Colors.grey.shade200,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  bgColor: Theme.of(context).colorScheme.outline,
                                   filterKey: 'canceladas',
                                   currentFilter: encargado.filtroReservas,
                                   onTap: () => encargado.setFiltroReservas('canceladas'),
@@ -317,7 +317,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                 ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey.shade300),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                                 ),
                               ),
                             ),
@@ -372,20 +372,20 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.calendar_today_outlined, size: 52, color: Colors.grey.shade400),
+                                        Icon(Icons.calendar_today_outlined, size: 52, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                         const SizedBox(height: 12),
                                         Text(
                                           'No hay reservas registradas',
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                            color: Colors.grey.shade700,
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                                           ),
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           'No se encontraron reservas con los filtros aplicados',
-                                          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                                          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                         ),
                                       ],
                                     ),
@@ -426,7 +426,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                           side: BorderSide(
                                             color: esPendiente
                                                 ? Colors.orange.shade200
-                                                : (esConfirmada ? Colors.blue.shade200 : Colors.grey.shade200),
+                                                : (esConfirmada ? Colors.blue.shade200 : Theme.of(context).colorScheme.outline),
                                           ),
                                         ),
                                         child: Padding(
@@ -453,7 +453,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                               // Cliente y fecha
                                               Row(
                                                 children: [
-                                                  Icon(Icons.person_outline, size: 16, color: Colors.grey.shade700),
+                                                  Icon(Icons.person_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     nombreCliente,
@@ -464,7 +464,7 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
                                                     child: Text(
                                                       '($emailCliente)',
                                                       overflow: TextOverflow.ellipsis,
-                                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                                     ),
                                                   ),
                                                 ],
@@ -473,11 +473,11 @@ class _EncargadoReservasScreenState extends State<EncargadoReservasScreen> {
 
                                               Row(
                                                 children: [
-                                                  Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
+                                                  Icon(Icons.access_time, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     fechaStr,
-                                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                                   ),
                                                 ],
                                               ),

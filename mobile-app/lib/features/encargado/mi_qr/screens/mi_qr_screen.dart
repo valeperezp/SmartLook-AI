@@ -247,7 +247,7 @@ class _MiQrScreenState extends State<MiQrScreen> {
                                               );
                                             },
                                             errorBuilder: (context, error, stackTrace) =>
-                                                const SizedBox(
+                                                SizedBox(
                                               width: 250,
                                               height: 250,
                                               child: Center(
@@ -256,12 +256,12 @@ class _MiQrScreenState extends State<MiQrScreen> {
                                                   children: [
                                                     Icon(Icons.broken_image,
                                                         size: 48,
-                                                        color: Colors.grey),
-                                                    SizedBox(height: 8),
+                                                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                                    const SizedBox(height: 8),
                                                     Text(
                                                       'Error al cargar imagen QR',
                                                       style: TextStyle(
-                                                          color: Colors.grey),
+                                                          color: Theme.of(context).colorScheme.onSurfaceVariant),
                                                     ),
                                                   ],
                                                 ),
@@ -275,7 +275,7 @@ class _MiQrScreenState extends State<MiQrScreen> {
                                         'Configurado el ${DateFormat("dd/MM/yyyy HH:mm").format(qr.creadoEn.toLocal())}',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: Colors.grey.shade600,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         ),
                                       ),
                                       const SizedBox(height: 24),

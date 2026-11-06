@@ -165,7 +165,7 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
                       widget.nombreProducto,
                       style: TextStyle(
                         fontSize: 15,
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -175,7 +175,7 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Column(
@@ -183,8 +183,8 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.storefront,
-                                  size: 18, color: Colors.blue),
+                              Icon(Icons.storefront,
+                                  size: 18, color: Theme.of(context).colorScheme.primary),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -198,20 +198,20 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.checkroom,
-                                  size: 18, color: Colors.blue),
+                              Icon(Icons.checkroom,
+                                  size: 18, color: Theme.of(context).colorScheme.primary),
                               const SizedBox(width: 6),
                               Text(
                                 'Talla: ${widget.nombreTalla ?? "-"}  |  Color: ${widget.nombreColor ?? "-"}',
-                                style: TextStyle(color: Colors.grey.shade800),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              const Icon(Icons.inventory,
-                                  size: 18, color: Colors.blue),
+                              Icon(Icons.inventory,
+                                  size: 18, color: Theme.of(context).colorScheme.primary),
                               const SizedBox(width: 6),
                               Text(
                                 'Disponible: ${widget.disponibleMax} unidades',
@@ -261,7 +261,7 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 12),
                         decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: Theme.of(context).colorScheme.outline),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -273,11 +273,11 @@ class _MiniModalReservaState extends State<MiniModalReserva> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Horario estimado de visita (opcional)',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                   const SizedBox(height: 2),

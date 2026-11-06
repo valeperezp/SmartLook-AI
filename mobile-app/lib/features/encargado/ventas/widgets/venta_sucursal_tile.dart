@@ -41,9 +41,9 @@ class VentaSucursalTile extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: Theme.of(context).colorScheme.outline),
                         ),
                         child: Text(
                           '#${venta.id}',
@@ -97,7 +97,7 @@ class VentaSucursalTile extends StatelessWidget {
               // Cliente y Fecha
               Row(
                 children: [
-                  Icon(Icons.person_outline, size: 16, color: Colors.grey.shade600),
+                  Icon(Icons.person_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -115,7 +115,7 @@ class VentaSucursalTile extends StatelessWidget {
                   Text(
                     fechaStr,
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),
@@ -130,13 +130,13 @@ class VentaSucursalTile extends StatelessWidget {
                   Row(
                     children: [
                       Icon(Icons.shopping_bag_outlined,
-                          size: 15, color: Colors.grey.shade600),
+                          size: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       const SizedBox(width: 4),
                       Text(
                         '${venta.totalItems} ${venta.totalItems == 1 ? "ítem" : "ítems"} (${venta.totalUnidades} un.)',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey.shade700,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -153,7 +153,7 @@ class VentaSucursalTile extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Icon(Icons.chevron_right,
-                          size: 20, color: Colors.grey.shade400),
+                          size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ],
                   ),
                 ],

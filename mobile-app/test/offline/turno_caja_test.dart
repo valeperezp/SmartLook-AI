@@ -13,6 +13,7 @@ import 'package:sqflite/sqflite.dart' show Sqflite;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'schema_v1_fixture.dart';
+import 'servidor_simulado.dart';
 
 Map<String, dynamic> _venta({int cajeroId = 7, int cantidad = 1, int precio = 1000}) => {
       'sucursal_id': 1,
@@ -327,8 +328,7 @@ void main() {
           colaDao: cola,
           turnoDao: turnos,
           hayRed: () async => true,
-          enviar: enviar,
-          sorteo: sorteo ?? () => 0.9,
+          enviar: enviar ?? servidorSimulado(sorteo: sorteo ?? () => 0.9),
         );
 
     test('las ventas viajan primero y el cierre después; el turno queda sincronizado', () async {
@@ -390,6 +390,34 @@ void main() {
       // la próxima vez todo sale bien
       final r2 = await servicio().sincronizarPendientes();
       expect(r2.sincronizadas, 2);
+      expect((await turnos.obtenerTurno(turno))!['estado'], 'sincronizado');
+    });
+
+    test('si el servidor responde "pendiente" al cierre, sigue pendiente con su mensaje y el turno cerrado', () async {
+      final turno = await turnos.abrirTurno(7, 1, 0);
+      await vender('v1', turno);
+      await turnos.cerrarTurno(turno, 1000, confirmarPendientes: true);
+
+      final r1 = await servicio(
+        enviar: (lote) async => {
+          'resultados': [
+            for (final o in (lote['operaciones'] as List? ?? const [])) {'uuid': o['uuid'], 'status': 'ok', 'id_servidor': 5},
+            for (final c in (lote['cierres_caja'] as List? ?? const []))
+              {'uuid': c['uuid'], 'status': 'pendiente', 'message': 'Faltan 1 operaciones del turno por sincronizar'},
+          ],
+        },
+      ).sincronizarPendientes();
+
+      expect((r1.sincronizadas, r1.enEspera, r1.fallidas, r1.rechazadas), (1, 1, 0, 0));
+      expect(r1.resumen, contains('Faltan 1 operaciones del turno por sincronizar'));
+      expect((await turnos.obtenerTurno(turno))!['estado'], 'cerrado');
+      final fila = (await (await appDb.database)!.query(Schema.tablaSyncQueue, where: "tipo_operacion = 'CIERRE_CAJA'")).single;
+      expect(fila['estado'], 'pendiente');
+      expect(fila['intentos'], 1);
+      expect(fila['ultimo_error'], 'Faltan 1 operaciones del turno por sincronizar');
+
+      final r2 = await servicio().sincronizarPendientes();
+      expect(r2.sincronizadas, 1);
       expect((await turnos.obtenerTurno(turno))!['estado'], 'sincronizado');
     });
 
