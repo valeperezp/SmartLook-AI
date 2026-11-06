@@ -49,3 +49,7 @@ backend/uploads/*
 .env.bak
 .env.local
 .env.*.local
+
+# Salidas de compilacion locales
+dist-web/
+mobile-app/android/build/
