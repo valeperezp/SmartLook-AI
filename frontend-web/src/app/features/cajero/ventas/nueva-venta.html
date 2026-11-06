@@ -1,4 +1,6 @@
 <div class="tpv-container">
+  <app-offline-banner mensaje="Puedes seguir cobrando: cada venta queda guardada aquí." />
+
   @if (toast()) {
     <div class="toast-banner" [class.toast-error]="toastError()">
       <app-icon [name]="toastError() ? 'alert-circle' : 'check-circle'" [size]="18" />
@@ -175,7 +177,7 @@
               <span>Procesando venta...</span>
             } @else {
               <app-icon name="check-circle" [size]="20" />
-              <span>Cobrar ${{ totalCarrito() | number:'1.2-2' }}</span>
+              <span>{{ offline.online() ? 'Cobrar' : 'Guardar venta sin conexión' }} ${{ totalCarrito() | number:'1.2-2' }}</span>
             }
           </button>
         </div>

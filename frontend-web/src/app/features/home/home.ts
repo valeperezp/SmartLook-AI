@@ -10,6 +10,7 @@ import { ReservasService } from '../../core/services/reservas.service';
 import { CarritoService } from '../../core/services/carrito.service';
 import { AuthService } from '../../core/services/auth.service';
 import { IaService } from '../../core/services/ia.service';
+import { OfflineSyncService } from '../../core/services/offline-sync.service';
 
 import {
   Categoria,
@@ -40,11 +41,18 @@ export class Home implements OnInit {
   private iaService = inject(IaService);
   carritoService = inject(CarritoService);
   auth = inject(AuthService);
+  offline = inject(OfflineSyncService);
 
   recomendaciones = signal<ProductoRecomendado[]>([]);
   cargandoRecomendaciones = signal<boolean>(false);
 
   backendStatus = signal<'checking' | 'connected' | 'error'>('checking');
+
+  // Modo offline (IndexedDB)
+  mensajeOffline = signal<string | null>(null);
+  mensajeOfflineEsError = signal<boolean>(false);
+  /** El catálogo en pantalla viene de IndexedDB (no hubo respuesta del servidor). */
+  mostrandoCatalogoLocal = signal<boolean>(false);
   productos = signal<Producto[]>([]);
   categorias = signal<Categoria[]>([]);
   sucursales = signal<Sucursal[]>([]);
@@ -161,10 +169,42 @@ export class Home implements OnInit {
     this.catalogoService.listarProductos(false, sucId).subscribe({
       next: (data) => {
         this.productos.set(data);
+        this.mostrandoCatalogoLocal.set(false);
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false),
+      error: () => {
+        this.isLoading.set(false);
+        void this.usarCatalogoLocal();
+      },
     });
+  }
+
+  /** Sin respuesta del servidor: se muestra el catálogo descargado para offline (si existe). */
+  private async usarCatalogoLocal() {
+    try {
+      const local = await this.offline.leerCatalogoLocal();
+      if (!local) return;
+      const sucId = this.selectedSucursalId();
+      this.productos.set(sucId === 'todas' ? local.productos : local.productos.filter((p) => (p.sucursales_con_stock ?? 0) > 0));
+      if (this.categorias().length === 0) this.categorias.set(local.categorias);
+      if (this.sucursales().length === 0) this.sucursales.set(local.sucursales);
+      this.mostrandoCatalogoLocal.set(true);
+    } catch (error) {
+      console.error('[Home] No se pudo leer el catálogo guardado', error);
+    }
+  }
+
+  /** Botón "Descargar catálogo para Offline": guarda productos y stock en IndexedDB. */
+  async descargarCatalogoOffline() {
+    this.mensajeOffline.set(null);
+    try {
+      const guardadas = await this.offline.descargarCatalogo();
+      this.mensajeOfflineEsError.set(false);
+      this.mensajeOffline.set(`Catálogo guardado para usar sin conexión: ${guardadas} variantes (producto, talla y color por sucursal).`);
+    } catch (error) {
+      this.mensajeOfflineEsError.set(true);
+      this.mensajeOffline.set(error instanceof Error && error.message.startsWith('Sin conexión') ? error.message : 'No se pudo descargar el catálogo. El que ya tenías guardado se conserva.');
+    }
   }
 
   setCategory(id: number | 'todos') {

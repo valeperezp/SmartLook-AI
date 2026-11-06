@@ -1214,3 +1214,42 @@
     margin-top: 0.4rem;
   }
 }
+
+/* ===== Modo offline (PWA) ===== */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.9rem 0.9rem 0 0.9rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning) 18%, var(--bg-card));
+  border: 1px solid var(--warning);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+
+  &.offline-banner-info {
+    background: var(--bg-card);
+    border-color: var(--border-strong);
+  }
+}
+
+.offline-download {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin-right: auto;
+  max-width: 26rem;
+
+  .offline-info {
+    color: var(--text-muted, var(--text-primary));
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }
+
+  .offline-info-error {
+    color: var(--danger);
+  }
+}

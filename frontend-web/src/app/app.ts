@@ -7,6 +7,7 @@ import { AuthService } from './core/services/auth.service';
 import { AdminUiService } from './core/services/admin-ui.service';
 import { PreferenciasService } from './core/services/preferencias.service';
 import { CarritoService } from './core/services/carrito.service';
+import { OfflineSyncService } from './core/services/offline-sync.service';
 import { IconComponent } from './core/components/icon/icon';
 import { ChatWidget } from './core/components/chat-widget/chat-widget';
 import { ReportesChatWidget } from './core/components/reportes-chat-widget/reportes-chat-widget';
@@ -23,6 +24,8 @@ export class App {
   adminUi = inject(AdminUiService);
   preferencias = inject(PreferenciasService);
   carritoService = inject(CarritoService);
+  /** Solo con inyectarlo escucha el evento `online` y envía lo pendiente aunque el usuario esté en otra pantalla. */
+  offlineSync = inject(OfflineSyncService);
   private router = inject(Router);
 
   private currentUrl = toSignal(

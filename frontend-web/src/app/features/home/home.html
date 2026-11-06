@@ -1,3 +1,21 @@
+<!-- Modo offline: sin red se avisa, y lo que se registre queda guardado para enviarse al volver la conexión -->
+@if (!offline.online()) {
+<div class="offline-banner" role="status">
+  <app-icon name="alert-circle" [size]="18" />
+  <strong>Modo Offline</strong>
+  <span>
+    Sin conexión a internet.
+    @if (mostrandoCatalogoLocal()) { Estás viendo el catálogo guardado en este dispositivo. }
+    @if (offline.pendientes() > 0) { {{ offline.pendientes() }} operación(es) pendiente(s) se enviarán al volver la conexión. }
+  </span>
+</div>
+} @else if (offline.pendientes() > 0 || offline.sincronizando()) {
+<div class="offline-banner offline-banner-info" role="status">
+  <strong>{{ offline.sincronizando() ? 'Sincronizando…' : offline.pendientes() + ' operación(es) pendiente(s) de sincronizar' }}</strong>
+  @if (offline.ultimoMensaje()) { <span>{{ offline.ultimoMensaje() }}</span> }
+</div>
+}
+
 <!-- Hero Section -->
 <section class="hero-section">
   <div class="hero-overlay"></div>
@@ -89,6 +107,20 @@
         <p class="section-subtitle">
           Consultá disponibilidad por sucursal y stock en tiempo real
         </p>
+      </div>
+
+      <div class="offline-download">
+        <button type="button" class="btn-secondary" (click)="descargarCatalogoOffline()"
+          [disabled]="offline.descargando() || !offline.online()"
+          title="Guarda productos y stock en este navegador para consultarlos sin conexión">
+          @if (offline.descargando()) { Descargando… } @else { Descargar catálogo para Offline }
+        </button>
+        @if (offline.variantesOffline() > 0) {
+          <small class="offline-info">Guardado: {{ offline.variantesOffline() }} variantes · {{ offline.catalogoDescargadoEn() | date: 'dd/MM/yyyy HH:mm' }}</small>
+        }
+        @if (mensajeOffline()) {
+          <small class="offline-info" [class.offline-info-error]="mensajeOfflineEsError()">{{ mensajeOffline() }}</small>
+        }
       </div>
 
       <div class="filters-header-group">

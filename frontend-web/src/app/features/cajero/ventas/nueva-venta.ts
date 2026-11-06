@@ -5,10 +5,13 @@ import { CatalogoService } from '../../../core/services/catalogo.service';
 import { VentasService } from '../../../core/services/ventas.service';
 import { PagosService } from '../../../core/services/pagos.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { OfflineDbService } from '../../../core/services/offline-db.service';
+import { OfflineSyncService } from '../../../core/services/offline-sync.service';
 import { Categoria, DisponibilidadTallaColor, Producto } from '../../../core/models/catalogo.model';
 import { Venta, VentaPresencialCreate } from '../../../core/models/venta.model';
 import { Pago } from '../../../core/models/pago.model';
 import { IconComponent } from '../../../core/components/icon/icon';
+import { OfflineBanner } from '../../../core/components/offline-banner/offline-banner';
 import { PagoModal } from '../pagos/pago-modal';
 import { PagoQRModal } from '../pagos/pago-qr-modal';
 
@@ -26,7 +29,7 @@ export interface ItemCarrito {
 @Component({
   selector: 'app-nueva-venta',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, PagoModal, PagoQRModal],
+  imports: [CommonModule, FormsModule, IconComponent, PagoModal, PagoQRModal, OfflineBanner],
   templateUrl: './nueva-venta.html',
   styleUrl: './nueva-venta.scss',
 })
@@ -34,7 +37,10 @@ export class NuevaVenta implements OnInit {
   private catalogoService = inject(CatalogoService);
   private ventasService = inject(VentasService);
   private pagosService = inject(PagosService);
+  private offlineDb = inject(OfflineDbService);
   auth = inject(AuthService);
+  /** Modo offline: estado de la red y operaciones pendientes (IndexedDB). */
+  offline = inject(OfflineSyncService);
 
   user = this.auth.currentUser;
 
@@ -52,6 +58,8 @@ export class NuevaVenta implements OnInit {
   cargandoProductos = signal<boolean>(true);
   toast = signal<string | null>(null);
   toastError = signal<boolean>(false);
+  /** Los productos en pantalla vienen del catálogo guardado en el dispositivo (no hubo servidor). */
+  catalogoLocal = signal<boolean>(false);
 
   // Modal selector de variantes
   modalVarianteAbierto = signal<boolean>(false);
@@ -99,7 +107,9 @@ export class NuevaVenta implements OnInit {
   cargarCategorias() {
     this.catalogoService.listarCategorias().subscribe({
       next: (cats) => this.categorias.set(cats.filter((c) => c.activo)),
-      error: () => this.mostrarToast('Error al cargar categorías', true),
+      error: () => {
+        if (navigator.onLine !== false) this.mostrarToast('Error al cargar categorías', true); // sin red lo dice el banner
+      },
     });
   }
 
@@ -109,13 +119,77 @@ export class NuevaVenta implements OnInit {
     this.catalogoService.listarProductos(false, sucursalId).subscribe({
       next: (prods) => {
         this.productos.set(prods);
+        this.catalogoLocal.set(false);
         this.cargandoProductos.set(false);
       },
       error: () => {
         this.cargandoProductos.set(false);
-        this.mostrarToast('Error al cargar catálogo de productos', true);
+        void this.cargarDesdeCatalogoLocal().then((hayCatalogo) => {
+          if (hayCatalogo) return;
+          this.mostrarToast(
+            navigator.onLine === false
+              ? 'Sin conexión y sin catálogo guardado: descárgalo con conexión desde el catálogo ("Descargar catálogo para Offline").'
+              : 'Error al cargar catálogo de productos',
+            true,
+          );
+        });
       },
     });
+  }
+
+  /** Sin servidor: productos y categorías del catálogo descargado para offline, solo de la sucursal del cajero. */
+  private async cargarDesdeCatalogoLocal(): Promise<boolean> {
+    try {
+      const sucursalId = this.user()?.sucursal_id;
+      const filas = (await this.offlineDb.obtenerCatalogo(this.offline.empresaActual())).filter((f) => !sucursalId || f.sucursal_id === sucursalId);
+      if (filas.length === 0) return false;
+      const productos = new Map<number, Producto>();
+      const categorias = new Map<number, Categoria>();
+      for (const f of filas) {
+        if (productos.has(f.producto_id)) continue;
+        const categoria: Categoria = { id: f.categoria_id ?? 0, nombre: f.nombre_categoria ?? 'Sin categoría', activo: true };
+        productos.set(f.producto_id, {
+          id: f.producto_id,
+          nombre: f.nombre_producto,
+          descripcion: f.descripcion ?? undefined,
+          precio: f.precio_centavos / 100,
+          categoria_id: categoria.id,
+          imagen_url: f.imagen_url ?? undefined,
+          activo: true,
+          categoria,
+        });
+        if (f.categoria_id !== null) categorias.set(categoria.id, categoria);
+      }
+      this.productos.set([...productos.values()]);
+      this.categorias.set([...categorias.values()]);
+      this.catalogoLocal.set(true);
+      return true;
+    } catch (error) {
+      console.error('[TPV] No se pudo leer el catálogo guardado', error);
+      return false;
+    }
+  }
+
+  /** Tallas y colores con stock de un producto, según el catálogo guardado (para vender sin conexión). */
+  private async variantesLocalesDe(productoId: number, sucursalId: number): Promise<DisponibilidadTallaColor[]> {
+    const filas = await this.offlineDb.obtenerCatalogo(this.offline.empresaActual());
+    return filas
+      .filter((f) => f.producto_id === productoId && f.sucursal_id === sucursalId)
+      .map((f) => ({
+        talla_id: f.talla_id,
+        nombre_talla: f.nombre_talla,
+        color_id: f.color_id,
+        nombre_color: f.nombre_color,
+        cantidad_disponible: f.cantidad_disponible,
+        cantidad_reservada: 0,
+        cantidad_vendida: 0,
+      }));
+  }
+
+  private aplicarVariantes(items: DisponibilidadTallaColor[]) {
+    const conStock = items.filter((i) => i.cantidad_disponible > 0);
+    this.variantesDisponibles.set(conStock);
+    if (conStock.length > 0) this.varianteSeleccionada.set(conStock[0]);
   }
 
   abrirSelectorVariante(prod: Producto) {
@@ -130,6 +204,15 @@ export class NuevaVenta implements OnInit {
     this.variantesDisponibles.set([]);
     this.cargandoVariantes.set(true);
     this.modalVarianteAbierto.set(true);
+
+    if (navigator.onLine === false) {
+      // Sin red no hay a quién preguntarle el stock: se usa el del catálogo guardado en el dispositivo
+      void this.variantesLocalesDe(prod.id, sucursalId).then((items) => {
+        this.cargandoVariantes.set(false);
+        this.aplicarVariantes(items);
+      });
+      return;
+    }
 
     this.catalogoService.obtenerDisponibilidad(prod.id).subscribe({
       next: (disp) => {
@@ -245,6 +328,11 @@ export class NuevaVenta implements OnInit {
       return;
     }
 
+    if (navigator.onLine === false) {
+      void this.cobrarSinConexion(sucursalId);
+      return;
+    }
+
     const payload: VentaPresencialCreate = {
       sucursal_id: sucursalId,
       cliente_id: this.clienteId() ? Number(this.clienteId()) : null,
@@ -272,6 +360,38 @@ export class NuevaVenta implements OnInit {
         this.mostrarToast(mensaje, true);
       },
     });
+  }
+
+  /**
+   * Sin conexión: la venta se guarda en IndexedDB (con su uuid) y se enviará sola a `POST /sync/operaciones` al volver la
+   * red. No hay ticket ni pagos todavía: eso existe cuando el servidor la recibe. El carrito se limpia solo si se guardó.
+   */
+  private async cobrarSinConexion(sucursalId: number) {
+    this.procesando.set(true);
+    try {
+      await this.offline.registrarOperacion({
+        tipo_operacion: 'VENTA_CONTADO',
+        sucursal_id: sucursalId,
+        cajero_id: this.user()?.id ?? null,
+        cliente_id: this.clienteId() ? Number(this.clienteId()) : null,
+        items: this.carrito().map((item) => ({
+          producto_id: item.productoId,
+          talla_id: item.tallaId,
+          color_id: item.colorId,
+          nombre_producto: item.nombreProducto,
+          cantidad: item.cantidad,
+          precio_unitario_centavos: Math.round(item.precio * 100),
+        })),
+      });
+      this.vaciarCarrito();
+      this.clienteId.set(null);
+      this.mostrarToast('Venta guardada localmente. Se sincronizará cuando vuelva la conexión');
+    } catch (error) {
+      // No se pudo guardar: el carrito se conserva para no perder la venta
+      this.mostrarToast(error instanceof Error ? error.message : 'No se pudo guardar la venta en este dispositivo', true);
+    } finally {
+      this.procesando.set(false);
+    }
   }
 
   cargarPagosTicket(ventaId: number) {

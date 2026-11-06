@@ -86,6 +86,48 @@
 
 .escuchando {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.parpadeo {
+  font-weight: 600;
+  color: var(--danger);
+  animation: parpadeo 1s ease-in-out infinite;
+}
+
+.punto-rec {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: parpadeo 1s ease-in-out infinite;
+}
+
+@keyframes parpadeo {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parpadeo,
+  .punto-rec {
+    animation: none;
+  }
+}
+
+.pedido .aviso-voz {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
 }
 
 .ejemplos {

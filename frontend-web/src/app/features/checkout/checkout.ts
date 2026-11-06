@@ -8,10 +8,12 @@ import { SucursalesService } from '../../core/services/sucursales.service';
 import { VentasService } from '../../core/services/ventas.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PagosService } from '../../core/services/pagos.service';
+import { OfflineSyncService } from '../../core/services/offline-sync.service';
 
 import { Sucursal } from '../../core/models/sucursal.model';
 import { VentaOnlineCreate } from '../../core/models/venta.model';
 import { IconComponent } from '../../core/components/icon/icon';
+import { OfflineBanner } from '../../core/components/offline-banner/offline-banner';
 import { StripeCard } from './stripe-card/stripe-card';
 import { QrPayment } from './qr-payment/qr-payment';
 
@@ -25,6 +27,7 @@ import { QrPayment } from './qr-payment/qr-payment';
     IconComponent,
     StripeCard,
     QrPayment,
+    OfflineBanner,
   ],
   templateUrl: './checkout.html',
   styleUrl: './checkout.scss',
@@ -36,6 +39,8 @@ export class Checkout implements OnInit {
   private ventasService = inject(VentasService);
   private pagosService = inject(PagosService);
   auth = inject(AuthService);
+  /** Modo offline: estado de la red y operaciones pendientes (IndexedDB). */
+  offline = inject(OfflineSyncService);
 
   sucursales = signal<Sucursal[]>([]);
   cargandoSucursales = signal<boolean>(true);
@@ -54,6 +59,8 @@ export class Checkout implements OnInit {
   pagoEfectivoConfirmado = signal<boolean>(false);
   confirmandoEfectivo = signal<boolean>(false);
   ordenFinalizadaId = signal<number | null>(null);
+  /** Sin conexión: la reserva quedó guardada en el dispositivo y se confirmará al volver la red. */
+  reservaGuardadaOffline = signal<boolean>(false);
 
   sucursalSeleccionada = computed(() =>
     this.sucursales().find((s) => s.id === this.sucursalId())
@@ -86,8 +93,20 @@ export class Checkout implements OnInit {
         this.cargandoSucursales.set(false);
       },
       error: () => {
-        this.cargandoSucursales.set(false);
-        this.errorCheckout.set('No se pudieron cargar las sucursales disponibles.');
+        // Sin servidor: sucursales del catálogo descargado para offline (para poder dejar la reserva guardada)
+        void this.offline.leerCatalogoLocal().then((local) => {
+          this.cargandoSucursales.set(false);
+          if (local && local.sucursales.length > 0) {
+            this.sucursales.set(local.sucursales);
+            if (!this.sucursalId()) this.sucursalId.set(local.sucursales[0].id);
+            return;
+          }
+          this.errorCheckout.set(
+            navigator.onLine === false
+              ? 'Sin conexión y sin catálogo guardado: descárgalo con conexión desde el catálogo ("Descargar catálogo para Offline") para poder reservar sin red.'
+              : 'No se pudieron cargar las sucursales disponibles.',
+          );
+        });
       },
     });
   }
@@ -104,6 +123,11 @@ export class Checkout implements OnInit {
 
     if (this.carritoService.estaVacio()) {
       this.router.navigate(['/carrito']);
+      return;
+    }
+
+    if (navigator.onLine === false) {
+      void this.guardarReservaSinConexion();
       return;
     }
 
@@ -134,6 +158,42 @@ export class Checkout implements OnInit {
         this.errorCheckout.set(msg);
       },
     });
+  }
+
+  /**
+   * Sin conexión no se puede pagar (Stripe/QR necesitan red): el pedido se guarda como una RESERVA del cliente en IndexedDB
+   * (con su uuid) y se enviará sola a `POST /sync/operaciones` al volver la conexión. La prenda se paga al retirarla.
+   * El carrito se vacía solo si la reserva se guardó; si falla, se conserva para no perder el pedido.
+   */
+  private async guardarReservaSinConexion() {
+    const cliente = this.auth.currentUser();
+    if (!cliente || !this.auth.isCliente()) {
+      this.errorCheckout.set('Solo un cliente con sesión iniciada puede guardar una reserva sin conexión.');
+      return;
+    }
+    this.creandoVenta.set(true);
+    this.errorCheckout.set(null);
+    try {
+      await this.offline.registrarOperacion({
+        tipo_operacion: 'RESERVA_CLIENTE',
+        sucursal_id: this.sucursalId()!,
+        cliente_id: cliente.id,
+        items: this.carritoService.items().map((it) => ({
+          producto_id: it.productoId,
+          talla_id: it.tallaId,
+          color_id: it.colorId,
+          nombre_producto: it.nombreProducto,
+          cantidad: it.cantidad,
+          precio_unitario_centavos: Math.round(it.precio * 100),
+        })),
+      });
+      this.carritoService.vaciar();
+      this.reservaGuardadaOffline.set(true);
+    } catch (error) {
+      this.errorCheckout.set(error instanceof Error ? error.message : 'No se pudo guardar la reserva en este dispositivo.');
+    } finally {
+      this.creandoVenta.set(false);
+    }
   }
 
   iniciarPagoConTarjeta() {

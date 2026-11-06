@@ -41,7 +41,16 @@
           </button>
         </div>
         @if (escuchando()) {
-          <p class="muted escuchando" aria-live="polite">Escuchando… hablá y después revisá el texto.</p>
+          <p class="muted escuchando" aria-live="polite">
+            <span class="punto-rec" aria-hidden="true"></span>
+            <span class="parpadeo">Escuchando...</span>
+            <span>hablá y después revisá el texto.</span>
+          </p>
+        }
+        @if (errorVoz()) {
+          <div class="aviso aviso-error aviso-voz" role="alert">
+            <app-icon name="alert-circle" [size]="16" /> {{ errorVoz() }}
+          </div>
         }
         @if (!resultado() && catalogo(); as c) {
           <div class="ejemplos">

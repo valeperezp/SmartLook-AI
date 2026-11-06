@@ -1,5 +1,45 @@
 <div class="checkout-page-container">
-  @if (pagoCompletado()) {
+  <app-offline-banner mensaje="Puedes confirmar tu pedido: quedará como reserva guardada en este dispositivo y la pagas al retirarla." />
+
+  @if (reservaGuardadaOffline()) {
+    <!-- PANTALLA TRAS GUARDAR LA RESERVA SIN CONEXIÓN -->
+    <div class="checkout-success-card qr-pending-card">
+      <div class="pending-icon-badge">
+        <app-icon name="clock" [size]="48" />
+      </div>
+
+      <span class="pending-eyebrow">Reserva guardada sin conexión</span>
+      <h1 class="success-title">Tu reserva está a salvo</h1>
+
+      <p class="success-description">
+        Reserva guardada localmente. Se confirmará cuando vuelva la conexión
+      </p>
+
+      @if (sucursalSeleccionada(); as suc) {
+        <div class="pickup-branch-card">
+          <div class="branch-icon-box">
+            <app-icon name="store" [size]="24" />
+          </div>
+          <div class="branch-details">
+            <span class="pickup-label">Sucursal de Retiro:</span>
+            <strong class="branch-name">{{ suc.nombre }}</strong>
+          </div>
+        </div>
+      }
+
+      <div class="success-notice">
+        <app-icon name="sparkles" [size]="18" />
+        <span>Se enviará sola al recuperar internet y quedará en "Mis Reservas". El pago se hace en la sucursal al retirar tus prendas.</span>
+      </div>
+
+      <div class="success-actions">
+        <a routerLink="/" class="btn-primary btn-back-home">
+          <app-icon name="shirt" [size]="18" />
+          <span>Volver al Catálogo</span>
+        </a>
+      </div>
+    </div>
+  } @else if (pagoCompletado()) {
     <!-- PANTALLA DE ÉXITO TRAS PAGO CONFIRMADO -->
     <div class="checkout-success-card">
       <div class="success-icon-badge">
@@ -168,7 +208,7 @@
                 >
                   @for (s of sucursales(); track s.id) {
                     <option [ngValue]="s.id">
-                      {{ s.nombre }} — {{ s.direccion }} ({{ s.ciudad }})
+                      {{ s.nombre }}@if (s.direccion) { — {{ s.direccion }}@if (s.ciudad) { ({{ s.ciudad }})} }
                     </option>
                   }
                 </select>
@@ -234,7 +274,13 @@
               <!-- BOTÓN INICIAL PARA CREAR VENTA ONLINE -->
               <div class="create-order-prompt">
                 <div class="prompt-info">
-                  @if (metodoPago() === 'tarjeta') {
+                  @if (!offline.online()) {
+                    <app-icon name="clock" [size]="24" />
+                    <div>
+                      <strong>Sin conexión: guardar como reserva</strong>
+                      <p>No se puede pagar sin internet. Tu pedido se guardará como reserva en este dispositivo, se confirmará solo cuando vuelva la conexión y pagarás en la sucursal al retirar.</p>
+                    </div>
+                  } @else if (metodoPago() === 'tarjeta') {
                     <app-icon name="credit-card" [size]="24" />
                     <div>
                       <strong>Confirmar pedido y habilitar pasarela</strong>
@@ -264,6 +310,9 @@
                   @if (creandoVenta()) {
                     <div class="spinner-sm"></div>
                     <span>Creando orden...</span>
+                  } @else if (!offline.online()) {
+                    <app-icon name="clock" [size]="18" />
+                    <span>Guardar reserva sin conexión (${{ carritoService.total() | number:'1.2-2' }})</span>
                   } @else if (metodoPago() === 'tarjeta') {
                     <app-icon name="credit-card" [size]="18" />
                     <span>Pagar con tarjeta (${{ carritoService.total() | number:'1.2-2' }})</span>

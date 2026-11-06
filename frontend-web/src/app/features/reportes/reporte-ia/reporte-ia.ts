@@ -1,4 +1,5 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -6,6 +7,7 @@ import { IconComponent } from '../../../core/components/icon/icon';
 import { AuthService } from '../../../core/services/auth.service';
 import { CatalogoService } from '../../../core/services/catalogo.service';
 import { ReportesService } from '../../../core/services/reportes.service';
+import { SpeechService } from '../../../core/services/speech.service';
 import { SucursalesService } from '../../../core/services/sucursales.service';
 import { Sucursal } from '../../../core/models/sucursal.model';
 import {
@@ -55,10 +57,13 @@ export class ReporteIa implements OnInit, OnDestroy {
   mostrarConvencional = signal(false);
   error = signal<string | null>(null);
 
-  // Dictado por voz (3a): Web Speech API del navegador.
-  escuchando = signal(false);
-  vozDisponible = typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
-  private reconocimiento: any = null;
+  // Dictado por voz (3a): Web Speech API del navegador, a través de SpeechService.
+  private voz = inject(SpeechService);
+  private destroyRef = inject(DestroyRef);
+  private cdr = inject(ChangeDetectorRef);
+  escuchando = this.voz.escuchando;
+  errorVoz = this.voz.error;
+  vozDisponible = this.voz.soportado;
 
   // Formulario de reportes convencionales (2a, 4a).
   conv: IntencionReporte & { sucursal?: number | null; categoria?: number | null } = this.convVacio();
@@ -77,6 +82,11 @@ export class ReporteIa implements OnInit, OnDestroy {
   );
 
   ngOnInit() {
+    // El texto dictado se coloca en el input mientras la persona habla; ella lo revisa y da "Generar" (3a).
+    this.voz.transcripcion$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((t) => {
+      this.solicitud = t.texto;
+      this.cdr.markForCheck(); // `solicitud` no es una señal: se avisa para que el input se repinte
+    });
     this.reportesService.catalogo().subscribe((c) => {
       this.catalogo.set(c);
       if (!c.plan_incluye_ia) this.mostrarConvencional.set(true);
@@ -87,7 +97,7 @@ export class ReporteIa implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.reconocimiento?.abort?.();
+    this.voz.detenerEscucha();
   }
 
   private convVacio() {
@@ -189,22 +199,8 @@ export class ReporteIa implements OnInit, OnDestroy {
   // ---------- voz ----------
   dictar() {
     if (!this.vozDisponible) return;
-    if (this.escuchando()) {
-      this.reconocimiento?.stop();
-      return;
-    }
-    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    this.reconocimiento = new Ctor();
-    this.reconocimiento.lang = 'es-BO';
-    this.reconocimiento.interimResults = false;
-    this.reconocimiento.onresult = (e: any) => {
-      // Se muestra el texto para que el usuario lo revise antes de generar (3a).
-      this.solicitud = Array.from(e.results).map((res: any) => res[0].transcript).join(' ');
-    };
-    this.reconocimiento.onend = () => this.escuchando.set(false);
-    this.reconocimiento.onerror = () => this.escuchando.set(false);
-    this.escuchando.set(true);
-    this.reconocimiento.start();
+    if (this.escuchando()) this.voz.detenerEscucha();
+    else this.voz.iniciarEscucha();
   }
 
   // ---------- exportar ----------
