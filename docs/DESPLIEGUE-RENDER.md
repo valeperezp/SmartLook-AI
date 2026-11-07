@@ -1,6 +1,6 @@
 # Despliegue del backend en Render (plan gratis)
 
-El frontend está en Vercel (`https://smartlook-ai.vercel.app`) y la base en Supabase. El backend se
+El frontend está en Vercel (`https://smart-look-ai.vercel.app`) y la base en Supabase. El backend se
 despliega en Render con el `Dockerfile` de `backend/` y la configuración de `render.yaml` (raíz del repo).
 
 ## 1. Crear el servicio

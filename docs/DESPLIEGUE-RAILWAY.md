@@ -1,6 +1,6 @@
 # Despliegue del backend en Railway
 
-El frontend está en Vercel (`https://smartlook-ai.vercel.app`) y la base en Supabase. La web y la app
+El frontend está en Vercel (`https://smart-look-ai.vercel.app`) y la base en Supabase. La web y la app
 Android ya apuntan a `https://smartlook-ai-production.up.railway.app`, así que conviene recrear el
 servicio con **ese mismo dominio**: así no hay que cambiar nada en el front ni en la app.
 
@@ -25,7 +25,7 @@ pueden pegar todas juntas con el formato `NOMBRE=valor`.
 | `ALGORITHM` | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` |
 | `ENVIRONMENT` | `production` |
-| `CORS_ORIGINS` | `https://smartlook-ai.vercel.app` (agregar otras URLs separadas por coma si hace falta) |
+| `CORS_ORIGINS` | `https://smart-look-ai.vercel.app` (agregar otras URLs separadas por coma si hace falta) |
 | `UPLOADS_BASE_URL` | `https://smartlook-ai-production.up.railway.app` |
 | `SUPABASE_URL` | De `backend/.env` |
 | `SUPABASE_SERVICE_ROLE_KEY` | De `backend/.env` |
@@ -61,7 +61,7 @@ así que esos no se pierden.
 
 - `https://smartlook-ai-production.up.railway.app/health` → `{"status":"healthy"}`
 - `https://smartlook-ai-production.up.railway.app/docs` → documentación de la API
-- Entrar a `https://smartlook-ai.vercel.app` e iniciar sesión.
+- Entrar a `https://smart-look-ai.vercel.app` e iniciar sesión.
 
 ## Migraciones
 

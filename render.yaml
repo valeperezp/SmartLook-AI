@@ -20,7 +20,7 @@ services:
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "60"
       - key: CORS_ORIGINS
-        value: https://smartlook-ai.vercel.app
+        value: https://smart-look-ai.vercel.app
       - key: VESTIDOR_MAX_POR_USUARIO_DIA
         value: "5"
       - key: SECRET_KEY
