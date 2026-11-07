@@ -90,6 +90,11 @@ class AppDatabase {
             throw StateError('La migración a v5 dejó ${violaciones.length} claves foráneas rotas: $violaciones');
           }
         }
+        if (anterior < 6) {
+          for (final sentencia in Schema.migracionV6) {
+            await db.execute(sentencia);
+          }
+        }
         debugPrint('[AppDatabase] Esquema migrado de v$anterior a v$nueva.');
       },
     );

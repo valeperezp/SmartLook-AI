@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/catalogo_item.dart';
 import '../providers/catalogo_offline_provider.dart';
+import '../providers/conectividad_provider.dart';
 import '../providers/suscripciones_provider.dart';
 import '../services/sync_service.dart';
 import '../widgets/banner_catalogo_desactualizado.dart';
@@ -23,6 +24,8 @@ class CatalogoOfflineScreen extends StatefulWidget {
 
 class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
   StreamSubscription<ResultadoSync>? _autoSync;
+  ConectividadProvider? _conectividad;
+  bool _estabaOnline = true;
 
   @override
   void initState() {
@@ -32,6 +35,9 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
       context.read<CatalogoOfflineProvider>().cargar();
       _cargarSuscripciones();
       // Sincronización automática: refresca el catálogo (un rechazo devuelve stock) y avisa
+      // CU16: al volver la red se envían los avisos hechos sin conexión y se consultan los que ya llegaron
+      _conectividad = context.read<ConectividadProvider>()..addListener(_alCambiarRed);
+      _estabaOnline = _conectividad!.online;
       _autoSync = context.read<SyncService>().alSincronizarAutomaticamente.listen((r) {
         if (!mounted) return;
         context.read<CatalogoOfflineProvider>().cargar();
@@ -41,9 +47,16 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
     });
   }
 
+  void _alCambiarRed() {
+    final online = _conectividad?.online ?? true;
+    if (online && !_estabaOnline && mounted) _cargarSuscripciones();
+    _estabaOnline = online;
+  }
+
   @override
   void dispose() {
     _autoSync?.cancel();
+    _conectividad?.removeListener(_alCambiarRed);
     super.dispose();
   }
 
@@ -125,6 +138,17 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
       appBar: AppBar(
         title: const Text('Catálogo offline'),
         actions: [
+          // Campana (CU16): avisa si llegó algo de lo que el cliente esperaba
+          IconButton(
+            key: const Key('campana_avisos'),
+            icon: Badge(
+              isLabelVisible: suscripciones.sinVer > 0,
+              label: Text('${suscripciones.sinVer}'),
+              child: Icon(suscripciones.sinVer > 0 ? Icons.notifications_active : Icons.notifications_none),
+            ),
+            tooltip: suscripciones.sinVer > 0 ? 'Llegó algo que esperabas' : 'Mis avisos de stock',
+            onPressed: () => context.push('/offline/mi-cuenta'),
+          ),
           IconButton(
             icon: const Icon(Icons.account_circle),
             tooltip: 'Mi cuenta (puntos y avisos)',

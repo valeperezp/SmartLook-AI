@@ -2,6 +2,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.modules.suscripciones.service import notificar_llegada
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.reservas import models, schemas
 
@@ -41,6 +42,7 @@ def _ajustar_stock_reserva(
     if liberar:
         inventario.cantidad_reservada = max(0, inventario.cantidad_reservada - cantidad)
         inventario.cantidad_disponible += cantidad
+        notificar_llegada(db, inventario)  # CU16: la reserva cancelada devolvió stock
     else:
         if inventario.cantidad_disponible < cantidad:
             raise HTTPException(

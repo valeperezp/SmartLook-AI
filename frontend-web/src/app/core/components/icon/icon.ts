@@ -43,7 +43,8 @@ export type IconName =
   | 'pencil'
   | 'clock'
   | 'list'
-  | 'download';
+  | 'download'
+  | 'bell';
 
 @Component({
   selector: 'app-icon',
@@ -256,6 +257,10 @@ export type IconName =
         @case ('clock') {
           <circle cx="12" cy="12" r="9" />
           <polyline points="12 7 12 12 15 15" />
+        }
+        @case ('bell') {
+          <path d="M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z" />
+          <path d="M10 20.5a2 2 0 0 0 4 0" />
         }
         @case ('list') {
           <line x1="8" y1="6" x2="21" y2="6" />

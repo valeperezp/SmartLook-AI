@@ -40,6 +40,12 @@
 
       @if (auth.isLoggedIn()) {
         @if (auth.isCliente()) {
+          <a routerLink="/mis-notificaciones" class="icon-btn campana" title="Mis notificaciones" aria-label="Mis notificaciones">
+            <app-icon name="bell" [size]="18" />
+            @if (avisos.sinVer() > 0) {
+              <span class="campana-badge" aria-label="{{ avisos.sinVer() }} avisos nuevos">{{ avisos.sinVer() }}</span>
+            }
+          </a>
           <a routerLink="/vestidor" class="btn-secondary" style="display: inline-flex; align-items: center; gap: 0.4rem; text-decoration: none;">
             <app-icon name="camera" [size]="16" /> Vestidor Virtual
           </a>
@@ -69,6 +75,15 @@
 
   @if (auth.isCliente()) {
     <app-chat-widget />
+  }
+
+  @if (avisos.toast(); as mensaje) {
+    <div class="toast-avisos" role="status" aria-live="polite">
+      <app-icon name="bell" [size]="18" />
+      <span>{{ mensaje }}</span>
+      <a routerLink="/mis-notificaciones" (click)="avisos.cerrarToast()">Ver</a>
+      <button type="button" (click)="avisos.cerrarToast()" aria-label="Cerrar aviso">✕</button>
+    </div>
   }
 
   @if (auth.isAdmin() || auth.isEncargado()) {

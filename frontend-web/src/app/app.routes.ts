@@ -42,6 +42,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'mis-notificaciones',
+    loadComponent: () =>
+      import('./features/mis-notificaciones/mis-notificaciones').then((m) => m.MisNotificaciones),
+    canActivate: [authGuard],
+  },
+  {
     path: 'vestidor',
     loadComponent: () =>
       import('./features/vestidor/vestidor-virtual').then((m) => m.VestidorVirtual),

@@ -12,6 +12,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { IaService } from '../../core/services/ia.service';
 import { CatalogoDesactualizado } from '../../core/components/catalogo-desactualizado/catalogo-desactualizado';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
+import { AvisosStockService } from '../../core/services/avisos-stock.service';
 
 import {
   Categoria,
@@ -43,6 +44,8 @@ export class Home implements OnInit {
   carritoService = inject(CarritoService);
   auth = inject(AuthService);
   offline = inject(OfflineSyncService);
+  /** CU16: "Avísame cuando llegue" (suscripciones de stock en el servidor, o en IndexedDB si no hay red). */
+  avisos = inject(AvisosStockService);
 
   /** CU13: si el catálogo guardado cambia (stock descontado por una operación offline o devuelto por un rechazo) y es el que se muestra, se relee. */
   private readonly alCambiarCatalogoLocal = effect(() => {
@@ -334,6 +337,16 @@ export class Home implements OnInit {
         this.mostrarReservaToast(errorMsg, true);
       },
     });
+  }
+
+  /** "Avísame cuando llegue" de una prenda agotada: sin sesión lleva al login; sin red queda guardado y se envía luego. */
+  async avisarme(prod: Producto) {
+    if (!this.auth.isLoggedIn()) {
+      void this.router.navigate(['/login']);
+      return;
+    }
+    const r = await this.avisos.suscribirse({ id: prod.id, nombre: prod.nombre });
+    this.mostrarReservaToast(r.mensaje, r.resultado === 'error');
   }
 
   mostrarReservaToast(msg: string, isError = false) {

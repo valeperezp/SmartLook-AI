@@ -182,6 +182,95 @@ class SuscripcionStockDao {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Sincronización con el servidor (CU16): la tabla es su propia cola de envío
+  // ---------------------------------------------------------------------------
+
+  /// Avisos que se hicieron (quizá sin conexión) y todavía no llegaron al servidor: se envían con su `id` como uuid.
+  Future<List<Map<String, dynamic>>> obtenerPorEnviar(int clienteId) async {
+    final db = await _db();
+    return db.query(
+      Schema.tablaSuscripcionesStock,
+      where: "cliente_id = ? AND estado = 'pendiente' AND sync_estado = 'pendiente'",
+      whereArgs: [clienteId],
+      orderBy: 'fecha_suscripcion, rowid',
+    );
+  }
+
+  /// El servidor guardó el aviso: queda 'sincronizado' con el id que le dio.
+  Future<void> marcarEnviada(String id, int idServidor) async {
+    final db = await _db();
+    await db.update(Schema.tablaSuscripcionesStock, {'sync_estado': 'sincronizado', 'id_servidor': idServidor}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// El servidor rechazó el aviso (p. ej. el producto ya no existe): no se reintenta.
+  Future<void> marcarRechazadaPorServidor(String id) async {
+    final db = await _db();
+    await db.update(Schema.tablaSuscripcionesStock, {'sync_estado': 'rechazado'}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Aplica los avisos que informa el servidor (`GET /suscripciones/mis-notificaciones`): los que esperaba este dispositivo pasan a
+  /// 'notificado' y los que se pidieron desde otro dispositivo o desde la web se agregan ya notificados. Devuelve cuántos avisos
+  /// NUEVOS (que el cliente aún no vio) quedaron en el dispositivo.
+  Future<int> aplicarNotificacionesDelServidor(int clienteId, List<Map<String, dynamic>> servidor) async {
+    if (servidor.isEmpty) return 0;
+    final db = await _db();
+    try {
+      return await db.transaction((txn) async {
+        var nuevos = 0;
+        for (final s in servidor) {
+          final idServidor = s['id'] as int?;
+          final uuid = s['uuid'] as String?;
+          final vistoEnServidor = s['visto'] == true;
+          final locales = await txn.query(
+            Schema.tablaSuscripcionesStock,
+            where: 'cliente_id = ? AND (id_servidor = ? OR id = ?)',
+            whereArgs: [clienteId, idServidor, uuid ?? '\u0000'],
+            limit: 1,
+          );
+          final ahora = (s['notificado_en'] as String?) ?? DateTime.now().toUtc().toIso8601String();
+          if (locales.isEmpty) {
+            // Se pidió desde otro dispositivo o desde la web: se agrega ya notificada
+            await txn.insert(Schema.tablaSuscripcionesStock, {
+              'id': uuid ?? 'srv-$idServidor',
+              'cliente_id': clienteId,
+              'producto_id': s['producto_id'],
+              'talla_id': s['talla_id'],
+              'color_id': s['color_id'],
+              'sucursal_id': s['sucursal_id'],
+              'descripcion': (s['descripcion'] as String?) ?? (s['nombre_producto'] as String? ?? 'Producto'),
+              'fecha_suscripcion': (s['fecha'] as String?) ?? ahora,
+              'estado': Schema.suscripcionNotificado,
+              'fecha_notificacion': ahora,
+              'visto': vistoEnServidor ? 1 : 0,
+              'sync_estado': 'sincronizado',
+              'id_servidor': idServidor,
+            });
+            if (!vistoEnServidor) nuevos++;
+            continue;
+          }
+          final local = locales.first;
+          if (local['id_servidor'] == null && idServidor != null) {
+            await txn.update(Schema.tablaSuscripcionesStock, {'sync_estado': 'sincronizado', 'id_servidor': idServidor}, where: 'id = ?', whereArgs: [local['id']]);
+          }
+          if (local['estado'] == 'pendiente') {
+            await txn.update(
+              Schema.tablaSuscripcionesStock,
+              {'estado': Schema.suscripcionNotificado, 'fecha_notificacion': ahora, 'visto': vistoEnServidor ? 1 : 0},
+              where: 'id = ?',
+              whereArgs: [local['id']],
+            );
+            if (!vistoEnServidor) nuevos++;
+          }
+        }
+        return nuevos;
+      });
+    } catch (e, st) {
+      debugPrint('[SuscripcionStockDao] Error al aplicar las notificaciones del servidor: $e\n$st');
+      rethrow;
+    }
+  }
+
   /// Gancho del refresco de catálogo: notifica los avisos pendientes cuya variante aparece ahora con stock > 0 en
   /// `catalogo_local`. Corre dentro de la transacción que guardó el catálogo. Devuelve los avisos notificados.
   static Future<List<Map<String, dynamic>>> notificarSegunCatalogoEn(DatabaseExecutor txn) async {

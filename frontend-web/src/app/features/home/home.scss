@@ -667,6 +667,25 @@
   align-items: center;
   justify-content: space-between;
 
+  .btn-avisame {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: transparent;
+    border: 1px dashed var(--primary);
+    color: var(--primary);
+    padding: 0.45rem 0.8rem;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.65;
+      cursor: default;
+    }
+  }
+
   .btn-check-stock {
     background: var(--overlay-2);
     border: 1px solid var(--border-color);

@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.modules.suscripciones.service import notificar_llegada
 from app.modules.catalogo import service as catalogo_service
 from app.modules.catalogo.models import Color, Producto, Talla, VarianteProducto
 from app.modules.inventario import models, schemas
@@ -247,6 +248,7 @@ def crear_o_inicializar_inventario(
             motivo="Carga inicial de inventario en sucursal",
             usuario_id=usuario_id,
         ))
+        notificar_llegada(db, nuevo_inv)  # CU16: quien esperaba esta prenda recibe su aviso
     db.commit()
     return obtener_inventario(db, nuevo_inv.id, empresa_id)
 
@@ -285,6 +287,7 @@ def registrar_movimiento(
 
     if data.tipo == "entrada":
         inv.cantidad_disponible += data.cantidad
+        notificar_llegada(db, inv)  # CU16: llegó mercadería → se avisa a quien la esperaba
     elif data.tipo == "salida":
         if inv.cantidad_disponible < data.cantidad:
             raise HTTPException(
@@ -326,6 +329,8 @@ def ajustar_stock(
 
     diferencia = data.nueva_cantidad - inv.cantidad_disponible
     inv.cantidad_disponible = data.nueva_cantidad
+    if diferencia > 0:
+        notificar_llegada(db, inv)  # CU16: el conteo físico encontró más stock
 
     mov = models.MovimientoInventario(
         inventario_id=inv.id,

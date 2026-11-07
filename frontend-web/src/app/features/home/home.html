@@ -244,6 +244,13 @@
                 <app-icon name="shopping-cart" [size]="14" />
                 <span>Añadir</span>
               </button>
+              @if (prod.estado_global === 'agotado' && (!auth.isLoggedIn() || auth.isCliente())) {
+                <button type="button" class="btn-avisame" [disabled]="avisos.espera(prod.id)"
+                  (click)="avisarme(prod); $event.stopPropagation()" title="Te avisamos cuando vuelva a haber stock">
+                  <app-icon name="bell" [size]="13" />
+                  <span>{{ avisos.espera(prod.id) ? 'Te avisaremos' : 'Avísame cuando llegue' }}</span>
+                </button>
+              }
               <button type="button" class="btn-check-stock" (click)="abrirDetalle(prod); $event.stopPropagation()">
                 Stock
               </button>

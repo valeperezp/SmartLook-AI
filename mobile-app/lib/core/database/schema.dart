@@ -15,7 +15,7 @@
 class Schema {
   Schema._();
 
-  static const int version = 5;
+  static const int version = 6;
   static const String nombreArchivo = 'smartlook_offline.db';
 
   static const String tablaCatalogoLocal = 'catalogo_local';
@@ -271,7 +271,8 @@ CREATE INDEX ix_movimientos_puntos_cliente ON movimientos_puntos (cliente_id, fe
   static const String _indiceMovimientosVenta = '''
 CREATE INDEX ix_movimientos_puntos_venta ON movimientos_puntos (venta_uuid)''';
 
-  static const String _suscripcionesStock = '''
+  /// `suscripciones_stock` tal como era en v4/v5 (la migración v3 → v4 la crea así; v6 le agrega las columnas de sincronización).
+  static const String _suscripcionesStockV4 = '''
 CREATE TABLE suscripciones_stock (
   id TEXT PRIMARY KEY,
   cliente_id INTEGER NOT NULL,
@@ -284,6 +285,23 @@ CREATE TABLE suscripciones_stock (
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'notificado', 'expirado')),
   fecha_notificacion TEXT,
   visto INTEGER NOT NULL DEFAULT 0 CHECK (visto IN (0, 1))
+)''';
+
+  static const String _suscripcionesStock = '''
+CREATE TABLE suscripciones_stock (
+  id TEXT PRIMARY KEY,
+  cliente_id INTEGER NOT NULL,
+  producto_id INTEGER NOT NULL,
+  talla_id INTEGER,
+  color_id INTEGER,
+  sucursal_id INTEGER,
+  descripcion TEXT NOT NULL,
+  fecha_suscripcion TEXT NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'notificado', 'expirado')),
+  fecha_notificacion TEXT,
+  visto INTEGER NOT NULL DEFAULT 0 CHECK (visto IN (0, 1)),
+  sync_estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (sync_estado IN ('pendiente', 'sincronizado', 'rechazado')),
+  id_servidor INTEGER
 )''';
 
   /// Un cliente no puede tener dos avisos pendientes por la misma variante en la misma sucursal.
@@ -370,7 +388,7 @@ CREATE INDEX ix_items_operacion ON operaciones_locales_items (operacion_uuid)'''
         _movimientosPuntos,
         _indiceMovimientosPuntos,
         _indiceMovimientosVenta,
-        _suscripcionesStock,
+        _suscripcionesStockV4,
         _indiceSuscripcionPendiente,
         _indiceSuscripcionesCliente,
         _syncQueue.replaceFirst('CREATE TABLE sync_queue', 'CREATE TABLE sync_queue_nueva'),
@@ -406,5 +424,14 @@ CREATE INDEX ix_items_operacion ON operaciones_locales_items (operacion_uuid)'''
         'DROP TABLE sync_queue',
         'ALTER TABLE sync_queue_nueva RENAME TO sync_queue',
         _indiceSyncCola,
+      ];
+
+  /// v5 → v6 (CU16): los avisos de stock se sincronizan con el servidor. La propia tabla `suscripciones_stock` hace de cola de
+  /// envío: `sync_estado` dice si ya llegó al servidor (`id_servidor`). Solo ADD COLUMN: no hace falta reconstruir nada.
+  /// Los avisos que ya existían quedan 'pendiente' y se envían en la próxima sincronización.
+  static List<String> get migracionV6 => [
+        "ALTER TABLE suscripciones_stock ADD COLUMN sync_estado TEXT NOT NULL DEFAULT 'pendiente' "
+            "CHECK (sync_estado IN ('pendiente', 'sincronizado', 'rechazado'))",
+        'ALTER TABLE suscripciones_stock ADD COLUMN id_servidor INTEGER',
       ];
 }

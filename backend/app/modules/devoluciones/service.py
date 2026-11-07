@@ -22,6 +22,7 @@ from app.modules.devoluciones import schemas
 from app.modules.devoluciones.models import ConfiguracionDevoluciones
 from app.modules.inventario.models import MovimientoInventario
 from app.modules.sucursales.models import Sucursal
+from app.modules.suscripciones.service import notificar_llegada
 from app.modules.sync.models import Devolucion, DevolucionItem, SyncOperacion
 from app.modules.usuarios.models import Usuario
 from app.modules.ventas import service as ventas_service
@@ -167,6 +168,7 @@ def aplicar_devolucion(
             raise DevolucionError(f"No hay inventario de '{vi.nombre_producto}' en esta sucursal")
         inventario.cantidad_disponible += g["cantidad"]
         inventario.cantidad_vendida = max(0, inventario.cantidad_vendida - g["cantidad"])
+        notificar_llegada(db, inventario)  # CU16: lo devuelto vuelve a la estantería
         db.flush()
         db.add(MovimientoInventario(inventario_id=inventario.id, tipo="devolucion", cantidad=g["cantidad"],
                                     motivo=f"Devolución #{dev.id} de la venta #{venta.id}", usuario_id=usuario.id))

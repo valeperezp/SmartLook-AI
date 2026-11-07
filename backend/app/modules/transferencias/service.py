@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.modules.suscripciones.service import notificar_llegada
 from app.modules.catalogo.models import Producto
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.sucursales.models import Sucursal
@@ -236,6 +237,7 @@ def _sumar_destino(db: Session, t: models.Transferencia, usuario: Usuario, recib
             db.flush()
         inv.activo = True
         inv.cantidad_disponible += recibida
+        notificar_llegada(db, inv)  # CU16: llegó stock a esta sucursal
         db.add(MovimientoInventario(
             inventario_id=inv.id, tipo="transferencia_entrada", cantidad=recibida, usuario_id=usuario.id,
             motivo=f"Transferencia #{t.id} desde {t.nombre_origen}",

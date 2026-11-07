@@ -42,14 +42,14 @@ describe('OfflineDbService (IndexedDB)', () => {
     db = TestBed.inject(OfflineDbService);
   });
 
-  it('crea las 3 tablas: catalogo_local, operaciones_pendientes y sync_queue', async () => {
+  it('crea las 4 tablas: catalogo_local, operaciones_pendientes, suscripciones_pendientes y sync_queue', async () => {
     await db.obtenerCatalogo();
     const abierta = await new Promise<IDBDatabase>((resolve, reject) => {
       const r = indexedDB.open('smartlook-web-offline');
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
-    expect([...abierta.objectStoreNames].sort()).toEqual(['catalogo_local', 'operaciones_pendientes', 'sync_queue']);
+    expect([...abierta.objectStoreNames].sort()).toEqual(['catalogo_local', 'operaciones_pendientes', 'suscripciones_pendientes', 'sync_queue']);
     abierta.close();
   });
 
@@ -154,6 +154,66 @@ describe('OfflineDbService (IndexedDB)', () => {
 
     it('cambiar el estado de una operación que no existe falla con un error claro', async () => {
       await expect(db.marcarSincronizada('nada', 1)).rejects.toThrow('no existe');
+    });
+  });
+
+  /** CU16: "Avísame cuando llegue" hecho sin conexión se guarda en IndexedDB hasta poder enviarse. */
+  describe('suscripciones de stock sin conexión (CU16)', () => {
+    const pedido = (cliente = 7, producto = 101) => ({ cliente_id: cliente, producto_id: producto, nombre_producto: 'Camisa', talla_id: null, color_id: null, sucursal_id: null });
+
+    it('guarda la suscripción con su uuid y fecha, y la devuelve ordenada', async () => {
+      const a = await db.guardarSuscripcionPendiente(pedido(7, 101), 'u-a');
+      await new Promise((r) => setTimeout(r, 5));
+      await db.guardarSuscripcionPendiente(pedido(7, 102), 'u-b');
+
+      expect(a).toMatchObject({ uuid: 'u-a', cliente_id: 7, producto_id: 101 });
+      expect(a.creada_en).toBeTruthy();
+      expect((await db.obtenerSuscripcionesPendientes(7)).map((s) => s.uuid)).toEqual(['u-a', 'u-b']);
+    });
+
+    it('pedir dos veces la misma prenda no la duplica', async () => {
+      const primera = await db.guardarSuscripcionPendiente(pedido(), 'u-1');
+      const segunda = await db.guardarSuscripcionPendiente(pedido(), 'u-2');
+
+      expect(segunda.uuid).toBe(primera.uuid);
+      expect(await db.obtenerSuscripcionesPendientes()).toHaveLength(1);
+    });
+
+    it('se separan por cliente (el navegador es compartido) y se pueden eliminar una vez enviadas', async () => {
+      await db.guardarSuscripcionPendiente(pedido(7, 101), 'u-7');
+      await db.guardarSuscripcionPendiente(pedido(8, 101), 'u-8');
+
+      expect((await db.obtenerSuscripcionesPendientes(8)).map((s) => s.uuid)).toEqual(['u-8']);
+      await db.eliminarSuscripcionPendiente('u-8');
+      expect(await db.obtenerSuscripcionesPendientes(8)).toEqual([]);
+      expect(await db.obtenerSuscripcionesPendientes(7)).toHaveLength(1);
+    });
+
+    it('actualizar de la versión 1 a la 2 conserva lo ya guardado y crea la tabla nueva', async () => {
+      // base v1 tal como la dejó la versión anterior de la web: 3 tablas y una operación pendiente
+      await new Promise<void>((ok, ko) => {
+        const r = indexedDB.open('smartlook-web-offline', 1);
+        r.onupgradeneeded = () => {
+          const d = r.result;
+          d.createObjectStore('catalogo_local', { keyPath: 'clave' }).createIndex('por_empresa', 'empresa');
+          d.createObjectStore('operaciones_pendientes', { keyPath: 'uuid' }).createIndex('por_estado', 'estado');
+          d.createObjectStore('sync_queue', { keyPath: 'id' }).createIndex('por_estado', 'estado');
+        };
+        r.onsuccess = () => {
+          const tx = r.result.transaction('operaciones_pendientes', 'readwrite');
+          tx.objectStore('operaciones_pendientes').put({ uuid: 'vieja', estado: 'pendiente', tipo_operacion: 'VENTA_CONTADO', sucursal_id: 1, fecha: '2026-11-01T00:00:00Z', items: [] });
+          tx.oncomplete = () => {
+            r.result.close();
+            ok();
+          };
+          tx.onerror = () => ko(tx.error);
+        };
+        r.onerror = () => ko(r.error);
+      });
+
+      expect((await db.obtenerOperaciones()).map((o) => o.uuid)).toEqual(['vieja']); // abre en v2 sin perder nada
+      await db.guardarSuscripcionPendiente(pedido(), 'u-nueva'); // y la tabla nueva ya funciona
+      expect(await db.obtenerSuscripcionesPendientes()).toHaveLength(1);
     });
   });
 

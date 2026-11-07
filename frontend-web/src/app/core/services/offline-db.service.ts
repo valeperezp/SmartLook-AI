@@ -7,6 +7,7 @@ import {
   NuevaOperacionLocal,
   OperacionLocal,
 } from '../models/offline.model';
+import { SuscripcionPendienteLocal } from '../models/suscripcion.model';
 
 /** El almacén `catalogo_local` dentro de una transacción de lectura y escritura. */
 type CatalogoStore = IDBPObjectStore<OfflineSchema, ArrayLike<StoreNames<OfflineSchema>>, 'catalogo_local', 'readwrite'>;
@@ -31,10 +32,16 @@ interface OfflineSchema extends DBSchema {
     value: EntradaCola;
     indexes: { por_estado: string };
   };
+  /** CU16: "Avísame cuando llegue" hecho sin conexión; se envía a `POST /suscripciones` al volver la red. */
+  suscripciones_pendientes: {
+    key: string;
+    value: SuscripcionPendienteLocal;
+    indexes: { por_cliente: number };
+  };
 }
 
 export const NOMBRE_BD = 'smartlook-web-offline';
-export const VERSION_BD = 1;
+export const VERSION_BD = 2;
 
 /**
  * Base de datos local de la web (IndexedDB, con la librería `idb`). Guarda el catálogo para consultarlo sin red y las
@@ -54,16 +61,23 @@ export class OfflineDbService {
   private db(): Promise<IDBPDatabase<OfflineSchema>> {
     if (!this.soportado) throw new Error('Este navegador no permite guardar datos sin conexión (IndexedDB no disponible).');
     this.dbPromesa ??= openDB<OfflineSchema>(NOMBRE_BD, VERSION_BD, {
-      upgrade(db) {
-        const catalogo = db.createObjectStore('catalogo_local', { keyPath: 'clave' });
-        catalogo.createIndex('por_empresa', 'empresa');
-        catalogo.createIndex('por_producto', 'producto_id');
+      upgrade(db, versionAnterior) {
+        if (versionAnterior < 1) {
+          const catalogo = db.createObjectStore('catalogo_local', { keyPath: 'clave' });
+          catalogo.createIndex('por_empresa', 'empresa');
+          catalogo.createIndex('por_producto', 'producto_id');
 
-        const operaciones = db.createObjectStore('operaciones_pendientes', { keyPath: 'uuid' });
-        operaciones.createIndex('por_estado', 'estado');
+          const operaciones = db.createObjectStore('operaciones_pendientes', { keyPath: 'uuid' });
+          operaciones.createIndex('por_estado', 'estado');
 
-        const cola = db.createObjectStore('sync_queue', { keyPath: 'id' });
-        cola.createIndex('por_estado', 'estado');
+          const cola = db.createObjectStore('sync_queue', { keyPath: 'id' });
+          cola.createIndex('por_estado', 'estado');
+        }
+        // v2 (CU16): las suscripciones de stock hechas sin conexión. Los datos de la v1 se conservan.
+        if (versionAnterior < 2) {
+          const suscripciones = db.createObjectStore('suscripciones_pendientes', { keyPath: 'uuid' });
+          suscripciones.createIndex('por_cliente', 'cliente_id');
+        }
       },
     });
     return this.dbPromesa;
@@ -217,6 +231,41 @@ export class OfflineDbService {
   async obtenerEntradaCola(uuid: string): Promise<EntradaCola | undefined> {
     if (!this.soportado) return undefined;
     return (await this.db()).get('sync_queue', uuid);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Suscripciones de stock hechas sin conexión (CU16)
+  // ---------------------------------------------------------------------------
+
+  /** Guarda una suscripción "Avísame cuando llegue" para enviarla cuando vuelva la red. Una igual (misma prenda) no se repite. */
+  async guardarSuscripcionPendiente(
+    s: Omit<SuscripcionPendienteLocal, 'uuid' | 'creada_en'>,
+    uuid: string = crypto.randomUUID(),
+  ): Promise<SuscripcionPendienteLocal> {
+    const db = await this.db();
+    const existentes = await db.getAllFromIndex('suscripciones_pendientes', 'por_cliente', s.cliente_id);
+    const igual = existentes.find(
+      (e) => e.producto_id === s.producto_id && e.talla_id === s.talla_id && e.color_id === s.color_id && e.sucursal_id === s.sucursal_id,
+    );
+    if (igual) return igual;
+    const nueva: SuscripcionPendienteLocal = { ...s, uuid, creada_en: new Date().toISOString() };
+    await db.add('suscripciones_pendientes', nueva);
+    return nueva;
+  }
+
+  async obtenerSuscripcionesPendientes(clienteId?: number | null): Promise<SuscripcionPendienteLocal[]> {
+    if (!this.soportado) return [];
+    const db = await this.db();
+    const todas =
+      clienteId === undefined || clienteId === null
+        ? await db.getAll('suscripciones_pendientes')
+        : await db.getAllFromIndex('suscripciones_pendientes', 'por_cliente', clienteId);
+    return todas.sort((a, b) => a.creada_en.localeCompare(b.creada_en));
+  }
+
+  async eliminarSuscripcionPendiente(uuid: string): Promise<void> {
+    const db = await this.db();
+    await db.delete('suscripciones_pendientes', uuid);
   }
 
   // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterOutlet, RouterLink } from '@angular/router';
@@ -8,6 +8,7 @@ import { AdminUiService } from './core/services/admin-ui.service';
 import { PreferenciasService } from './core/services/preferencias.service';
 import { CarritoService } from './core/services/carrito.service';
 import { OfflineSyncService } from './core/services/offline-sync.service';
+import { AvisosStockService } from './core/services/avisos-stock.service';
 import { IconComponent } from './core/components/icon/icon';
 import { ChatWidget } from './core/components/chat-widget/chat-widget';
 import { ReportesChatWidget } from './core/components/reportes-chat-widget/reportes-chat-widget';
@@ -26,6 +27,8 @@ export class App {
   carritoService = inject(CarritoService);
   /** Solo con inyectarlo escucha el evento `online` y envía lo pendiente aunque el usuario esté en otra pantalla. */
   offlineSync = inject(OfflineSyncService);
+  /** CU16: avisos de "Avísame cuando llegue" (campana y aviso flotante). */
+  avisos = inject(AvisosStockService);
   private router = inject(Router);
 
   private currentUrl = toSignal(
@@ -54,6 +57,13 @@ export class App {
   });
 
   constructor() {
+    // Cuando entra un cliente se envía lo que dejó sin conexión y se consultan sus avisos; luego, cada 2 minutos
+    effect(() => {
+      if (this.auth.isCliente()) void this.avisos.refrescar();
+    });
+    const detenerSondeo = this.avisos.iniciarSondeo();
+    inject(DestroyRef).onDestroy(detenerSondeo);
+
     this.router.events
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe(() => {

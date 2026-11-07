@@ -13,6 +13,7 @@ import 'package:smartlook_mobile/features/offline/data/turno_caja_dao.dart';
 import 'package:smartlook_mobile/features/offline/models/catalogo_item.dart';
 import 'package:smartlook_mobile/features/offline/providers/puntos_provider.dart';
 import 'package:smartlook_mobile/features/offline/providers/suscripciones_provider.dart';
+import 'package:smartlook_mobile/features/offline/services/suscripciones_remotas.dart';
 import 'package:smartlook_mobile/features/offline/providers/venta_offline_provider.dart';
 import 'package:smartlook_mobile/features/offline/services/sync_service.dart';
 import 'package:sqflite/sqflite.dart' show Sqflite;
@@ -194,7 +195,8 @@ void main() {
     });
 
     test('SuscripcionesProvider: no suscribe lo que ya tiene stock, y el aviso se muestra una sola vez', () async {
-      final provider = SuscripcionesProvider(dao: avisos);
+      // el servidor de los avisos queda sin red: esta prueba es del comportamiento local
+      final provider = SuscripcionesProvider(dao: avisos, remoto: SuscripcionesRemotas(api: _ApiSinRed(), dao: avisos));
       await catalogo.guardarLoteCatalogo([_filaCatalogo(1, _falda, 1, 5, 0), _filaCatalogo(2, _jean, 4, 3, 5)]);
       final filas = (await catalogo.obtenerProductos()).map(CatalogoItem.fromMap).toList();
       final agotada = filas.firstWhere((p) => p.productoId == _falda);
@@ -209,7 +211,7 @@ void main() {
 
       await catalogo.guardarLoteCatalogo([_filaCatalogo(1, _falda, 1, 5, 6)]);
       final mensajes = await provider.revisarAvisos(_cliente);
-      expect(mensajes.single, allOf(contains('¡Llegó stock de'), contains('Falda plisada'), contains('que esperabas')));
+      expect(mensajes.single, allOf(contains('¡Llegó el producto que esperabas!'), contains('Falda plisada')));
       expect(await provider.revisarAvisos(_cliente), isEmpty); // ya visto
       expect(provider.estaSuscrito(agotada), isFalse);
     });
@@ -575,4 +577,16 @@ void main() {
       expect(indices.map((i) => i['name']), containsAll(['ux_suscripcion_pendiente', 'ix_movimientos_puntos_venta', 'ix_sync_cola']));
     });
   });
+}
+
+/// Servidor de avisos que nunca responde (sin red).
+class _ApiSinRed implements ApiSuscripciones {
+  @override
+  Future<Map<String, dynamic>> crear(Map<String, dynamic> cuerpo) async => throw Exception('sin red');
+
+  @override
+  Future<List<Map<String, dynamic>>> misNotificaciones() async => throw Exception('sin red');
+
+  @override
+  Future<void> marcarVistas() async => throw Exception('sin red');
 }
