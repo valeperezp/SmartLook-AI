@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CatalogoService } from '../../../core/services/catalogo.service';
@@ -41,6 +41,14 @@ export class NuevaVenta implements OnInit {
   auth = inject(AuthService);
   /** Modo offline: estado de la red y operaciones pendientes (IndexedDB). */
   offline = inject(OfflineSyncService);
+
+  /** CU13: si el catálogo guardado cambia (una venta offline descontó stock o un rechazo lo devolvió) y es el que se muestra, se relee. */
+  private readonly alCambiarCatalogoLocal = effect(() => {
+    this.offline.catalogoVersion();
+    untracked(() => {
+      if (this.catalogoLocal()) void this.cargarDesdeCatalogoLocal();
+    });
+  });
 
   user = this.auth.currentUser;
 

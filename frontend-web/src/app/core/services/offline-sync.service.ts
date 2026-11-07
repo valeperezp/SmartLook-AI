@@ -57,6 +57,11 @@ export class OfflineSyncService {
   /** Variantes del catálogo guardadas para esta tienda y cuándo se descargaron. */
   readonly variantesOffline = signal(0);
   readonly catalogoDescargadoEn = signal<string | null>(null);
+  /**
+   * Sube cada vez que cambia el catálogo local (se descargó, una operación offline descontó stock o un rechazo lo
+   * devolvió). Las pantallas que muestran el catálogo guardado lo observan para volver a leerlo.
+   */
+  readonly catalogoVersion = signal(0);
 
   private enCurso = false;
   private temporizador: ReturnType<typeof setTimeout> | null = null;
@@ -351,6 +356,7 @@ export class OfflineSyncService {
       const catalogo = await this.db.obtenerCatalogo(this.empresaActual());
       this.variantesOffline.set(catalogo.length);
       this.catalogoDescargadoEn.set(catalogo.reduce<string | null>((max, f) => (max === null || f.sincronizado_en > max ? f.sincronizado_en : max), null));
+      this.catalogoVersion.update((v) => v + 1);
     } catch (error) {
       console.error('[OfflineSync] No se pudo leer el estado de la base local', error);
     }

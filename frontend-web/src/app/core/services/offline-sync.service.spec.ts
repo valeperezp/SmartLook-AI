@@ -147,6 +147,30 @@ describe('OfflineSyncService', () => {
     expect(await db.obtenerOperacionesPendientes()).toEqual([]);
   });
 
+  it('CU13: un "conflict" por falta de stock en el servidor devuelve el stock local y avisa a las pantallas (catalogoVersion)', async () => {
+    iniciar();
+    const hace1Min = new Date(Date.now() - 60_000).toISOString();
+    await db.guardarCatalogo(
+      [{
+        clave: OfflineDbService.claveCatalogo('1', 1, 101, 2, 1), empresa: '1', sucursal_id: 1, nombre_sucursal: 'Centro', producto_id: 101,
+        nombre_producto: 'Camisa', descripcion: null, categoria_id: 1, nombre_categoria: 'Camisas', talla_id: 2, nombre_talla: 'M',
+        color_id: 1, nombre_color: 'Negro', precio_centavos: 1999, imagen_url: null, cantidad_disponible: 5, sincronizado_en: hace1Min,
+      }],
+      '1',
+    );
+    const stock = async () => (await db.obtenerCatalogo('1'))[0].cantidad_disponible;
+
+    const uuid = await sync.registrarOperacion(venta()); // vende 2 offline
+    expect(await stock()).toBe(3);
+    const versionAntes = sync.catalogoVersion();
+
+    const r = await enviar((req) => req.flush({ resultados: [{ uuid, status: 'conflict', message: 'Stock insuficiente' }] }));
+
+    expect(r.rechazadas).toBe(1);
+    expect(await stock()).toBe(5); // el stock vuelve a estar disponible para el cajero
+    expect(sync.catalogoVersion()).toBeGreaterThan(versionAntes);
+  });
+
   it('"pendiente": sigue pendiente con el mensaje del servidor (ni error ni rechazo) y suma un intento', async () => {
     iniciar();
     const uuid = await sync.registrarOperacion(venta());

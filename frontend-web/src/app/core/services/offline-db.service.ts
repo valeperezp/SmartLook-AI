@@ -1,11 +1,15 @@
 import { Injectable } from '@angular/core';
-import { DBSchema, IDBPDatabase, openDB } from 'idb';
+import { DBSchema, IDBPDatabase, IDBPObjectStore, StoreNames, openDB } from 'idb';
 import {
   EntradaCola,
   ItemCatalogoLocal,
+  ItemOperacionLocal,
   NuevaOperacionLocal,
   OperacionLocal,
 } from '../models/offline.model';
+
+/** El almacén `catalogo_local` dentro de una transacción de lectura y escritura. */
+type CatalogoStore = IDBPObjectStore<OfflineSchema, ArrayLike<StoreNames<OfflineSchema>>, 'catalogo_local', 'readwrite'>;
 
 /** Estructura de la base local (IndexedDB). */
 interface OfflineSchema extends DBSchema {
@@ -134,8 +138,10 @@ export class OfflineDbService {
       fecha_ultimo_intento: null,
     };
     const db = await this.db();
-    const tx = db.transaction(['operaciones_pendientes', 'sync_queue'], 'readwrite');
+    const tx = db.transaction(['operaciones_pendientes', 'sync_queue', 'catalogo_local'], 'readwrite');
     try {
+      // El stock local se resta en la MISMA transacción: o se guarda la operación con su descuento, o no se guarda nada.
+      operacion.stock_local_descontado = await this.descontarStockLocal(tx.objectStore('catalogo_local'), nueva);
       await tx.objectStore('operaciones_pendientes').add(operacion); // add: un uuid repetido falla en vez de pisar
       await tx.objectStore('sync_queue').add(entrada);
     } catch (error) {
@@ -145,6 +151,48 @@ export class OfflineDbService {
     }
     await tx.done;
     return uuid;
+  }
+
+  /** Filas de `catalogo_local` de una variante (sucursal + producto + talla + color). Los ids de producto son únicos entre tiendas. */
+  private async variantesDelCatalogo(almacen: CatalogoStore, sucursalId: number, item: ItemOperacionLocal): Promise<ItemCatalogoLocal[]> {
+    const filas = await almacen.index('por_producto').getAll(item.producto_id);
+    return filas.filter((f) => f.sucursal_id === sucursalId && (f.talla_id ?? 0) === (item.talla_id ?? 0) && (f.color_id ?? 0) === (item.color_id ?? 0));
+  }
+
+  /**
+   * Resta de `catalogo_local` lo que la operación consume, para que dos ventas offline no vendan la misma prenda. Si el
+   * stock guardado no alcanza lanza un error (la operación no se guarda). Una variante que no está en el catálogo
+   * descargado no se toca. Devuelve true si descontó algo.
+   */
+  private async descontarStockLocal(almacen: CatalogoStore, nueva: NuevaOperacionLocal): Promise<boolean> {
+    let descontoAlgo = false;
+    for (const item of nueva.items) {
+      for (const fila of await this.variantesDelCatalogo(almacen, nueva.sucursal_id, item)) {
+        if (fila.cantidad_disponible < item.cantidad) {
+          throw new Error(`Stock insuficiente en este dispositivo para "${fila.nombre_producto}". Disponible: ${fila.cantidad_disponible}, pedido: ${item.cantidad}.`);
+        }
+        await almacen.put({ ...fila, cantidad_disponible: fila.cantidad_disponible - item.cantidad });
+        descontoAlgo = true;
+      }
+    }
+    return descontoAlgo;
+  }
+
+  /**
+   * CU13: el servidor rechazó la operación → vuelve al catálogo local lo que descontó. Solo se devuelve a las filas que
+   * NO se refrescaron desde el servidor después de la operación (si se refrescaron, su cantidad ya es la real del
+   * servidor y sumarla la inflaría).
+   */
+  private async devolverStockLocal(almacen: CatalogoStore, operacion: OperacionLocal): Promise<number> {
+    let devueltas = 0;
+    for (const item of operacion.items) {
+      for (const fila of await this.variantesDelCatalogo(almacen, operacion.sucursal_id, item)) {
+        if (fila.sincronizado_en > operacion.fecha) continue;
+        await almacen.put({ ...fila, cantidad_disponible: fila.cantidad_disponible + item.cantidad });
+        devueltas++;
+      }
+    }
+    return devueltas;
   }
 
   /** Operaciones que esperan enviarse (estado 'pendiente'), de la más antigua a la más nueva. Con [usuarioId] solo las suyas. */
@@ -194,8 +242,9 @@ export class OfflineDbService {
     await this.cerrar(uuid, { cola: 'sincronizado', operacion: 'sincronizada', motivo: null, idServidor });
   }
 
+  /** El servidor rechazó la operación (p. ej. sin stock): queda 'rechazada' y se devuelve al catálogo local el stock que descontó. */
   async marcarRechazada(uuid: string, motivo: string): Promise<void> {
-    await this.cerrar(uuid, { cola: 'rechazado', operacion: 'rechazada', motivo, idServidor: null });
+    await this.cerrar(uuid, { cola: 'rechazado', operacion: 'rechazada', motivo, idServidor: null, devolverStock: true });
   }
 
   /** Lo que quedó 'en_proceso' (la pestaña se cerró en medio de un envío) vuelve a 'pendiente' para reintentarse. */
@@ -220,17 +269,28 @@ export class OfflineDbService {
   /** Cambia la operación y su entrada de cola a la vez (transacción única). */
   private async cerrar(
     uuid: string,
-    r: { cola: EntradaCola['estado']; operacion: OperacionLocal['estado']; motivo: string | null; idServidor: number | null },
+    r: { cola: EntradaCola['estado']; operacion: OperacionLocal['estado']; motivo: string | null; idServidor: number | null; devolverStock?: boolean },
   ): Promise<void> {
     const db = await this.db();
-    const tx = db.transaction(['operaciones_pendientes', 'sync_queue'], 'readwrite');
+    const tx = db.transaction(['operaciones_pendientes', 'sync_queue', 'catalogo_local'], 'readwrite');
     const operacion = await tx.objectStore('operaciones_pendientes').get(uuid);
     const entrada = await tx.objectStore('sync_queue').get(uuid);
     if (!operacion || !entrada) {
       await tx.done;
       throw new Error(`La operación ${uuid} no existe en la base local.`);
     }
-    await tx.objectStore('operaciones_pendientes').put({ ...operacion, estado: r.operacion, id_servidor: r.idServidor, mensaje: r.motivo });
+    let marcaStock = operacion.stock_local_descontado;
+    if (r.devolverStock && operacion.stock_local_descontado) {
+      await this.devolverStockLocal(tx.objectStore('catalogo_local'), operacion);
+      marcaStock = false; // ya devuelto: rechazar otra vez no lo suma de nuevo
+    }
+    await tx.objectStore('operaciones_pendientes').put({
+      ...operacion,
+      estado: r.operacion,
+      id_servidor: r.idServidor,
+      mensaje: r.motivo,
+      ...(marcaStock === undefined ? {} : { stock_local_descontado: marcaStock }),
+    });
     await tx.objectStore('sync_queue').put({ ...entrada, estado: r.cola, ultimo_error: r.motivo });
     await tx.done;
   }

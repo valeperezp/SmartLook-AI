@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, effect, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -42,6 +42,14 @@ export class Home implements OnInit {
   carritoService = inject(CarritoService);
   auth = inject(AuthService);
   offline = inject(OfflineSyncService);
+
+  /** CU13: si el catálogo guardado cambia (stock descontado por una operación offline o devuelto por un rechazo) y es el que se muestra, se relee. */
+  private readonly alCambiarCatalogoLocal = effect(() => {
+    this.offline.catalogoVersion();
+    untracked(() => {
+      if (this.mostrandoCatalogoLocal()) void this.usarCatalogoLocal();
+    });
+  });
 
   recomendaciones = signal<ProductoRecomendado[]>([]);
   cargandoRecomendaciones = signal<boolean>(false);

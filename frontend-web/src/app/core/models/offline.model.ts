@@ -62,6 +62,11 @@ export interface OperacionLocal {
   id_servidor: number | null;
   /** Motivo del rechazo o de la espera, tal como lo dijo el servidor. */
   mensaje: string | null;
+  /**
+   * Esta operación restó stock de `catalogo_local` al guardarse. Si el servidor la rechaza (CU13) ese stock se devuelve
+   * y la marca pasa a false para no devolverlo dos veces. Ausente en operaciones guardadas antes de existir esta marca.
+   */
+  stock_local_descontado?: boolean;
 }
 
 export type EstadoCola = 'pendiente' | 'en_proceso' | 'sincronizado' | 'rechazado';

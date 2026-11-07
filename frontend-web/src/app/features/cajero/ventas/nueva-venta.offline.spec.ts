@@ -232,6 +232,41 @@ describe('TPV del cajero: venta sin conexión', () => {
       expect(pos.varianteSeleccionada()?.talla_id).toBe(2);
     });
 
+    it('CU13: la venta offline descuenta el stock que ofrece el selector y un rechazo del servidor lo devuelve', async () => {
+      await db_guardar([fila(101, 1, 2, 5)]);
+      await crear(false);
+      responderArranque('sin-red');
+      const stockEnSelector = async () => {
+        pos.abrirSelectorVariante(camiseta);
+        await esperar(() => !pos.cargandoVariantes());
+        return pos.variantesDisponibles()[0]?.cantidad_disponible;
+      };
+
+      expect(await stockEnSelector()).toBe(5);
+      pos.carrito.set([{ productoId: 101, nombreProducto: 'Camiseta básica', precio: 19.99, tallaId: 2, nombreTalla: 'M', colorId: 1, nombreColor: 'Negro', cantidad: 2 }]);
+      pos.cobrar();
+      await esperar(async () => (await db.obtenerOperacionesPendientes()).length === 1);
+      expect(await stockEnSelector()).toBe(3); // lo vendido ya no se ofrece
+
+      const [op] = await db.obtenerOperacionesPendientes();
+      await db.marcarRechazada(op.uuid, 'Stock insuficiente'); // el servidor no tenía stock
+      await sync.refrescarEstado();
+      expect(await stockEnSelector()).toBe(5); // vuelve a estar disponible para el cajero
+    });
+
+    it('el TPV vuelve a leer el catálogo guardado cuando éste cambia (descuento o devolución por rechazo)', async () => {
+      await db_guardar([fila(101, 1, 2, 5)]);
+      await crear(false);
+      responderArranque('sin-red');
+      await esperar(() => pos.productos().length === 1);
+
+      await db_guardar([fila(101, 1, 2, 5), fila(102, 1, 2, 3)]); // el catálogo guardado cambió
+      await sync.refrescarEstado(); // avisa del cambio (catalogoVersion)
+      fixture.detectChanges(); // corre el efecto que relee el catálogo
+
+      await esperar(() => pos.productos().length === 2);
+    });
+
     it('flujo completo sin red: elegir variante, agregar al carrito y guardar la venta', async () => {
       await db_guardar([fila(101, 1, 2, 5)]);
       await crear(false);

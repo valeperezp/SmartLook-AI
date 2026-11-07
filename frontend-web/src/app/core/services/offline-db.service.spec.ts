@@ -156,4 +156,128 @@ describe('OfflineDbService (IndexedDB)', () => {
       await expect(db.marcarSincronizada('nada', 1)).rejects.toThrow('no existe');
     });
   });
+
+  /** CU13: el stock del catálogo local se descuenta al vender offline y se devuelve si el servidor rechaza la operación. */
+  describe('stock local (CU13)', () => {
+    /** Catálogo del producto 101 en la sucursal 1, descargado hace un minuto (antes de cualquier operación de la prueba). */
+    const catalogoCon = (stock: number) => db.guardarCatalogo([{ ...item('1', 1, 101, stock), sincronizado_en: new Date(Date.now() - 60_000).toISOString() }], '1');
+    const stockActual = async () => (await db.obtenerCatalogo('1')).find((f) => f.producto_id === 101)?.cantidad_disponible;
+
+    it('guardar una venta offline resta lo vendido del catálogo local', async () => {
+      await catalogoCon(5);
+      const uuid = await db.guardarOperacionLocal(venta(2), 1);
+
+      expect(await stockActual()).toBe(3);
+      expect((await db.obtenerOperaciones()).find((o) => o.uuid === uuid)?.stock_local_descontado).toBe(true);
+    });
+
+    it('si el stock local no alcanza, lanza un error y no guarda la operación ni toca el stock', async () => {
+      await catalogoCon(1);
+      await expect(db.guardarOperacionLocal(venta(2), 1)).rejects.toThrow('Stock insuficiente');
+
+      expect(await stockActual()).toBe(1);
+      expect(await db.obtenerOperaciones()).toEqual([]);
+      expect(await db.contarPendientes()).toBe(0);
+    });
+
+    it('dos ventas offline no pueden vender la misma prenda dos veces', async () => {
+      await catalogoCon(3);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      await expect(db.guardarOperacionLocal(venta(2), 1, 'b')).rejects.toThrow('Disponible: 1');
+
+      expect(await stockActual()).toBe(1);
+      expect((await db.obtenerOperaciones()).map((o) => o.uuid)).toEqual(['a']);
+    });
+
+    it('una variante que no está en el catálogo descargado se guarda sin descontar nada', async () => {
+      await catalogoCon(5);
+      const uuid = await db.guardarOperacionLocal({ ...venta(1), items: [{ producto_id: 999, talla_id: 2, color_id: 1, cantidad: 1, precio_unitario_centavos: 100 }] }, 1);
+
+      expect(await stockActual()).toBe(5);
+      expect((await db.obtenerOperaciones()).find((o) => o.uuid === uuid)?.stock_local_descontado).toBe(false);
+    });
+
+    it('rechazada: devuelve al catálogo local el stock que había descontado', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      expect(await stockActual()).toBe(3);
+
+      await db.marcarRechazada('a', 'Stock insuficiente');
+
+      expect(await stockActual()).toBe(5);
+      expect((await db.obtenerOperaciones('rechazada'))[0]).toMatchObject({ uuid: 'a', mensaje: 'Stock insuficiente', stock_local_descontado: false });
+      expect((await db.obtenerEntradaCola('a'))?.estado).toBe('rechazado');
+    });
+
+    it('rechazar dos veces la misma operación no devuelve el stock dos veces', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      await db.marcarRechazada('a', 'x');
+      await db.marcarRechazada('a', 'otra vez');
+
+      expect(await stockActual()).toBe(5);
+    });
+
+    it('una operación aceptada por el servidor (ok) NO devuelve stock', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      await db.marcarSincronizada('a', 10);
+
+      expect(await stockActual()).toBe(3);
+    });
+
+    it('una pendiente que vuelve a esperar ("pendiente"/error de red) conserva el descuento', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      await db.devolverAPendiente('a', 'sin red');
+
+      expect(await stockActual()).toBe(3);
+    });
+
+    it('si el catálogo se volvió a descargar después de la venta, el rechazo NO suma (ya es el stock real del servidor)', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      // descarga posterior: el servidor ya dice 3 y esa fila es más nueva que la operación
+      await db.guardarCatalogo([{ ...item('1', 1, 101, 3), sincronizado_en: new Date(Date.now() + 5_000).toISOString() }], '1');
+
+      await db.marcarRechazada('a', 'Stock insuficiente');
+
+      expect(await stockActual()).toBe(3);
+    });
+
+    it('una reserva rechazada también devuelve su stock', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal({ ...venta(2), tipo_operacion: 'RESERVA_CLIENTE', cajero_id: null, cliente_id: 4 }, 4, 'r');
+      expect(await stockActual()).toBe(3);
+
+      await db.marcarRechazada('r', 'Stock insuficiente');
+      expect(await stockActual()).toBe(5);
+    });
+
+    it('una operación guardada antes de existir la marca (sin stock_local_descontado) no suma nada al rechazarse', async () => {
+      await catalogoCon(5);
+      await db.guardarOperacionLocal(venta(2), 1, 'a');
+      // simula una operación de una versión anterior: sin la marca, y su descuento nunca ocurrió
+      const abierta = await new Promise<IDBDatabase>((ok, ko) => {
+        const r = indexedDB.open('smartlook-web-offline');
+        r.onsuccess = () => ok(r.result);
+        r.onerror = () => ko(r.error);
+      });
+      await new Promise<void>((ok, ko) => {
+        const tx = abierta.transaction('operaciones_pendientes', 'readwrite');
+        const store = tx.objectStore('operaciones_pendientes');
+        store.get('a').onsuccess = (e) => {
+          const op = (e.target as IDBRequest).result;
+          delete op.stock_local_descontado;
+          store.put(op);
+        };
+        tx.oncomplete = () => ok();
+        tx.onerror = () => ko(tx.error);
+      });
+      abierta.close();
+
+      await db.marcarRechazada('a', 'x');
+      expect(await stockActual()).toBe(3); // no se inventa stock
+    });
+  });
 });
