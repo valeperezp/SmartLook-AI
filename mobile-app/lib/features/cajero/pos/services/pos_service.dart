@@ -12,11 +12,14 @@ class PosService {
     required int sucursalId,
     int? clienteId,
     required List<Map<String, dynamic>> items,
+    int puntosACanjear = 0,
   }) async {
     final payload = {
       'sucursal_id': sucursalId,
       'cliente_id': clienteId,
       'items': items,
+      // CU17: puntos del cliente que se canjean como descuento (el servidor valida saldo y total)
+      if (puntosACanjear > 0) 'puntos_a_canjear': puntosACanjear,
     };
 
     final response = await _client.post('/ventas', data: payload);

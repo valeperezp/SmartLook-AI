@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/config/regla_puntos.dart';
 import '../../carrito/providers/carrito_provider.dart';
 import '../providers/checkout_provider.dart';
 import '../widgets/qr_payment_widget.dart';
@@ -20,6 +21,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final checkout = context.read<CheckoutProvider>();
       checkout.cargarSucursales();
+      checkout.cargarPuntos(); // saldo de puntos y regla de la empresa (CU17)
     });
   }
 
@@ -334,12 +336,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           );
                         }),
                         const Divider(height: 24),
+                        // Puntos de fidelización (CU17): canje como descuento
+                        if (checkout.ventaId == null && checkout.puntosUsables(carrito.total) > 0)
+                          CheckboxListTile(
+                            key: const Key('usar_puntos'),
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            value: checkout.usarPuntos,
+                            onChanged: (v) => checkout.setUsarPuntos(v ?? false),
+                            title: Text(
+                              'Usar mis ${checkout.puntosUsables(carrito.total)} puntos (Descuento: '
+                              '\$${(ReglaPuntos.descuentoCentavos(checkout.puntosUsables(carrito.total)) / 100).toStringAsFixed(2)})',
+                            ),
+                          ),
+                        if (checkout.ventaId == null && checkout.puntosACanjear(carrito.total) > 0)
+                          Row(
+                            key: const Key('descuento_puntos'),
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Descuento por ${checkout.puntosACanjear(carrito.total)} puntos'),
+                              Text('-\$${checkout.descuentoPuntos(carrito.total).toStringAsFixed(2)}',
+                                  style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text('Total a pagar:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             Text(
-                              '\$${(checkout.ventaId != null ? checkout.montoVenta : carrito.total).toStringAsFixed(2)}',
+                              '\$${checkout.montoAPagar(carrito.total).toStringAsFixed(2)}',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -528,7 +553,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       label: Text(
                         checkout.estado == EstadoCheckout.creando
                             ? 'Creando orden online...'
-                            : 'Continuar al pago (\$${(checkout.ventaId != null ? checkout.montoVenta : carrito.total).toStringAsFixed(2)})',
+                            : 'Continuar al pago (\$${checkout.montoAPagar(carrito.total).toStringAsFixed(2)})',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                     ),

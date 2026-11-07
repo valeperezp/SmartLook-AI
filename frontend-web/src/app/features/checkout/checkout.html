@@ -312,16 +312,16 @@
                     <span>Creando orden...</span>
                   } @else if (!offline.online()) {
                     <app-icon name="clock" [size]="18" />
-                    <span>Guardar reserva sin conexión (${{ carritoService.total() | number:'1.2-2' }})</span>
+                    <span>Guardar reserva sin conexión (${{ totalAPagar() | number:'1.2-2' }})</span>
                   } @else if (metodoPago() === 'tarjeta') {
                     <app-icon name="credit-card" [size]="18" />
-                    <span>Pagar con tarjeta (${{ carritoService.total() | number:'1.2-2' }})</span>
+                    <span>Pagar con tarjeta (${{ totalAPagar() | number:'1.2-2' }})</span>
                   } @else if (metodoPago() === 'qr') {
                     <app-icon name="qr" [size]="18" />
-                    <span>Pagar con QR (${{ carritoService.total() | number:'1.2-2' }})</span>
+                    <span>Pagar con QR (${{ totalAPagar() | number:'1.2-2' }})</span>
                   } @else {
                     <app-icon name="dollar-sign" [size]="18" />
-                    <span>Reservar y pagar en sucursal (${{ carritoService.total() | number:'1.2-2' }})</span>
+                    <span>Reservar y pagar en sucursal (${{ totalAPagar() | number:'1.2-2' }})</span>
                   }
                 </button>
               </div>
@@ -416,6 +416,20 @@
             }
           </div>
 
+          <!-- PUNTOS DE FIDELIZACIÓN (CU17) -->
+          @if (puntosUsables() > 0 && !reservaGuardadaOffline()) {
+            <label class="puntos-canje">
+              <input
+                type="checkbox"
+                name="usarPuntos"
+                [ngModel]="usarPuntos()"
+                (ngModelChange)="usarPuntos.set($event)"
+                [disabled]="ventaId() !== null || creandoVenta()"
+              />
+              <span>Usar mis {{ puntosUsables() }} puntos (Descuento: ${{ descuentoPosible() | number:'1.2-2' }})</span>
+            </label>
+          }
+
           <!-- DESGLOSE DE TOTALES -->
           <div class="summary-totals-breakdown">
             <div class="total-line">
@@ -426,6 +440,12 @@
               <span class="label">Subtotal estimado</span>
               <span class="val">${{ carritoService.total() | number:'1.2-2' }}</span>
             </div>
+            @if (puntosACanjear() > 0) {
+              <div class="total-line descuento-puntos">
+                <span class="label">Descuento por {{ puntosACanjear() }} puntos</span>
+                <span class="val">-${{ descuentoPuntos() | number:'1.2-2' }}</span>
+              </div>
+            }
             <div class="total-line">
               <span class="label">Costo de retiro</span>
               <span class="val free-badge">Gratis</span>
@@ -433,7 +453,7 @@
             <div class="total-divider"></div>
             <div class="total-line final-total">
               <span class="label">Total a pagar</span>
-              <span class="val">${{ carritoService.total() | number:'1.2-2' }}</span>
+              <span class="val">${{ totalAPagar() | number:'1.2-2' }}</span>
             </div>
           </div>
 

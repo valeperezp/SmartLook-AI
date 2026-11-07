@@ -28,11 +28,15 @@ class VentaPresencialCreate(BaseModel):
     sucursal_id: int
     cliente_id: int | None = None
     items: list[VentaItemCreate] = Field(..., min_length=1)
+    # CU17: puntos del cliente que se canjean como descuento (requiere cliente_id). El servidor valida el saldo y el total.
+    puntos_a_canjear: int = Field(0, ge=0)
 
 
 class VentaOnlineCreate(BaseModel):
     sucursal_id: int
     items: list[VentaItemCreate] = Field(..., min_length=1)
+    # CU17: puntos del cliente logueado que se canjean como descuento. El servidor valida el saldo y el total.
+    puntos_a_canjear: int = Field(0, ge=0)
 
 
 class VentaOut(BaseModel):

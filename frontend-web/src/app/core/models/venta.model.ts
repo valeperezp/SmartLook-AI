@@ -44,4 +44,6 @@ export interface VentaPresencialCreate {
 export interface VentaOnlineCreate {
   sucursal_id: number;
   items: VentaItemCreate[];
+  /** CU17: puntos que el cliente canjea como descuento (el servidor valida saldo y total). */
+  puntos_a_canjear?: number;
 }

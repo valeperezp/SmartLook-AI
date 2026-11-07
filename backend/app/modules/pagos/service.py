@@ -4,7 +4,8 @@ from decimal import ROUND_HALF_UP, Decimal
 import stripe
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-
+
+from app.modules.fidelizacion.service import devolver_canje_de_venta
 from app.modules.pagos import models, schemas
 from app.modules.ventas.models import Venta
 from app.shared.core.config import settings
@@ -111,6 +112,7 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
                 pago.estado = "fallido"
                 pago.referencia_externa = f"{intent.id} - FALLO STOCK: {e.detail}"
                 venta.estado = "cancelada"
+                devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
                 db.commit()
                 raise e
     elif intent.status in ("requires_payment_method", "canceled"):
@@ -119,7 +121,8 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
         db.add(pago)
         if venta.canal == "online" and venta.estado == "pendiente":
             venta.estado = "cancelada"
-        db.commit()
+            devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
+            db.commit()
         db.refresh(pago)
     else:
         # processing / requires_action (3DS) / otros: el cobro sigue en curso; no se cancela nada.
@@ -282,6 +285,7 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
                 pago.estado = "fallido"
                 pago.referencia_externa = f"FALLO STOCK: {e.detail}"
                 venta.estado = "cancelada"
+                devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
                 db.commit()
                 raise e
     else:
@@ -290,7 +294,8 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
             pago.referencia_externa = f"RECHAZADO: {motivo[:100]}"
         if venta and venta.canal == "online":
             venta.estado = "cancelada"
-        db.commit()
+            devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
+            db.commit()
         db.refresh(pago)
     
     return pago

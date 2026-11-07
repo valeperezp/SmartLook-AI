@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' show Transaction;
 import 'package:uuid/uuid.dart';
 
+import '../../../core/config/regla_puntos.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
 import 'puntos_dao.dart';
@@ -52,6 +53,7 @@ class SyncQueueDao {
     int? clienteId, {
     bool descontarStockLocal = false,
     String? turnoUuid,
+    int puntosACanjear = 0,
   }) async {
     final db = await _appDb.database;
     if (db == null) {
@@ -63,6 +65,17 @@ class SyncQueueDao {
         throw ArgumentError('Solo una VENTA_CONTADO puede vincularse a un turno de caja');
       }
       final cabecera = _validarYArmarCabecera(json, uuid, tipoOperacion, clienteId)..['turno_uuid'] = turnoUuid;
+      if (puntosACanjear < 0) throw ArgumentError('puntosACanjear no puede ser negativo');
+      if (puntosACanjear > 0) {
+        // CU17: los puntos canjeados son un descuento sobre el total de la venta
+        if (tipoOperacion != Schema.tipoVentaContado || clienteId == null) {
+          throw ArgumentError('Solo una VENTA_CONTADO con cliente registrado puede canjear puntos');
+        }
+        final bruto = _calcularTotal(json['items']);
+        final descuento = ReglaPuntos.descuentoCentavos(puntosACanjear);
+        if (descuento > bruto) throw ArgumentError('El descuento por puntos supera el total de la venta');
+        cabecera['total_centavos'] = bruto - descuento;
+      }
       final items = _validarYArmarItems(json['items'], uuid);
       final descuentos = descontarStockLocal ? _validarDescuentos(json['items']) : const <(int, int)>[];
       final colaId = _uuid.v4();
@@ -92,13 +105,19 @@ class SyncQueueDao {
           'tipo_operacion': tipoOperacion,
           'operacion_uuid': uuid,
           // La marca indica que ESTA operación restó stock local: si el servidor la rechaza hay que devolverlo.
-          'payload_json': jsonEncode({...json, if (descontarStockLocal) _marcaStockDescontado: true}),
+          'payload_json': jsonEncode({
+            ...json,
+            if (descontarStockLocal) _marcaStockDescontado: true,
+            if (puntosACanjear > 0) 'puntos_canjeados': puntosACanjear,
+          }),
           'estado': Schema.estadoPendiente,
           'intentos': 0,
           'fecha_creacion': ahora,
         });
-        // Fidelización (CU17): una venta de contado con cliente le da puntos, en la misma transacción
+        // Fidelización (CU17), en la misma transacción: primero el canje (si alcanza el saldo) y luego los puntos que gana
+        // el cliente por lo que pagó de verdad (el total ya con el descuento)
         if (tipoOperacion == Schema.tipoVentaContado && clienteId != null) {
+          if (puntosACanjear > 0) await PuntosDao.canjearEn(txn, clienteId, uuid, puntosACanjear);
           await PuntosDao.otorgarEn(txn, clienteId, uuid, cabecera['total_centavos'] as int);
         }
       });

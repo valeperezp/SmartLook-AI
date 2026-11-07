@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.modules.bitacora import service as bitacora
 from app.modules.catalogo.models import Producto
+from app.modules.fidelizacion import service as fidelizacion
 from app.modules.inventario.models import MovimientoInventario
 from app.modules.reservas import schemas as reservas_schemas
 from app.modules.reservas import service as reservas_service
@@ -212,6 +213,20 @@ def _validar_empresa_operacion(db: Session, empresa_id: int, op: schemas.Operaci
     _validar_productos(db, empresa_id, [i.producto_id for i in op.items])
 
 
+def _aplicar_descuento_por_puntos(db: Session, empresa_id: int, puntos: int, venta: Venta) -> None:
+    """CU17: la venta se hizo offline con un canje de [puntos]: el total del servidor lleva el mismo descuento.
+
+    Solo baja el total; los puntos se restan con el movimiento PUNTOS_RESTADOS ("canje") que sube la app.
+    """
+    if puntos <= 0:
+        return
+    descuento = puntos * fidelizacion.valor_punto_centavos(db, empresa_id)
+    bruto = fidelizacion.a_centavos(venta.total)
+    if descuento > bruto:
+        raise ConflictoSync("El descuento por puntos supera el total de la venta")
+    venta.total = (bruto - descuento) / 100
+
+
 def _cliente_de_la_empresa(db: Session, empresa_id: int, cliente_id: int | None) -> int | None:
     """Cliente (para puntos) de una venta de contado: solo si existe y es de la misma empresa; si no, venta anónima."""
     if cliente_id is None:
@@ -240,10 +255,12 @@ def _aplicar_operacion(db: Session, usuario: Usuario, op: schemas.OperacionSync)
         faltantes = ventas_service.detectar_faltantes_de_stock(db, op.sucursal_id, data.items)
         if faltantes:
             venta = ventas_service.crear_venta_en_conflicto(db, data, cajero_id=usuario.id)
+            _aplicar_descuento_por_puntos(db, empresa_id, op.puntos_canjeados, venta)
             if fecha is not None:
                 venta.creada_en = fecha
             raise VentaEnConflicto(venta.id, "; ".join(faltantes))
         venta = ventas_service.crear_venta_presencial(db, data, cajero_id=usuario.id, commit=False)
+        _aplicar_descuento_por_puntos(db, empresa_id, op.puntos_canjeados, venta)
         if fecha is not None:
             venta.creada_en = fecha
         return "venta", venta.id
@@ -414,6 +431,9 @@ def _aplicar_puntos(db: Session, usuario: Usuario, m: schemas.MovimientoPuntosSy
         saldo = PuntosCliente(empresa_id=empresa_id, cliente_id=cliente.id, saldo=0)
         db.add(saldo)
         db.flush()
+    if m.motivo == "canje" and m.tipo_operacion == "PUNTOS_RESTADOS" and saldo.saldo < m.cantidad:
+        # CU17: un canje no puede gastar más de lo que el cliente tiene (el resto de restas sí se recorta a 0)
+        raise ConflictoSync(f"Puntos insuficientes para el canje: el cliente tiene {saldo.saldo} y se canjearon {m.cantidad}")
     delta = m.cantidad if m.tipo_operacion == "PUNTOS_OTORGADOS" else -m.cantidad
     saldo.saldo = max(saldo.saldo + delta, 0)  # el saldo nunca baja de 0, igual que en la app
 

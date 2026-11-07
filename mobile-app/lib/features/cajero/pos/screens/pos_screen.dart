@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/config/regla_puntos.dart';
 import '../../../../core/models/disponibilidad.dart';
 import '../../../../core/models/producto.dart';
 import '../../../../core/models/venta.dart';
+import '../../../../core/services/fidelizacion_service.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_state.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../offline/widgets/selector_canje_puntos.dart';
 import '../providers/pos_provider.dart';
 import '../widgets/carrito_pos_widget.dart';
 import '../widgets/producto_busqueda_tile.dart';
@@ -20,6 +23,9 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
+  /// Cliente y puntos que se canjean en el cobro en curso (CU17). Se reinicia al abrir el selector de cobro.
+  SeleccionPuntos _seleccionPuntos = (clienteId: null, valido: true, puntos: 0);
+
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -285,9 +291,14 @@ class _PosScreenState extends State<PosScreen> {
     final provider = context.read<PosProvider>();
     final auth = context.read<AuthProvider>();
     final sucursalId = auth.usuario?.sucursalId ?? 1;
+    _seleccionPuntos = (clienteId: null, valido: true, puntos: 0);
+    final totalCentavos = (provider.total * 100).round();
 
     mostrarHojaClaraConFondo(context, (ctx) {
-        return Padding(
+      return StatefulBuilder(builder: (ctx, setHoja) {
+        final descuento = ReglaPuntos.descuentoCentavos(_seleccionPuntos.puntos) / 100;
+        return SingleChildScrollView(
+          child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -298,14 +309,23 @@ class _PosScreenState extends State<PosScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Total: \$${provider.total.toStringAsFixed(2)} (${provider.unidades} prendas)',
+                'Total: \$${(provider.total - descuento).toStringAsFixed(2)} (${provider.unidades} prendas)'
+                '${descuento > 0 ? '  •  Descuento por puntos: -\$${descuento.toStringAsFixed(2)}' : ''}',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+
+              // Cliente y canje de puntos (CU17): el saldo y la regla salen del backend
+              SelectorCanjePuntos(
+                totalCentavos: totalCentavos,
+                consultarSaldo: (id) async => (await FidelizacionService().puntosDeCliente(id)).saldo,
+                alCambiar: (s) => setHoja(() => _seleccionPuntos = s),
+              ),
+              const SizedBox(height: 12),
 
               // Opción 1: Efectivo
               ListTile(
@@ -371,8 +391,10 @@ class _PosScreenState extends State<PosScreen> {
               const SizedBox(height: 12),
             ],
           ),
+        ),
         );
-      },
+      });
+    },
     );
   }
 
@@ -382,7 +404,11 @@ class _PosScreenState extends State<PosScreen> {
     final auth = context.read<AuthProvider>();
     final sucursalId = auth.usuario?.sucursalId ?? 1;
 
-    final venta = await provider.registrarVenta(sucursalId: sucursalId);
+    final venta = await provider.registrarVenta(
+      sucursalId: sucursalId,
+      clienteId: _seleccionPuntos.valido ? _seleccionPuntos.clienteId : null,
+      puntosACanjear: _seleccionPuntos.valido ? _seleccionPuntos.puntos : 0,
+    );
     if (!mounted) return;
 
     if (venta != null) {
@@ -401,7 +427,11 @@ class _PosScreenState extends State<PosScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final provider = context.read<PosProvider>();
 
-    final venta = await provider.registrarVenta(sucursalId: sucursalId);
+    final venta = await provider.registrarVenta(
+      sucursalId: sucursalId,
+      clienteId: _seleccionPuntos.valido ? _seleccionPuntos.clienteId : null,
+      puntosACanjear: _seleccionPuntos.valido ? _seleccionPuntos.puntos : 0,
+    );
     if (!mounted) return;
 
     if (venta != null) {

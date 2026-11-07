@@ -8,6 +8,17 @@ import '../../../core/config/offline_config.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
 
+/// El cliente no tiene los puntos que se quieren canjear (CU17).
+class PuntosInsuficientes implements Exception {
+  const PuntosInsuficientes({required this.disponibles, required this.pedidos});
+
+  final int disponibles;
+  final int pedidos;
+
+  @override
+  String toString() => 'Puntos insuficientes: tiene $disponibles y se quieren canjear $pedidos.';
+}
+
 /// Puntos de fidelización del cliente (CU17): saldo, movimientos y su envío al servidor.
 ///
 /// Los puntos se ganan con las ventas de contado (1 por cada $10, ver [OfflineConfig]) y se pierden, en
@@ -66,6 +77,37 @@ class PuntosDao {
       });
     } catch (e, st) {
       debugPrint('[PuntosDao] Error al restar puntos a $clienteId: $e\n$st');
+      rethrow;
+    }
+  }
+
+  /// Alinea el saldo local con el del servidor (CU17): el saldo real es el del servidor MÁS lo que este dispositivo aún no
+  /// envió (movimientos pendientes). Sin esto solo se podrían canjear puntos ganados en este mismo dispositivo.
+  /// Devuelve el saldo disponible resultante.
+  Future<int> reconciliarSaldo(int clienteId, int saldoServidor) async {
+    final db = await _db();
+    try {
+      return await db.transaction((txn) async {
+        final filas = await txn.rawQuery(
+          "SELECT COALESCE(SUM(CASE WHEN tipo = '${Schema.puntosGanado}' THEN cantidad ELSE -cantidad END), 0) AS n "
+          'FROM ${Schema.tablaMovimientosPuntos} WHERE cliente_id = ? AND estado_sync = ?',
+          [clienteId, 'pendiente'],
+        );
+        final pendientes = filas.first['n'] as int;
+        final saldo = (saldoServidor + pendientes) < 0 ? 0 : saldoServidor + pendientes;
+        final ahora = DateTime.now().toUtc().toIso8601String();
+        await txn.rawInsert(
+          'INSERT OR IGNORE INTO ${Schema.tablaPuntosCliente} (cliente_id, saldo, ultima_actualizacion) VALUES (?, 0, ?)',
+          [clienteId, ahora],
+        );
+        await txn.rawUpdate(
+          'UPDATE ${Schema.tablaPuntosCliente} SET saldo = ?, ultima_actualizacion = ? WHERE cliente_id = ?',
+          [saldo, ahora, clienteId],
+        );
+        return saldo;
+      });
+    } catch (e, st) {
+      debugPrint('[PuntosDao] Error al reconciliar el saldo de $clienteId: $e\n$st');
       rethrow;
     }
   }
@@ -164,6 +206,25 @@ class PuntosDao {
     return puntos;
   }
 
+  /// Canje (CU17): [puntos] del cliente se usan como descuento en la venta [operacionUuid]. Valida que alcance el saldo
+  /// (lanza [PuntosInsuficientes] y no guarda nada), resta los puntos y deja un movimiento `canjeado` en la cola como
+  /// PUNTOS_RESTADOS (con `motivo: canje`), que se envía cuando la venta ya está en el servidor.
+  static Future<void> canjearEn(DatabaseExecutor txn, int clienteId, String operacionUuid, int puntos) async {
+    if (puntos <= 0) throw ArgumentError('Los puntos a canjear deben ser positivos');
+    final saldo = await _saldo(txn, clienteId);
+    if (puntos > saldo) throw PuntosInsuficientes(disponibles: saldo, pedidos: puntos);
+    await _registrarMovimiento(
+      txn,
+      clienteId: clienteId,
+      operacionUuid: operacionUuid,
+      ventaUuid: operacionUuid,
+      tipo: Schema.puntosCanjeado,
+      cantidad: puntos,
+      tipoCola: Schema.tipoPuntosRestados,
+      motivo: 'canje',
+    );
+  }
+
   /// Resta los puntos que corresponden a lo devuelto hasta ahora de la venta, descontando lo ya restado.
   ///
   /// Proporción: `puntos_ganados × devuelto_acumulado / total_venta` (redondeado). Así devolver toda la venta
@@ -239,6 +300,7 @@ class PuntosDao {
     required String tipo,
     required int cantidad,
     required String tipoCola,
+    String? motivo,
   }) async {
     final ahora = DateTime.now().toUtc().toIso8601String();
     final id = _uuid.v4();
@@ -272,6 +334,7 @@ class PuntosDao {
         'tipo': tipo,
         'cantidad': cantidad,
         'fecha': ahora,
+        'motivo': ?motivo,
       }),
       'estado': Schema.estadoPendiente,
       'intentos': 0,

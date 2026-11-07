@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'core/config/env.dart';
+import 'core/config/regla_puntos.dart';
 import 'core/network/dio_client.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -39,6 +40,7 @@ import 'features/vestidor/providers/vestidor_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await ReglaPuntos.cargarGuardada(); // la regla de puntos de la empresa (viene del backend), para usarla sin conexión
   if (!kIsWeb) {
     try {
       Stripe.publishableKey = Env.stripePublishableKey;

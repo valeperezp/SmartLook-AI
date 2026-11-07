@@ -27,6 +27,9 @@ class OperacionSync(BaseModel):
     fecha: str | None = None  # ISO 8601: cuándo ocurrió en el dispositivo
     total_centavos: int | None = None
     items: list[ItemSync] = []
+    # CU17: puntos que el cliente canjeó en esta venta offline. El servidor aplica el descuento al total (valor del punto de
+    # su empresa); los puntos en sí se restan con el movimiento PUNTOS_RESTADOS (motivo "canje") que sube la app.
+    puntos_canjeados: int = Field(0, ge=0)
 
 
 # ---------- Devolución / cambio ----------
@@ -63,6 +66,7 @@ class MovimientoPuntosSync(BaseModel):
     operacion_uuid: str | None = None  # venta o devolución de origen
     venta_uuid: str | None = None
     fecha: str | None = None
+    motivo: str | None = None  # "canje": puntos usados como descuento (se exige saldo suficiente; no se recorta a 0)
 
 
 # ---------- Cierre de caja ----------

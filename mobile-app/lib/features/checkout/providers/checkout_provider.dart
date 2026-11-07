@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/config/regla_puntos.dart';
 import '../../../core/models/sucursal.dart';
 import '../../../core/models/venta.dart';
 import '../../../core/services/catalogo_service.dart';
+import '../../../core/services/fidelizacion_service.dart';
 import '../../carrito/models/carrito_item.dart';
 import '../models/pago.dart';
 import '../models/venta_online.dart';
@@ -15,6 +17,11 @@ class CheckoutProvider extends ChangeNotifier {
   final CatalogoService _catalogoService;
   final VentasOnlineService _ventasOnlineService;
   final PagosService _pagosService;
+  final FidelizacionService _fidelizacionService;
+
+  // Puntos de fidelización (CU17): saldo y regla vienen del backend
+  PuntosServidor? _puntos;
+  bool _usarPuntos = false;
 
   EstadoCheckout _estado = EstadoCheckout.idle;
   List<Sucursal> _sucursales = [];
@@ -44,14 +51,39 @@ class CheckoutProvider extends ChangeNotifier {
   bool get pagoQREnviado => _pagoQREnviado;
   String? get errorMessage => _errorMessage;
 
+  /// Saldo de puntos del cliente y regla de su empresa (null si no se pudo leer del servidor).
+  PuntosServidor? get puntos => _puntos;
+  bool get usarPuntos => _usarPuntos;
+
+  /// Puntos que se pueden canjear en una compra de [totalCarrito]: todos los que tiene, sin que el descuento supere el total.
+  int puntosUsables(double totalCarrito) =>
+      ReglaPuntos.puntosUsables(saldo: _puntos?.saldo ?? 0, totalCentavos: (totalCarrito * 100).round());
+
+  /// Puntos que realmente se canjean (0 si el cliente no marcó la casilla).
+  int puntosACanjear(double totalCarrito) => _usarPuntos ? puntosUsables(totalCarrito) : 0;
+
+  /// Descuento (en moneda) por los puntos que se canjean.
+  double descuentoPuntos(double totalCarrito) => ReglaPuntos.descuentoCentavos(puntosACanjear(totalCarrito)) / 100;
+
+  /// Lo que paga el cliente: el total del carrito menos el descuento por puntos.
+  double totalAPagar(double totalCarrito) {
+    final t = totalCarrito - descuentoPuntos(totalCarrito);
+    return t < 0 ? 0 : t;
+  }
+
+  /// Lo que se muestra como "Total a pagar": el de la orden ya creada (con descuento) o el estimado del carrito.
+  double montoAPagar(double totalCarrito) => _ventaId != null ? _montoVenta : totalAPagar(totalCarrito);
+
   /// Los servicios se pueden inyectar (para pruebas); por defecto usan la API real.
   CheckoutProvider({
     CatalogoService? catalogoService,
     VentasOnlineService? ventasOnlineService,
     PagosService? pagosService,
+    FidelizacionService? fidelizacionService,
   })  : _catalogoService = catalogoService ?? CatalogoService(),
         _ventasOnlineService = ventasOnlineService ?? VentasOnlineService(),
-        _pagosService = pagosService ?? PagosService() {
+        _pagosService = pagosService ?? PagosService(),
+        _fidelizacionService = fidelizacionService ?? FidelizacionService() {
     cargarSucursales();
   }
 
@@ -72,6 +104,23 @@ class CheckoutProvider extends ChangeNotifier {
       _cargandoSucursales = false;
       notifyListeners();
     }
+  }
+
+  /// Pide al backend el saldo de puntos y la regla de la empresa. Sin red o sin sesión de cliente no se ofrece el canje.
+  Future<void> cargarPuntos() async {
+    try {
+      _puntos = await _fidelizacionService.misPuntos();
+    } catch (e) {
+      debugPrint('[CheckoutProvider] No se pudo leer el saldo de puntos: $e');
+      _puntos = null;
+    }
+    notifyListeners();
+  }
+
+  void setUsarPuntos(bool usar) {
+    if (_ventaId != null) return; // la orden ya se creó con (o sin) el canje
+    _usarPuntos = usar;
+    notifyListeners();
   }
 
   void setSucursalId(int? id) {
@@ -105,6 +154,8 @@ class CheckoutProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final totalCarrito = items.fold<double>(0, (suma, it) => suma + it.subtotal);
+      final canje = puntosACanjear(totalCarrito);
       final payload = VentaOnlineCreate(
         sucursalId: sucursalId,
         items: items
@@ -115,11 +166,16 @@ class CheckoutProvider extends ChangeNotifier {
                   cantidad: it.cantidad,
                 ))
             .toList(),
+        puntosACanjear: canje,
       );
 
       final venta = await _ventasOnlineService.crearVentaOnline(payload);
       _ventaId = venta.id;
       _montoVenta = venta.total;
+      if (canje > 0 && _puntos != null) {
+        // El servidor ya descontó los puntos del saldo
+        _puntos = PuntosServidor(clienteId: _puntos!.clienteId, saldo: _puntos!.saldo - canje, valorPuntoCentavos: _puntos!.valorPuntoCentavos);
+      }
       _estado = EstadoCheckout.esperandoPago;
       notifyListeners();
       return venta;
@@ -279,6 +335,7 @@ class CheckoutProvider extends ChangeNotifier {
     _estado = EstadoCheckout.idle;
     _errorMessage = null;
     notifyListeners();
+    cargarPuntos(); // si la orden se canceló, el servidor devolvió los puntos canjeados
   }
 
   void reset() {

@@ -163,6 +163,7 @@ class PosProvider with ChangeNotifier {
   Future<Venta?> registrarVenta({
     required int sucursalId,
     int? clienteId,
+    int puntosACanjear = 0,
   }) async {
     if (_carrito.isEmpty) {
       _errorMessage = 'El carrito está vacío';
@@ -180,6 +181,7 @@ class PosProvider with ChangeNotifier {
         sucursalId: sucursalId,
         clienteId: clienteId,
         items: itemsPayload,
+        puntosACanjear: puntosACanjear,
       );
 
       _ultimaVenta = venta;

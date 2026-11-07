@@ -533,6 +533,8 @@ class SyncService {
         'cliente_id': cabecera?['cliente_id'],
         'fecha': cabecera?['fecha'],
         'total_centavos': cabecera?['total_centavos'],
+        // CU17: puntos canjeados como descuento (el servidor aplica el mismo descuento al total de la venta)
+        if ((payload['puntos_canjeados'] as int? ?? 0) > 0) 'puntos_canjeados': payload['puntos_canjeados'],
         'items': [
           for (final item in payload['items'] as List)
             {

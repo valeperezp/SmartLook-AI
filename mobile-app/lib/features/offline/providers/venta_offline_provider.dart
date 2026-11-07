@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/config/offline_config.dart';
+import '../../../core/config/regla_puntos.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
 import '../data/catalogo_local_dao.dart';
 import '../data/mock_data.dart';
+import '../data/puntos_dao.dart' show PuntosInsuficientes;
 import '../data/sync_queue_dao.dart';
 import '../data/turno_caja_dao.dart';
 import '../models/catalogo_item.dart';
@@ -41,6 +42,7 @@ class VentaOfflineProvider extends ChangeNotifier {
   String? _error;
   String? _ultimoMensaje;
   int _puntosUltimaVenta = 0;
+  int _puntosCanjeadosUltimaVenta = 0;
 
   List<CatalogoItem> get productos => _productos;
   List<LineaVenta> get lineas => List.unmodifiable(_lineas);
@@ -55,6 +57,9 @@ class VentaOfflineProvider extends ChangeNotifier {
 
   /// Puntos que se acreditaron al cliente en la última venta guardada (0 si no hubo cliente).
   int get puntosUltimaVenta => _puntosUltimaVenta;
+
+  /// Puntos que se canjearon como descuento en la última venta guardada (0 si no hubo canje).
+  int get puntosCanjeadosUltimaVenta => _puntosCanjeadosUltimaVenta;
   bool get carritoVacio => _lineas.isEmpty;
   int get unidadesEnCarrito => _lineas.fold(0, (suma, l) => suma + l.cantidad);
 
@@ -194,12 +199,15 @@ class VentaOfflineProvider extends ChangeNotifier {
   ///
   /// [turnoUuid] es el turno de caja abierto al que se vincula la venta (el arqueo la suma al monto esperado).
   /// [clienteId] (opcional) es el cliente registrado al que se le acreditan los puntos de fidelización.
+  /// [puntosACanjear] (CU17) son puntos del cliente que se usan como descuento: baja el total, resta los puntos del saldo
+  /// y deja el canje en la cola de sincronización (PUNTOS_RESTADOS). Exige [clienteId] y saldo suficiente.
   Future<bool> procesarVenta({
     required int cajeroId,
     required int sucursalId,
     int? montoRecibidoCentavos,
     String? turnoUuid,
     int? clienteId,
+    int puntosACanjear = 0,
   }) async {
     if (_procesando) return false;
     if (_lineas.isEmpty) {
@@ -207,7 +215,19 @@ class VentaOfflineProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    final total = calcularTotal();
+    final bruto = calcularTotal();
+    if (puntosACanjear < 0 || (puntosACanjear > 0 && clienteId == null)) {
+      _ultimoMensaje = 'Para canjear puntos hace falta indicar el cliente.';
+      notifyListeners();
+      return false;
+    }
+    final descuento = ReglaPuntos.descuentoCentavos(puntosACanjear);
+    if (descuento > bruto) {
+      _ultimoMensaje = 'El descuento por puntos no puede ser mayor al total de la compra.';
+      notifyListeners();
+      return false;
+    }
+    final total = bruto - descuento; // lo que paga el cliente
     if (montoRecibidoCentavos != null && montoRecibidoCentavos < total) {
       _ultimoMensaje = 'El monto recibido no cubre el total.';
       notifyListeners();
@@ -245,13 +265,18 @@ class VentaOfflineProvider extends ChangeNotifier {
         clienteId,
         descontarStockLocal: true,
         turnoUuid: turnoUuid,
+        puntosACanjear: puntosACanjear,
       );
       guardada = true;
-      _puntosUltimaVenta = clienteId == null ? 0 : OfflineConfig.puntosPara(total);
+      _puntosUltimaVenta = clienteId == null ? 0 : ReglaPuntos.puntosPara(total);
+      _puntosCanjeadosUltimaVenta = puntosACanjear;
       _lineas.clear();
       _ultimoMensaje = 'Venta guardada localmente. Pendiente de sincronizar.';
     } on TurnoNoAbierto {
       _ultimoMensaje = 'Tu caja ya no está abierta. Ábrela de nuevo para vender.';
+    } on PuntosInsuficientes catch (e) {
+      debugPrint('[VentaOfflineProvider] $e');
+      _ultimoMensaje = 'El cliente no tiene suficientes puntos (tiene ${e.disponibles}).';
     } on StockLocalInsuficiente catch (e) {
       debugPrint('[VentaOfflineProvider] $e');
       stockCambio = true;

@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.catalogo.models import Color, Producto, Talla
+from app.modules.fidelizacion import service as fidelizacion
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.sucursales.models import Sucursal
 from app.modules.ventas import models, schemas
@@ -19,6 +20,13 @@ def _buscar_inventario(db: Session, producto_id: int, sucursal_id: int, talla_id
     if color_id is not None:
         query = query.filter(Inventario.color_id == color_id)
     return query.with_for_update().populate_existing().first()
+
+
+def _empresa_de_sucursal(db: Session, sucursal_id: int) -> int:
+    sucursal = db.get(Sucursal, sucursal_id)
+    if sucursal is None:
+        raise HTTPException(status_code=404, detail="Sucursal no encontrada")
+    return sucursal.empresa_id
 
 
 def nombre_variante(db: Session, producto: Producto, talla_id: int | None, color_id: int | None) -> str:
@@ -155,8 +163,15 @@ def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, caj
         )
         db.add(mov)
 
-    # 3. Actualizar total
-    venta.total = total
+    # 3. Canje de puntos (CU17): baja el total y resta los puntos en esta misma transacción
+    if data.puntos_a_canjear > 0:
+        total -= fidelizacion.aplicar_canje(
+            db, empresa_id=_empresa_de_sucursal(db, data.sucursal_id), cliente_id=data.cliente_id,
+            puntos=data.puntos_a_canjear, total=total, venta_id=venta.id,
+        )
+
+    # 4. Actualizar total
+    venta.total = round(total, 2)
     if not commit:
         db.flush()
         return venta
@@ -253,7 +268,14 @@ def crear_venta_online(db: Session, data: schemas.VentaOnlineCreate, cliente_id:
         db.add(item)
         total += precio * item_data.cantidad
 
-    venta.total = total
+    # Canje de puntos (CU17): baja el total y resta los puntos; si se cancela la venta, los puntos vuelven
+    if data.puntos_a_canjear > 0:
+        total -= fidelizacion.aplicar_canje(
+            db, empresa_id=sucursal.empresa_id, cliente_id=cliente_id,
+            puntos=data.puntos_a_canjear, total=total, venta_id=venta.id,
+        )
+
+    venta.total = round(total, 2)
     db.commit()
     db.refresh(venta)
 

@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/config/offline_config.dart';
+import '../../../core/config/regla_puntos.dart';
+import '../../../core/services/fidelizacion_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/catalogo_item.dart';
 import '../providers/turno_caja_provider.dart';
 import '../providers/venta_offline_provider.dart';
+import '../services/saldo_puntos_cliente.dart';
 import '../services/sync_service.dart';
 import '../widgets/banner_offline.dart';
+import '../widgets/selector_canje_puntos.dart';
 
 String _dinero(int centavos) => '\$${(centavos / 100).toStringAsFixed(2)}';
 
@@ -34,6 +37,8 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
       if (!mounted) return;
       final sucursalId = context.read<AuthProvider>().usuario?.sucursalId;
       if (sucursalId != null) context.read<VentaOfflineProvider>().cargar(sucursalId);
+      // La regla "cuánto vale un punto" viene del backend: se descarga (si hay red) para usarla también sin conexión
+      FidelizacionService().sincronizarRegla().catchError((Object _) => ReglaPuntos.valorPuntoCentavos);
       // Sincronización automática (al volver la red): refresca el stock, que pudo cambiar por rechazos
       _autoSync = context.read<SyncService>().alSincronizarAutomaticamente.listen((r) {
         if (!mounted) return;
@@ -86,9 +91,9 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
     }
 
     final total = provider.calcularTotal();
-    final cobro = await showDialog<({int? recibido, int? clienteId})>(
+    final cobro = await showDialog<({int? recibido, int? clienteId, int puntosACanjear})>(
       context: context,
-      builder: (_) => _CobroDialog(totalCentavos: total),
+      builder: (_) => _CobroDialog(totalCentavos: total, saldoPuntos: SaldoPuntosCliente().disponible),
     );
     if (cobro == null || !mounted) return; // canceló
 
@@ -98,6 +103,7 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
       montoRecibidoCentavos: cobro.recibido,
       turnoUuid: turno.id,
       clienteId: cobro.clienteId,
+      puntosACanjear: cobro.puntosACanjear,
     );
     if (!mounted) return;
     if (ok) {
@@ -108,7 +114,9 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
       _avisar(provider.ultimoMensaje);
       return;
     }
-    final cambio = cobro.recibido == null ? null : cobro.recibido! - total;
+    final descuento = ReglaPuntos.descuentoCentavos(cobro.puntosACanjear);
+    final aPagar = total - descuento; // lo que pagó el cliente, ya con el descuento por puntos
+    final cambio = cobro.recibido == null ? null : cobro.recibido! - aPagar;
     final puntos = provider.puntosUltimaVenta;
     await showDialog<void>(
       context: context,
@@ -120,7 +128,10 @@ class _PosOfflineScreenState extends State<PosOfflineScreen> {
           children: [
             const Text('Venta guardada localmente. Pendiente de sincronizar.', textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            Text('Total: ${_dinero(total)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text('Total: ${_dinero(aPagar)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            if (cobro.puntosACanjear > 0)
+              Text('Canje de ${cobro.puntosACanjear} punto(s): -${_dinero(descuento)}',
+                  style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600)),
             if (cambio != null)
               Text('Cambio: ${_dinero(cambio)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             if (cobro.clienteId != null && puntos > 0) ...[
@@ -413,9 +424,13 @@ class _TarjetaPos extends StatelessWidget {
 }
 
 class _CobroDialog extends StatefulWidget {
-  const _CobroDialog({required this.totalCentavos});
+  const _CobroDialog({required this.totalCentavos, required this.saldoPuntos});
 
+  /// Total de la venta antes del descuento por puntos.
   final int totalCentavos;
+
+  /// Saldo de puntos disponible de un cliente (del servidor, o el local sin red).
+  final Future<int> Function(int clienteId) saldoPuntos;
 
   @override
   State<_CobroDialog> createState() => _CobroDialogState();
@@ -423,89 +438,79 @@ class _CobroDialog extends StatefulWidget {
 
 class _CobroDialogState extends State<_CobroDialog> {
   final _controller = TextEditingController();
-  final _cliente = TextEditingController();
+  SeleccionPuntos _seleccion = (clienteId: null, valido: true, puntos: 0);
 
   @override
   void dispose() {
     _controller.dispose();
-    _cliente.dispose();
     super.dispose();
   }
 
-  /// Vacío = venta sin cliente (válido). Un número entero positivo = cliente registrado. Otra cosa = inválido.
-  ({bool valido, int? id}) get _lecturaCliente {
-    final texto = _cliente.text.trim();
-    if (texto.isEmpty) return (valido: true, id: null);
-    final id = RegExp(r'^\d{1,9}$').hasMatch(texto) ? int.parse(texto) : null;
-    return (valido: id != null && id > 0, id: id);
-  }
+  /// Lo que paga el cliente: el total menos el descuento por los puntos que canjea.
+  int get _aPagar => widget.totalCentavos - ReglaPuntos.descuentoCentavos(_seleccion.puntos);
 
   /// Vacío = no se ingresó monto (válido). `null` en el record interno = texto inválido.
   ({bool valido, int? recibido}) get _lectura {
     final texto = _controller.text.trim();
     if (texto.isEmpty) return (valido: true, recibido: null);
     final c = VentaOfflineProvider.parseMonto(texto);
-    return (valido: c != null && c >= widget.totalCentavos, recibido: c);
+    return (valido: c != null && c >= _aPagar, recibido: c);
   }
 
   @override
   Widget build(BuildContext context) {
     final lectura = _lectura;
     final texto = _controller.text.trim();
-    final cambio = lectura.recibido == null ? null : lectura.recibido! - widget.totalCentavos;
-    final cliente = _lecturaCliente;
-    final puntos = OfflineConfig.puntosPara(widget.totalCentavos);
+    final cambio = lectura.recibido == null ? null : lectura.recibido! - _aPagar;
+    final descuento = ReglaPuntos.descuentoCentavos(_seleccion.puntos);
 
     return AlertDialog(
       title: const Text('Cobrar en efectivo'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Total a cobrar: ${_dinero(widget.totalCentavos)}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Monto recibido (opcional)',
-              prefixText: '\$ ',
-              errorText: texto.isNotEmpty && !lectura.valido
-                  ? (lectura.recibido == null ? 'Monto inválido' : 'No cubre el total')
-                  : null,
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          if (cambio != null && cambio >= 0) ...[
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (descuento > 0) ...[
+              Text('Subtotal: ${_dinero(widget.totalCentavos)}'),
+              Text('Descuento por ${_seleccion.puntos} punto(s): -${_dinero(descuento)}',
+                  style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+            ],
+            Text('Total a cobrar: ${_dinero(_aPagar)}',
+                key: const Key('total_a_cobrar'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
-            Text('Cambio: ${_dinero(cambio)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ],
-          const SizedBox(height: 12),
-          TextField(
-            controller: _cliente,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'N.º de cliente (opcional, para puntos)',
-              errorText: !cliente.valido ? 'Número de cliente inválido' : null,
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(
+                labelText: 'Monto recibido (opcional)',
+                prefixText: '\$ ',
+                errorText: texto.isNotEmpty && !lectura.valido
+                    ? (lectura.recibido == null ? 'Monto inválido' : 'No cubre el total')
+                    : null,
+              ),
+              onChanged: (_) => setState(() {}),
             ),
-            onChanged: (_) => setState(() {}),
-          ),
-          if (cliente.id != null && cliente.valido) ...[
-            const SizedBox(height: 8),
-            Text(
-              puntos > 0 ? 'Cliente ganará $puntos punto(s)' : 'La compra no alcanza para ganar puntos',
-              style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.w600),
+            if (cambio != null && cambio >= 0) ...[
+              const SizedBox(height: 12),
+              Text('Cambio: ${_dinero(cambio)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+            const SizedBox(height: 12),
+            SelectorCanjePuntos(
+              totalCentavos: widget.totalCentavos,
+              consultarSaldo: widget.saldoPuntos,
+              alCambiar: (s) => setState(() => _seleccion = s),
             ),
           ],
-        ],
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         FilledButton(
-          onPressed: lectura.valido && cliente.valido
-              ? () => Navigator.pop(context, (recibido: lectura.recibido, clienteId: cliente.id))
+          onPressed: lectura.valido && _seleccion.valido
+              ? () => Navigator.pop(context, (recibido: lectura.recibido, clienteId: _seleccion.clienteId, puntosACanjear: _seleccion.puntos))
               : null,
           child: const Text('Confirmar venta'),
         ),
