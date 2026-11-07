@@ -49,7 +49,7 @@ PLANES = [
 # Tablas que pasan a pertenecer a una empresa.
 TABLAS_CON_EMPRESA = [
     "sucursales", "usuarios", "productos", "categorias", "tallas",
-    "colores", "temporadas", "colecciones", "proveedores",
+    "colores", "temporadas", "colecciones", "proveedores", "promociones",
 ]
 # Catálogo maestro: el nombre deja de ser único global y pasa a ser único por empresa.
 UNICIDAD_POR_EMPRESA = ["categorias", "tallas", "colores", "temporadas"]

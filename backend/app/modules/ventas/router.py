@@ -1,4 +1,4 @@
-"""Endpoints HTTP del módulo Ventas."""
+"""Endpoints HTTP del módulo Ventas. Todo dentro de la empresa del usuario (RNF-02)."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,12 @@ cajero_or_admin = require_roles("cajero", "administrador", "encargado_sucursal")
 cliente_or_admin = require_roles("cliente", "administrador")
 
 
+def _validar_sucursal_propia(usuario: Usuario, sucursal_id: int) -> None:
+    """Cajero y encargado solo operan sobre su sucursal; el administrador, sobre cualquiera de su empresa."""
+    if usuario.rol in ("cajero", "encargado_sucursal") and usuario.sucursal_id != sucursal_id:
+        raise HTTPException(status_code=403, detail="Solo puede operar sobre su sucursal asignada")
+
+
 @router.post("", response_model=schemas.VentaOut, status_code=201)
 def crear_venta_presencial(
     data: schemas.VentaPresencialCreate,
@@ -20,10 +26,8 @@ def crear_venta_presencial(
     usuario: Usuario = Depends(cajero_or_admin),
 ):
     """Registra una venta presencial. El cajero_id se obtiene del token."""
-    # Si es cajero, validar que solo venda en su sucursal
-    if usuario.rol == "cajero" and usuario.sucursal_id != data.sucursal_id:
-        raise HTTPException(status_code=403, detail="El cajero solo puede vender en su sucursal asignada")
-    return service.crear_venta_presencial(db, data, cajero_id=usuario.id)
+    _validar_sucursal_propia(usuario, data.sucursal_id)
+    return service.crear_venta_presencial(db, data, cajero_id=usuario.id, empresa_id=usuario.empresa_id)
 
 
 @router.post("/online", response_model=schemas.VentaOut, status_code=201)
@@ -32,8 +36,8 @@ def crear_venta_online(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(cliente_or_admin),
 ):
-    """Registra una venta online para el cliente autenticado."""
-    return service.crear_venta_online(db, data, cliente_id=usuario.id)
+    """Registra una venta online para el cliente autenticado (en una sucursal de su empresa)."""
+    return service.crear_venta_online(db, data, cliente_id=usuario.id, empresa_id=usuario.empresa_id)
 
 
 @router.get("/mis-compras", response_model=list[schemas.VentaOut])
@@ -51,8 +55,8 @@ def obtener_venta(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(cajero_or_admin),
 ):
-    """Obtiene el detalle de una venta."""
-    venta = service.obtener_venta(db, venta_id)
+    """Obtiene el detalle de una venta de la empresa."""
+    venta = service.obtener_venta(db, venta_id, empresa_id=usuario.empresa_id)
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
     return venta
@@ -64,10 +68,9 @@ def listar_por_sucursal(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(cajero_or_admin),
 ):
-    """Lista las ventas de una sucursal."""
-    if usuario.rol == "cajero" and usuario.sucursal_id != sucursal_id:
-        raise HTTPException(status_code=403, detail="No tiene permisos para ver ventas de otra sucursal")
-    return service.listar_ventas_por_sucursal(db, sucursal_id)
+    """Lista las ventas de una sucursal de la empresa."""
+    _validar_sucursal_propia(usuario, sucursal_id)
+    return service.listar_ventas_por_sucursal(db, sucursal_id, empresa_id=usuario.empresa_id)
 
 
 @router.get("", response_model=list[schemas.VentaOut])
@@ -75,5 +78,5 @@ def listar_todas(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(require_roles("administrador")),
 ):
-    """Lista todas las ventas (solo admin)."""
-    return service.listar_todas_ventas(db)
+    """Lista todas las ventas de la empresa (solo admin)."""
+    return service.listar_todas_ventas(db, empresa_id=usuario.empresa_id)

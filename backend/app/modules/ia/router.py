@@ -31,7 +31,7 @@ def obtener_recomendaciones(
     db: Session = Depends(get_db),
 ):
     """CU06: productos recomendados para el cliente autenticado."""
-    return service.generar_recomendaciones(db, cliente_id=usuario.id, limit=limit)
+    return service.generar_recomendaciones(db, cliente_id=usuario.id, limit=limit, empresa_id=usuario.empresa_id)
 
 
 @router.post("/chat", response_model=schemas.ChatMensajeResponse)
@@ -42,7 +42,9 @@ def enviar_mensaje_chat(
 ):
     """CU21: procesa un mensaje del cliente y devuelve la respuesta del asistente virtual."""
     historial = [h.model_dump() for h in data.historial]
-    return service.procesar_mensaje_chat(db, cliente_id=usuario.id, mensaje=data.mensaje, historial=historial)
+    return service.procesar_mensaje_chat(
+        db, cliente_id=usuario.id, mensaje=data.mensaje, historial=historial, empresa_id=usuario.empresa_id
+    )
 
 
 @router.post("/chat-reportes", response_model=schemas.ChatReportesResponse)

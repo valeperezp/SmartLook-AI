@@ -104,19 +104,25 @@ def analizar_preferencias(db: Session, cliente_id: int) -> dict:
     }
 
 
-def _popularidad_global(db: Session) -> Counter:
-    """Cantidad de unidades reservadas por producto, en todos los clientes (para desempate/fallback)."""
-    filas = (
+def _de_empresa(query, modelo, empresa_id: int | None):
+    """Multi-empresa (RNF-02): limita la consulta a la empresa (tienda) del cliente."""
+    return query if empresa_id is None else query.filter(modelo.empresa_id == empresa_id)
+
+
+def _popularidad_global(db: Session, empresa_id: int | None = None) -> Counter:
+    """Cantidad de unidades reservadas por producto, en todos los clientes de la tienda (para desempate/fallback)."""
+    query = (
         db.query(ReservaItem.producto_id, func.coalesce(func.sum(ReservaItem.cantidad), 0))
         .join(Reserva, Reserva.id == ReservaItem.reserva_id)
         .filter(Reserva.estado != "cancelada")
-        .group_by(ReservaItem.producto_id)
-        .all()
     )
+    if empresa_id is not None:
+        query = query.join(Sucursal, Sucursal.id == Reserva.sucursal_id).filter(Sucursal.empresa_id == empresa_id)
+    filas = query.group_by(ReservaItem.producto_id).all()
     return Counter({producto_id: int(total) for producto_id, total in filas})
 
 
-def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8) -> list[dict]:
+def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8, empresa_id: int | None = None) -> list[dict]:
     """CU06: genera hasta `limit` recomendaciones de productos para el cliente, puntuando
     el catálogo activo por categoría, temporada, colección y talla habitual (a partir de
     su historial de reservas y compras), y filtrando siempre por disponibilidad real."""
@@ -152,13 +158,13 @@ def generar_recomendaciones(db: Session, cliente_id: int, limit: int = 8) -> lis
     }
 
     candidatos = (
-        db.query(Producto)
+        _de_empresa(db.query(Producto), Producto, empresa_id)
         .options(joinedload(Producto.categoria))
         .filter(Producto.activo.is_(True), Producto.id.in_(productos_con_stock))
         .all()
     ) if productos_con_stock else []
 
-    popularidad = _popularidad_global(db)
+    popularidad = _popularidad_global(db, empresa_id)
 
     # Tallas con stock disponible por producto, para poder puntuar y avisar cuando
     # el producto está disponible justo en la talla que el cliente suele usar.
@@ -311,9 +317,9 @@ def _responder_ayuda() -> dict:
     }
 
 
-def _categoria_mencionada(db: Session, texto_norm: str) -> Categoria | None:
+def _categoria_mencionada(db: Session, texto_norm: str, empresa_id: int | None = None) -> Categoria | None:
     """Si el mensaje nombra una categoría del catálogo (ej. "vestido", "vestidos"), la devuelve."""
-    categorias = db.query(Categoria).filter(Categoria.activo.is_(True)).all()
+    categorias = _de_empresa(db.query(Categoria), Categoria, empresa_id).filter(Categoria.activo.is_(True)).all()
     for categoria in categorias:
         nombre_norm = _normalizar(categoria.nombre)
         singular = nombre_norm[:-1] if nombre_norm.endswith("s") else nombre_norm
@@ -322,14 +328,14 @@ def _categoria_mencionada(db: Session, texto_norm: str) -> Categoria | None:
     return None
 
 
-def _responder_recomendacion(db: Session, cliente_id: int, texto_norm: str) -> dict:
+def _responder_recomendacion(db: Session, cliente_id: int, texto_norm: str, empresa_id: int | None = None) -> dict:
     # Si el cliente pidió algo puntual (ej. "recomendame un vestido de gala"), priorizamos
     # productos reales de esa categoría por sobre el historial genérico — sino la recomendación
     # basada solo en compras pasadas puede ignorar por completo lo que el cliente pidió ahora.
-    categoria = _categoria_mencionada(db, texto_norm)
+    categoria = _categoria_mencionada(db, texto_norm, empresa_id)
     if categoria:
         productos_categoria = (
-            db.query(Producto)
+            _de_empresa(db.query(Producto), Producto, empresa_id)
             .filter(Producto.activo.is_(True), Producto.categoria_id == categoria.id)
             .order_by(Producto.nombre)
             .limit(4)
@@ -343,7 +349,7 @@ def _responder_recomendacion(db: Session, cliente_id: int, texto_norm: str) -> d
                 "sugerencias": ["¿Cuáles son mis reservas?", "¿Dónde están las sucursales?"],
             }
 
-    recomendaciones = generar_recomendaciones(db, cliente_id, limit=3)
+    recomendaciones = generar_recomendaciones(db, cliente_id, limit=3, empresa_id=empresa_id)
     if not recomendaciones:
         return {
             "respuesta": "Por ahora no tengo suficientes productos activos para recomendarte algo. "
@@ -381,8 +387,11 @@ def _responder_reservas(db: Session, cliente_id: int) -> dict:
     }
 
 
-def _responder_sucursales(db: Session) -> dict:
-    sucursales = db.query(Sucursal).filter(Sucursal.activa.is_(True)).order_by(Sucursal.nombre).all()
+def _responder_sucursales(db: Session, empresa_id: int | None = None) -> dict:
+    sucursales = (
+        _de_empresa(db.query(Sucursal), Sucursal, empresa_id)
+        .filter(Sucursal.activa.is_(True)).order_by(Sucursal.nombre).all()
+    )
     if not sucursales:
         return {
             "respuesta": "No encontré sucursales activas registradas por el momento.",
@@ -409,18 +418,18 @@ _TERMINOS_GENERICOS = {
 }
 
 
-def _productos_populares(db: Session, limit: int = 5) -> list[Producto]:
-    popularidad = _popularidad_global(db)
+def _productos_populares(db: Session, limit: int = 5, empresa_id: int | None = None) -> list[Producto]:
+    popularidad = _popularidad_global(db, empresa_id)
     if not popularidad:
         return (
-            db.query(Producto)
+            _de_empresa(db.query(Producto), Producto, empresa_id)
             .filter(Producto.activo.is_(True))
             .limit(limit)
             .all()
         )
     ids_ordenados = [pid for pid, _ in popularidad.most_common(limit)]
     productos = (
-        db.query(Producto)
+        _de_empresa(db.query(Producto), Producto, empresa_id)
         .options(joinedload(Producto.categoria))
         .filter(Producto.id.in_(ids_ordenados), Producto.activo.is_(True))
         .all()
@@ -429,14 +438,14 @@ def _productos_populares(db: Session, limit: int = 5) -> list[Producto]:
     return [por_id[pid] for pid in ids_ordenados if pid in por_id]
 
 
-def _responder_producto(db: Session, texto_norm: str) -> dict:
+def _responder_producto(db: Session, texto_norm: str, empresa_id: int | None = None) -> dict:
     palabras = _extraer_palabras_clave(texto_norm)
     palabras_busqueda = [p for p in palabras if p not in _TERMINOS_GENERICOS]
 
     if not palabras or not palabras_busqueda:
         # No dijo nada buscable (o solo dijo algo genérico como "ropa"/"catálogo"):
         # mostramos lo más popular en vez de un callejón sin salida.
-        populares = _productos_populares(db)
+        populares = _productos_populares(db, empresa_id=empresa_id)
         if not populares:
             return {
                 "respuesta": "Todavía no tengo productos activos para mostrarte. ¡Volvé a intentar más tarde!",
@@ -458,7 +467,7 @@ def _responder_producto(db: Session, texto_norm: str) -> dict:
         condiciones.append(Categoria.nombre.ilike(patron))
 
     resultados = (
-        db.query(Producto)
+        _de_empresa(db.query(Producto), Producto, empresa_id)
         .join(Categoria, Categoria.id == Producto.categoria_id)
         .filter(Producto.activo.is_(True), or_(*condiciones))
         .limit(5)
@@ -466,7 +475,7 @@ def _responder_producto(db: Session, texto_norm: str) -> dict:
     )
 
     if not resultados:
-        populares = _productos_populares(db)
+        populares = _productos_populares(db, empresa_id=empresa_id)
         lineas = [f"• {p.nombre} ({p.categoria.nombre}) — ${float(p.precio):.2f}" for p in populares]
         extra = ("\n\nEsto es lo más popular en su lugar:\n" + "\n".join(lineas)) if populares else ""
         return {
@@ -629,15 +638,15 @@ def probar_configuracion_ia(db: Session) -> dict:
         return {"ok": False, "respuesta": None, "error": str(exc)}
 
 
-def _resumen_catalogo_completo(db: Session) -> str:
+def _resumen_catalogo_completo(db: Session, empresa_id: int | None = None) -> str:
     """
-    Lista compacta de TODO el catálogo activo (nombre, categoría, precio, descripción).
+    Lista compacta de TODO el catálogo activo de la tienda (nombre, categoría, precio, descripción).
     Se le pasa siempre a la IA en preguntas sobre productos, para que tenga contexto
     completo de la tienda y pueda responder preguntas de seguimiento o comparaciones
     sin depender únicamente de las palabras clave que detectó el motor de reglas.
     """
     productos = (
-        db.query(Producto)
+        _de_empresa(db.query(Producto), Producto, empresa_id)
         .options(joinedload(Producto.categoria))
         .filter(Producto.activo.is_(True))
         .order_by(Producto.categoria_id, Producto.nombre)
@@ -682,7 +691,7 @@ def _generar_respuesta_ia(
 
 
 def procesar_mensaje_chat(
-    db: Session, cliente_id: int, mensaje: str, historial: list[dict] | None = None
+    db: Session, cliente_id: int, mensaje: str, historial: list[dict] | None = None, empresa_id: int | None = None,
 ) -> dict:
     """
     CU21: clasifica la intención del mensaje (reglas por palabras clave), busca los datos reales
@@ -692,7 +701,7 @@ def procesar_mensaje_chat(
     """
     texto_norm = _normalizar(mensaje)
     intencion = _detectar_intencion(texto_norm)
-    resultado = _resolver_intencion(db, cliente_id, intencion, texto_norm)
+    resultado = _resolver_intencion(db, cliente_id, intencion, texto_norm, empresa_id)
 
     datos_para_ia = resultado["respuesta"]
     if intencion in ("producto", "recomendacion"):
@@ -700,7 +709,9 @@ def procesar_mensaje_chat(
         # haya encontrado la búsqueda puntual o el motor de recomendaciones, para que pueda
         # responder seguimientos, comparaciones y pedidos puntuales (ej. "recomendame un
         # vestido de gala") sin quedarse solo con el historial de compras del cliente.
-        datos_para_ia += "\n\nCatálogo completo activo (contexto de referencia):\n" + _resumen_catalogo_completo(db)
+        datos_para_ia += (
+            "\n\nCatálogo completo activo (contexto de referencia):\n" + _resumen_catalogo_completo(db, empresa_id)
+        )
 
     respuesta_ia = _generar_respuesta_ia(db, mensaje, datos_para_ia, historial)
     if respuesta_ia:
@@ -708,7 +719,9 @@ def procesar_mensaje_chat(
     return resultado
 
 
-def _resolver_intencion(db: Session, cliente_id: int, intencion: str, texto_norm: str) -> dict:
+def _resolver_intencion(
+    db: Session, cliente_id: int, intencion: str, texto_norm: str, empresa_id: int | None = None
+) -> dict:
     if intencion == "saludo":
         return _responder_saludo()
     if intencion == "agradecimiento":
@@ -716,12 +729,12 @@ def _resolver_intencion(db: Session, cliente_id: int, intencion: str, texto_norm
     if intencion == "ayuda":
         return _responder_ayuda()
     if intencion == "recomendacion":
-        return _responder_recomendacion(db, cliente_id, texto_norm)
+        return _responder_recomendacion(db, cliente_id, texto_norm, empresa_id)
     if intencion == "reservas":
         return _responder_reservas(db, cliente_id)
     if intencion == "sucursales":
-        return _responder_sucursales(db)
-    return _responder_producto(db, texto_norm)
+        return _responder_sucursales(db, empresa_id)
+    return _responder_producto(db, texto_norm, empresa_id)
 
 
 # =========================================================================

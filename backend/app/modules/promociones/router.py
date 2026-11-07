@@ -1,9 +1,10 @@
-"""Endpoints HTTP del módulo Promociones (CU12)."""
+"""Endpoints HTTP del módulo Promociones (CU12). Cada administrador gestiona las de su empresa (RNF-02)."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
 from app.modules.promociones import schemas, service
+from app.modules.usuarios.models import Usuario
 from app.shared.db.session import get_db
 
 router = APIRouter(prefix="/promociones", tags=["promociones"])
@@ -15,20 +16,20 @@ admin_only = require_roles("administrador")
 def listar_promociones(
     solo_activas: bool = False,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Lista todas las promociones (admin)."""
-    return service.listar_promociones(db, solo_activas)
+    return service.listar_promociones(db, usuario.empresa_id, solo_activas)
 
 
 @router.get("/{promocion_id}", response_model=schemas.PromocionOut)
 def obtener_promocion(
     promocion_id: int,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Obtiene una promoción por ID."""
-    promocion = service.obtener_promocion(db, promocion_id)
+    promocion = service.obtener_promocion(db, promocion_id, usuario.empresa_id)
     if not promocion:
         raise HTTPException(status_code=404, detail="Promoción no encontrada")
     return promocion
@@ -38,10 +39,10 @@ def obtener_promocion(
 def crear_promocion(
     data: schemas.PromocionCreate,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Crea una nueva promoción."""
-    return service.crear_promocion(db, data)
+    return service.crear_promocion(db, data, usuario.empresa_id)
 
 
 @router.put("/{promocion_id}", response_model=schemas.PromocionOut)
@@ -49,10 +50,10 @@ def actualizar_promocion(
     promocion_id: int,
     data: schemas.PromocionUpdate,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Actualiza una promoción existente."""
-    promocion = service.actualizar_promocion(db, promocion_id, data)
+    promocion = service.actualizar_promocion(db, promocion_id, data, usuario.empresa_id)
     if not promocion:
         raise HTTPException(status_code=404, detail="Promoción no encontrada")
     return promocion
@@ -62,10 +63,10 @@ def actualizar_promocion(
 def eliminar_promocion(
     promocion_id: int,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Desactiva una promoción (soft-delete)."""
-    promocion = service.eliminar_promocion(db, promocion_id)
+    promocion = service.eliminar_promocion(db, promocion_id, usuario.empresa_id)
     if not promocion:
         raise HTTPException(status_code=404, detail="Promoción no encontrada")
     return promocion
@@ -75,10 +76,10 @@ def eliminar_promocion(
 def reactivar_promocion(
     promocion_id: int,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Reactiva una promoción desactivada."""
-    promocion = service.reactivar_promocion(db, promocion_id)
+    promocion = service.reactivar_promocion(db, promocion_id, usuario.empresa_id)
     if not promocion:
         raise HTTPException(status_code=404, detail="Promoción no encontrada")
     return promocion
@@ -89,10 +90,10 @@ def actualizar_productos(
     promocion_id: int,
     data: schemas.PromocionProductosUpdate,
     db: Session = Depends(get_db),
-    usuario=Depends(admin_only),
+    usuario: Usuario = Depends(admin_only),
 ):
     """Actualiza la lista de productos asociados a una promoción."""
-    promocion = service.actualizar_productos(db, promocion_id, data)
+    promocion = service.actualizar_productos(db, promocion_id, data, usuario.empresa_id)
     if not promocion:
         raise HTTPException(status_code=404, detail="Promoción no encontrada")
     return promocion

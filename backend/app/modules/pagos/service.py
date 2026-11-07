@@ -296,10 +296,13 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
     return pago
 
 
-def listar_pagos_pendientes_qr(db: Session, sucursal_id: int | None = None) -> list[models.Pago]:
-    """Lista los pagos QR pendientes de verificación."""
+def listar_pagos_pendientes_qr(
+    db: Session, sucursal_id: int | None = None, empresa_id: int | None = None
+) -> list[models.Pago]:
+    """Lista los pagos QR pendientes de verificación (de la empresa, si se indica)."""
+    from app.modules.sucursales.models import Sucursal
     from app.modules.ventas.models import Venta
-    
+
     query = (
         db.query(models.Pago)
         .join(models.Pago.venta)
@@ -313,7 +316,9 @@ def listar_pagos_pendientes_qr(db: Session, sucursal_id: int | None = None) -> l
     
     if sucursal_id:
         query = query.filter(Venta.sucursal_id == sucursal_id)
-    
+    if empresa_id is not None:
+        query = query.join(Sucursal, Venta.sucursal_id == Sucursal.id).filter(Sucursal.empresa_id == empresa_id)
+
     return query.order_by(models.Pago.procesado_en.desc()).all()
 
 

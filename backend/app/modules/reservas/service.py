@@ -1,9 +1,22 @@
-"""Lógica de negocio del módulo Reservas."""
+"""Lógica de negocio del módulo Reservas.
+
+Multi-empresa (RNF-02): con `empresa_id`, la sucursal y los productos tienen que ser de esa empresa y una
+reserva de otra empresa se trata como inexistente.
+"""
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.modules.catalogo.models import Producto
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.reservas import models, schemas
+from app.modules.sucursales.models import Sucursal
+from app.shared.db.tenant import asegurar_de_empresa
+
+
+def es_de_la_empresa(reserva: models.Reserva | None, empresa_id: int | None) -> bool:
+    if reserva is None:
+        return False
+    return empresa_id is None or (reserva.sucursal is not None and reserva.sucursal.empresa_id == empresa_id)
 
 
 def _ajustar_stock_reserva(
@@ -57,8 +70,14 @@ def _ajustar_stock_reserva(
     return inventario
 
 
-def crear_reserva(db: Session, data: schemas.ReservaCreate, cliente_id: int, commit: bool = True) -> models.Reserva:
+def crear_reserva(
+    db: Session, data: schemas.ReservaCreate, cliente_id: int, commit: bool = True, empresa_id: int | None = None,
+) -> models.Reserva:
     """Crea una reserva con sus items y ajusta el stock. Con `commit=False` solo hace flush (decide quien llama)."""
+    if empresa_id is not None:
+        asegurar_de_empresa(db, Sucursal, data.sucursal_id, empresa_id, "Sucursal")
+        for producto_id in {i.producto_id for i in data.items}:
+            asegurar_de_empresa(db, Producto, producto_id, empresa_id, "Producto")
     reserva = models.Reserva(
         cliente_id=cliente_id,
         sucursal_id=data.sucursal_id,
@@ -160,18 +179,34 @@ def cancelar_reserva(db: Session, reserva_id: int, cliente_id: int) -> models.Re
     return reserva
 
 
-def listar_reservas_por_sucursal(db: Session, sucursal_id: int) -> list[models.Reserva]:
-    """Endpoint para encargado: reservas de una sucursal."""
+def _query_completa(db: Session):
+    return db.query(models.Reserva).options(
+        joinedload(models.Reserva.items).joinedload(models.ReservaItem.producto),
+        joinedload(models.Reserva.items).joinedload(models.ReservaItem.talla),
+        joinedload(models.Reserva.items).joinedload(models.ReservaItem.color),
+        joinedload(models.Reserva.sucursal),
+        joinedload(models.Reserva.cliente),
+    )
+
+
+def listar_reservas_por_sucursal(db: Session, sucursal_id: int, empresa_id: int | None = None) -> list[models.Reserva]:
+    """Endpoint para encargado: reservas de una sucursal (de la empresa, si se indica)."""
+    if empresa_id is not None:
+        asegurar_de_empresa(db, Sucursal, sucursal_id, empresa_id, "Sucursal")
     return (
-        db.query(models.Reserva)
-        .options(
-            joinedload(models.Reserva.items).joinedload(models.ReservaItem.producto),
-            joinedload(models.Reserva.items).joinedload(models.ReservaItem.talla),
-            joinedload(models.Reserva.items).joinedload(models.ReservaItem.color),
-            joinedload(models.Reserva.sucursal),
-            joinedload(models.Reserva.cliente),
-        )
+        _query_completa(db)
         .filter(models.Reserva.sucursal_id == sucursal_id)
+        .order_by(models.Reserva.creada_en.desc())
+        .all()
+    )
+
+
+def listar_reservas_empresa(db: Session, empresa_id: int) -> list[models.Reserva]:
+    """Reservas de todas las sucursales de la empresa (administrador)."""
+    return (
+        _query_completa(db)
+        .join(Sucursal, models.Reserva.sucursal_id == Sucursal.id)
+        .filter(Sucursal.empresa_id == empresa_id)
         .order_by(models.Reserva.creada_en.desc())
         .all()
     )
@@ -214,10 +249,11 @@ def cambiar_estado_con_validacion(
     reserva_id: int,
     nuevo_estado: str,
     sucursal_id: int | None = None,
+    empresa_id: int | None = None,
 ) -> models.Reserva | None:
     """
     Cambia el estado de una reserva con validación de transición.
-    Si sucursal_id se provee, valida que la reserva pertenezca a esa sucursal.
+    Si sucursal_id se provee, valida que la reserva pertenezca a esa sucursal; con empresa_id, a esa empresa.
     """
     # Se bloquea la fila: dos cambios de estado simultaneos de la misma reserva se serializan
     # y el segundo falla la validacion de transicion (evita convertir o liberar el stock dos veces).
@@ -228,7 +264,7 @@ def cambiar_estado_con_validacion(
         .populate_existing()
         .first()
     )
-    if not reserva:
+    if not reserva or not es_de_la_empresa(reserva, empresa_id):
         return None
 
     if sucursal_id is not None and reserva.sucursal_id != sucursal_id:

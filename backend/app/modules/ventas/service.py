@@ -1,4 +1,8 @@
-"""Lógica de negocio del módulo Ventas (CU17 - Venta presencial)."""
+"""Lógica de negocio del módulo Ventas (CU17 - Venta presencial).
+
+Multi-empresa (RNF-02): cuando se indica `empresa_id`, la sucursal y los productos tienen que ser de esa empresa
+y las consultas solo devuelven ventas de sus sucursales. Una venta de otra empresa se trata como inexistente.
+"""
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
@@ -6,6 +10,22 @@ from app.modules.catalogo.models import Producto
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.sucursales.models import Sucursal
 from app.modules.ventas import models, schemas
+from app.shared.db.tenant import asegurar_de_empresa
+
+
+def _de_la_empresa(query, empresa_id: int | None):
+    """Limita una consulta de ventas a las sucursales de la empresa."""
+    if empresa_id is None:
+        return query
+    return query.join(Sucursal, models.Venta.sucursal_id == Sucursal.id).filter(Sucursal.empresa_id == empresa_id)
+
+
+def _validar_empresa(db: Session, empresa_id: int | None, sucursal_id: int, producto_ids) -> None:
+    if empresa_id is None:
+        return
+    asegurar_de_empresa(db, Sucursal, sucursal_id, empresa_id, "Sucursal")
+    for producto_id in set(producto_ids):
+        asegurar_de_empresa(db, Producto, producto_id, empresa_id, "Producto")
 
 
 def _buscar_inventario(db: Session, producto_id: int, sucursal_id: int, talla_id: int | None, color_id: int | None) -> Inventario | None:
@@ -21,12 +41,15 @@ def _buscar_inventario(db: Session, producto_id: int, sucursal_id: int, talla_id
     return query.with_for_update().populate_existing().first()
 
 
-def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, cajero_id: int, commit: bool = True) -> models.Venta:
+def crear_venta_presencial(
+    db: Session, data: schemas.VentaPresencialCreate, cajero_id: int, commit: bool = True, empresa_id: int | None = None,
+) -> models.Venta:
     """Crea una venta presencial atómica: crea venta + items + descuenta stock + registra movimientos.
 
     Con `commit=False` no confirma la transacción (solo hace flush): quien llama decide cuándo guardar. La
     sincronización móvil lo usa para guardar la venta y su registro de idempotencia juntos.
     """
+    _validar_empresa(db, empresa_id, data.sucursal_id, [i.producto_id for i in data.items])
     # 1. Crear la venta
     venta = models.Venta(
         cliente_id=data.cliente_id,
@@ -112,41 +135,43 @@ def _obtener_venta_con_relaciones(db: Session, venta_id: int) -> models.Venta | 
     )
 
 
-def obtener_venta(db: Session, venta_id: int) -> models.Venta | None:
-    return _obtener_venta_con_relaciones(db, venta_id)
+def obtener_venta(db: Session, venta_id: int, empresa_id: int | None = None) -> models.Venta | None:
+    venta = _obtener_venta_con_relaciones(db, venta_id)
+    if venta is not None and empresa_id is not None and (venta.sucursal is None or venta.sucursal.empresa_id != empresa_id):
+        return None
+    return venta
 
 
-def listar_ventas_por_sucursal(db: Session, sucursal_id: int) -> list[models.Venta]:
+def listar_ventas_por_sucursal(db: Session, sucursal_id: int, empresa_id: int | None = None) -> list[models.Venta]:
+    query = db.query(models.Venta).options(
+        joinedload(models.Venta.items).joinedload(models.VentaItem.producto),
+        joinedload(models.Venta.sucursal),
+        joinedload(models.Venta.cajero),
+        joinedload(models.Venta.cliente),
+    )
     return (
-        db.query(models.Venta)
-        .options(
-            joinedload(models.Venta.items).joinedload(models.VentaItem.producto),
-            joinedload(models.Venta.sucursal),
-            joinedload(models.Venta.cajero),
-            joinedload(models.Venta.cliente),
-        )
+        _de_la_empresa(query, empresa_id)
         .filter(models.Venta.sucursal_id == sucursal_id)
         .order_by(models.Venta.creada_en.desc())
         .all()
     )
 
 
-def listar_todas_ventas(db: Session) -> list[models.Venta]:
-    return (
-        db.query(models.Venta)
-        .options(
-            joinedload(models.Venta.sucursal),
-            joinedload(models.Venta.cajero),
-            joinedload(models.Venta.cliente),
-        )
-        .order_by(models.Venta.creada_en.desc())
-        .all()
+def listar_todas_ventas(db: Session, empresa_id: int | None = None) -> list[models.Venta]:
+    query = db.query(models.Venta).options(
+        joinedload(models.Venta.sucursal),
+        joinedload(models.Venta.cajero),
+        joinedload(models.Venta.cliente),
     )
+    return _de_la_empresa(query, empresa_id).order_by(models.Venta.creada_en.desc()).all()
 
 
-def crear_venta_online(db: Session, data: schemas.VentaOnlineCreate, cliente_id: int) -> models.Venta:
+def crear_venta_online(
+    db: Session, data: schemas.VentaOnlineCreate, cliente_id: int, empresa_id: int | None = None
+) -> models.Venta:
     """Crea una venta online en estado pendiente sin descontar inventario."""
-    # 1. Validar que la sucursal exista
+    # 1. Validar que la sucursal exista (y que sea de la empresa del cliente)
+    _validar_empresa(db, empresa_id, data.sucursal_id, [i.producto_id for i in data.items])
     sucursal = db.query(Sucursal).filter(Sucursal.id == data.sucursal_id).first()
     if not sucursal:
         raise HTTPException(status_code=404, detail="Sucursal no encontrada")
