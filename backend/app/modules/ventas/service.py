@@ -2,7 +2,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.modules.catalogo.models import Producto
+from app.modules.catalogo.models import Color, Producto, Talla
 from app.modules.inventario.models import Inventario, MovimientoInventario
 from app.modules.sucursales.models import Sucursal
 from app.modules.ventas import models, schemas
@@ -19,6 +19,76 @@ def _buscar_inventario(db: Session, producto_id: int, sucursal_id: int, talla_id
     if color_id is not None:
         query = query.filter(Inventario.color_id == color_id)
     return query.with_for_update().populate_existing().first()
+
+
+def nombre_variante(db: Session, producto: Producto, talla_id: int | None, color_id: int | None) -> str:
+    """'Camisa Talla M Negro': así se nombra una variante en los mensajes de conflicto de stock."""
+    nombre = producto.nombre
+    if talla_id is not None:
+        talla = db.get(Talla, talla_id)
+        if talla:
+            nombre += f" Talla {talla.nombre}"
+    if color_id is not None:
+        color = db.get(Color, color_id)
+        if color:
+            nombre += f" {color.nombre}"
+    return nombre
+
+
+def agrupar_por_variante(items) -> dict[tuple, int]:
+    """Suma las cantidades de las líneas que repiten (producto, talla, color)."""
+    pedido: dict[tuple, int] = {}
+    for it in items:
+        clave = (it.producto_id, it.talla_id, it.color_id)
+        pedido[clave] = pedido.get(clave, 0) + it.cantidad
+    return pedido
+
+
+def detectar_faltantes_de_stock(db: Session, sucursal_id: int, items) -> list[str]:
+    """Qué de lo pedido no se puede entregar con el stock actual de la sucursal (lista vacía = todo alcanza).
+
+    No toca nada. Un producto inexistente no se reporta aquí (lo hace `crear_venta_presencial` con su 404).
+    """
+    faltantes: list[str] = []
+    for (producto_id, talla_id, color_id), cantidad in agrupar_por_variante(items).items():
+        producto = db.get(Producto, producto_id)
+        if producto is None:
+            continue
+        nombre = nombre_variante(db, producto, talla_id, color_id)
+        inventario = _buscar_inventario(db, producto_id, sucursal_id, talla_id, color_id)
+        if inventario is None:
+            faltantes.append(f"No hay inventario de {nombre} en esta sucursal")
+        elif inventario.cantidad_disponible < cantidad:
+            faltantes.append(f"Stock insuficiente en {nombre}. Disponible: {inventario.cantidad_disponible}, solicitado: {cantidad}")
+    return faltantes
+
+
+def crear_venta_en_conflicto(db: Session, data: schemas.VentaPresencialCreate, cajero_id: int) -> models.Venta:
+    """Guarda una venta hecha offline que el servidor no pudo cumplir por falta de stock (CU13).
+
+    Queda con estado `en_conflicto` y sus ítems, pero NO descuenta stock ni registra movimientos: un encargado la
+    resuelve después (anular, ajustar la variante o forzarla). Solo hace flush: quien llama confirma.
+    """
+    venta = models.Venta(
+        cliente_id=data.cliente_id, sucursal_id=data.sucursal_id, cajero_id=cajero_id,
+        canal="presencial", estado="en_conflicto", total=0,
+    )
+    db.add(venta)
+    db.flush()
+    total = 0.0
+    for item_data in data.items:
+        producto = db.get(Producto, item_data.producto_id)
+        if not producto:
+            raise HTTPException(status_code=404, detail=f"Producto {item_data.producto_id} no encontrado")
+        precio = float(producto.precio)
+        db.add(models.VentaItem(
+            venta_id=venta.id, producto_id=item_data.producto_id, talla_id=item_data.talla_id,
+            color_id=item_data.color_id, cantidad=item_data.cantidad, precio_unitario=precio,
+        ))
+        total += precio * item_data.cantidad
+    venta.total = total
+    db.flush()
+    return venta
 
 
 def crear_venta_presencial(db: Session, data: schemas.VentaPresencialCreate, cajero_id: int, commit: bool = True) -> models.Venta:

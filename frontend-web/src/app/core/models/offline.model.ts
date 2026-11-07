@@ -25,8 +25,12 @@ export interface ItemCatalogoLocal {
 
 export type TipoOperacionLocal = 'VENTA_CONTADO' | 'RESERVA_CLIENTE';
 
-/** pendiente → (sincronizada | rechazada). Una operación pendiente nunca se pierde: se reintenta. */
-export type EstadoOperacionLocal = 'pendiente' | 'sincronizada' | 'rechazada';
+/**
+ * pendiente → (sincronizada | rechazada | en_conflicto). Una operación pendiente nunca se pierde: se reintenta.
+ * `en_conflicto` (CU13): el servidor guardó la venta pero sin stock suficiente; un encargado la resuelve desde la web.
+ * El stock local NO se devuelve (la venta ya se hizo).
+ */
+export type EstadoOperacionLocal = 'pendiente' | 'sincronizada' | 'rechazada' | 'en_conflicto';
 
 export interface ItemOperacionLocal {
   producto_id: number;
@@ -69,7 +73,7 @@ export interface OperacionLocal {
   stock_local_descontado?: boolean;
 }
 
-export type EstadoCola = 'pendiente' | 'en_proceso' | 'sincronizado' | 'rechazado';
+export type EstadoCola = 'pendiente' | 'en_proceso' | 'sincronizado' | 'rechazado' | 'en_conflicto';
 
 /** Entrada de la cola de envío de una operación: lleva los intentos y el último error. */
 export interface EntradaCola {
@@ -103,7 +107,7 @@ export interface OperacionSyncPayload {
 
 export interface ResultadoSyncItem {
   uuid: string;
-  status: 'ok' | 'conflict' | 'pendiente';
+  status: 'ok' | 'conflict' | 'pendiente' | 'en_conflicto';
   id_servidor?: number | null;
   entidad?: string | null;
   message?: string | null;
@@ -112,6 +116,8 @@ export interface ResultadoSyncItem {
 export interface ResultadoSyncWeb {
   sincronizadas: number;
   rechazadas: number;
+  /** El servidor guardó la venta pero sin stock suficiente: la resuelve un encargado (CU13). */
+  enConflicto: number;
   /** Quedaron pendientes por un error de red o del servidor: se reintentan. */
   fallidas: number;
   /** El servidor respondió "pendiente" (falta algo por sincronizar). */

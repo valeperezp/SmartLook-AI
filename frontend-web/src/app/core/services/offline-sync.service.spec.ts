@@ -171,6 +171,33 @@ describe('OfflineSyncService', () => {
     expect(sync.catalogoVersion()).toBeGreaterThan(versionAntes);
   });
 
+  it('"en_conflicto" (CU13): la operación queda en conflicto con el id del servidor, NO devuelve el stock local y no se reenvía', async () => {
+    iniciar();
+    await db.guardarCatalogo(
+      [{
+        clave: OfflineDbService.claveCatalogo('1', 1, 101, 2, 1), empresa: '1', sucursal_id: 1, nombre_sucursal: 'Centro', producto_id: 101,
+        nombre_producto: 'Camisa', descripcion: null, categoria_id: 1, nombre_categoria: 'Camisas', talla_id: 2, nombre_talla: 'M',
+        color_id: 1, nombre_color: 'Negro', precio_centavos: 1999, imagen_url: null, cantidad_disponible: 5, sincronizado_en: new Date(Date.now() - 60_000).toISOString(),
+      }],
+      '1',
+    );
+    const stock = async () => (await db.obtenerCatalogo('1'))[0].cantidad_disponible;
+    const uuid = await sync.registrarOperacion(venta()); // vende 2 offline → stock local 3
+
+    const r = await enviar((req) =>
+      req.flush({ resultados: [{ uuid, status: 'en_conflicto', id_servidor: 55, entidad: 'venta', message: 'Stock insuficiente en Camisa Talla M' }] }),
+    );
+
+    expect(r).toMatchObject({ enConflicto: 1, rechazadas: 0, sincronizadas: 0, fallidas: 0 });
+    const [op] = await db.obtenerOperaciones('en_conflicto');
+    expect(op).toMatchObject({ uuid, estado: 'en_conflicto', id_servidor: 55, mensaje: 'Stock insuficiente en Camisa Talla M' });
+    expect((await db.obtenerEntradaCola(uuid))?.estado).toBe('en_conflicto');
+    expect(await stock()).toBe(3); // la venta ya se hizo: el stock local NO vuelve
+    expect(await db.obtenerOperacionesPendientes()).toEqual([]); // no se reenvía
+    expect(sync.ultimoMensaje()).toBe('1 en conflicto (la resuelve el encargado)');
+    expect(sync.pendientes()).toBe(0);
+  });
+
   it('"pendiente": sigue pendiente con el mensaje del servidor (ni error ni rechazo) y suma un intento', async () => {
     iniciar();
     const uuid = await sync.registrarOperacion(venta());

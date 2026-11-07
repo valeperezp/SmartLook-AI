@@ -24,6 +24,7 @@ class ResultadoSync {
     this.sesionExpirada = false,
     this.enEspera = 0,
     this.motivoEspera,
+    this.enConflicto = 0,
   });
 
   final int sincronizadas;
@@ -44,7 +45,11 @@ class ResultadoSync {
   /// Mensaje del servidor de la primera operación en espera (p. ej. "La venta original aún no está sincronizada").
   final String? motivoEspera;
 
-  int get total => sincronizadas + rechazadas + fallidas + enEspera;
+  /// CU13: el servidor guardó la venta pero sin stock suficiente (`en_conflicto`). Quedó marcada así en SQLite, SIN devolver el
+  /// stock local (la venta ya se hizo); un encargado la resuelve desde la web.
+  final int enConflicto;
+
+  int get total => sincronizadas + rechazadas + fallidas + enEspera + enConflicto;
 
   String get resumen {
     if (yaEnCurso) return 'Ya hay una sincronización en curso.';
@@ -54,6 +59,7 @@ class ResultadoSync {
     final partes = <String>[
       if (sincronizadas > 0) '$sincronizadas ${sincronizadas == 1 ? "sincronizada" : "sincronizadas"}',
       if (rechazadas > 0) '$rechazadas ${rechazadas == 1 ? "rechazada" : "rechazadas"}',
+      if (enConflicto > 0) '$enConflicto en conflicto (la resuelve el encargado)',
       if (fallidas > 0) '$fallidas ${fallidas == 1 ? "pendiente de reintentar" : "pendientes de reintentar"}',
       if (enEspera > 0) '$enEspera en espera${motivoEspera == null ? "" : " (${motivoEspera!})"}',
     ];
@@ -256,6 +262,7 @@ class SyncService {
         fallidas: resultados.fold(0, (s, r) => s + r.fallidas),
         sesionExpirada: sesionExpirada,
         enEspera: resultados.fold(0, (s, r) => s + r.enEspera),
+        enConflicto: resultados.fold(0, (s, r) => s + r.enConflicto),
         motivoEspera: resultados.map((r) => r.motivoEspera).whereType<String>().firstOrNull,
       );
     } finally {
@@ -550,7 +557,7 @@ class SyncService {
         if (r is Map && r['uuid'] is String) r['uuid'] as String: Map<String, dynamic>.from(r),
     };
 
-    var sincronizadas = 0, rechazadas = 0, fallidas = 0, enEspera = 0;
+    var sincronizadas = 0, rechazadas = 0, fallidas = 0, enEspera = 0, enConflicto = 0;
     String? motivoEspera;
     for (final p in pendientes) {
       final uuid = p['operacion_uuid'] as String;
@@ -566,6 +573,15 @@ class SyncService {
           case 'conflict':
             await _colaDao.marcarRechazada(uuid, (r!['message'] as String?) ?? 'Rechazada por el servidor');
             rechazadas++;
+          case 'en_conflicto':
+            // CU13: el servidor guardó la venta pero sin stock suficiente. NO es un rechazo: la venta ya se hizo aquí, así que
+            // se marca `en_conflicto` y NO se devuelve el stock local (el encargado la resuelve desde la web).
+            await _colaDao.marcarEnConflicto(
+              uuid,
+              (r!['message'] as String?) ?? 'En conflicto de stock en el servidor',
+              idServidor: r['id_servidor'] is int ? r['id_servidor'] as int : null,
+            );
+            enConflicto++;
           case 'pendiente':
             final motivo = (r!['message'] as String?) ?? 'En espera de otra operación';
             await _colaDao.devolverAPendiente(colaId, motivo); // sigue pendiente (el intento ya se contó al enviarla)
@@ -580,8 +596,15 @@ class SyncService {
         fallidas++;
       }
     }
-    debugPrint('[SyncService] $sincronizadas sincronizadas, $rechazadas rechazadas, $fallidas por reintentar, $enEspera en espera.');
-    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
+    debugPrint('[SyncService] $sincronizadas sincronizadas, $rechazadas rechazadas, $enConflicto en conflicto, $fallidas por reintentar, $enEspera en espera.');
+    return ResultadoSync(
+      sincronizadas: sincronizadas,
+      rechazadas: rechazadas,
+      fallidas: fallidas,
+      enEspera: enEspera,
+      enConflicto: enConflicto,
+      motivoEspera: motivoEspera,
+    );
   }
 
   /// Id que se guarda cuando el servidor acepta un lote entero (`{"status": "ok"}`) sin devolver ids por operación:

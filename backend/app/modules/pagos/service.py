@@ -29,8 +29,8 @@ def crear_payment_intent(db: Session, data: schemas.PaymentIntentCreate) -> dict
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    if venta.estado == "cancelada":
-        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada")
+    if venta.estado in ("cancelada", "anulada", "en_conflicto"):
+        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada, anulada o en conflicto de stock")
 
     # Decimal evita el error binario de float (19.99 * 100 = 1998.999...).
     monto_centavos = int((Decimal(str(venta.total)) * 100).to_integral_value(ROUND_HALF_UP))
@@ -165,8 +165,8 @@ def crear_pago_qr(db: Session, venta_id: int) -> models.Pago:
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    if venta.estado == "cancelada":
-        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada")
+    if venta.estado in ("cancelada", "anulada", "en_conflicto"):
+        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada, anulada o en conflicto de stock")
 
     pago = models.Pago(
         venta_id=venta_id,
@@ -186,8 +186,8 @@ def crear_pago_efectivo(db: Session, venta_id: int) -> models.Pago:
     if not venta:
         raise HTTPException(status_code=404, detail="Venta no encontrada")
 
-    if venta.estado == "cancelada":
-        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada")
+    if venta.estado in ("cancelada", "anulada", "en_conflicto"):
+        raise HTTPException(status_code=400, detail="No se puede pagar una venta cancelada, anulada o en conflicto de stock")
 
     pago = models.Pago(
         venta_id=venta_id,

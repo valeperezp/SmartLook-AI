@@ -93,7 +93,8 @@ class ResultadoItem(BaseModel):
     uuid: str
     # ok: aplicado (o ya estaba aplicado) · conflict: no puede aplicarse, la app lo rechaza ·
     # pendiente: todavía no se puede decidir (falta algo por sincronizar), la app lo reintenta más tarde
-    status: Literal["ok", "conflict", "pendiente"]
+    # en_conflicto: la venta SÍ se guardó (con su id_servidor) pero sin descontar stock, por falta de stock: un encargado la resuelve
+    status: Literal["ok", "conflict", "pendiente", "en_conflicto"]
     id_servidor: int | None = None  # id de lo creado en el servidor (solo con status ok)
     entidad: Literal["venta", "reserva", "devolucion", "movimiento_puntos", "turno_caja"] | None = None
     message: str | None = None  # motivo del conflicto o de la espera
@@ -101,3 +102,48 @@ class ResultadoItem(BaseModel):
 
 class LoteSyncResponse(BaseModel):
     resultados: list[ResultadoItem]
+
+
+# ---------- Resolución manual de conflictos (CU13) ----------
+class ItemAjusteSync(BaseModel):
+    producto_id: int
+    talla_id: int | None = None
+    color_id: int | None = None
+    cantidad: int = Field(..., ge=1)
+
+
+class ResolverConflictoRequest(BaseModel):
+    accion: Literal["ANULAR", "AJUSTAR", "FORZAR"]
+    items: list[ItemAjusteSync] = []  # solo AJUSTAR: el nuevo listado de prendas (p. ej. otra talla)
+    motivo: str | None = Field(default=None, max_length=200)  # nota opcional del encargado
+
+
+class ConflictoItemOut(BaseModel):
+    producto_id: int
+    nombre_producto: str
+    talla_id: int | None = None
+    nombre_talla: str | None = None
+    color_id: int | None = None
+    nombre_color: str | None = None
+    cantidad: int
+    precio_unitario: float
+
+
+class ConflictoOut(BaseModel):
+    venta_id: int
+    uuid: str | None = None  # id con el que el dispositivo mandó la venta
+    sucursal_id: int
+    nombre_sucursal: str | None = None
+    cajero_id: int | None = None
+    nombre_cajero: str | None = None
+    total: float
+    creada_en: str | None = None
+    motivo: str | None = None
+    items: list[ConflictoItemOut] = []
+
+
+class ResolverConflictoResponse(BaseModel):
+    venta_id: int
+    accion: str
+    estado: str  # completada | anulada
+    total: float

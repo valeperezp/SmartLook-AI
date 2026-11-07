@@ -25,6 +25,7 @@ const PARALELISMO_DESCARGA = 6;
 const RESULTADO_VACIO: ResultadoSyncWeb = {
   sincronizadas: 0,
   rechazadas: 0,
+  enConflicto: 0,
   fallidas: 0,
   enEspera: 0,
   sinRed: false,
@@ -36,7 +37,8 @@ const RESULTADO_VACIO: ResultadoSyncWeb = {
  * Sincronización de la web offline: guarda el catálogo en IndexedDB y, cuando vuelve la conexión (evento `online`),
  * envía las operaciones pendientes a `POST /sync/operaciones` con el mismo JSON que la app móvil.
  *
- * Contrato con el backend (por operación): `ok` → sincronizada · `conflict` → rechazada · `pendiente` → sigue pendiente
+ * Contrato con el backend (por operación): `ok` → sincronizada · `conflict` → rechazada · `en_conflicto` → guardada sin
+ * stock, la resuelve un encargado · `pendiente` → sigue pendiente
  * con el mensaje del servidor. Un 401 (sesión vencida), un error de red, un timeout, un 404 o un 5xx dejan TODO pendiente:
  * nunca se pierde una operación.
  */
@@ -316,6 +318,11 @@ export class OfflineSyncService {
         } else if (r?.status === 'conflict') {
           await this.db.marcarRechazada(op.uuid, r.message ?? 'Rechazada por el servidor');
           total.rechazadas++;
+        } else if (r?.status === 'en_conflicto') {
+          // Sin stock en el servidor: la venta quedó guardada allá, "en conflicto", para que un encargado la resuelva.
+          // El stock local NO se devuelve (la venta ya se hizo) y no se reenvía.
+          await this.db.marcarEnConflicto(op.uuid, r.message ?? 'En conflicto de stock', typeof r.id_servidor === 'number' ? r.id_servidor : null);
+          total.enConflicto++;
         } else if (r?.status === 'pendiente') {
           await this.db.devolverAPendiente(op.uuid, r.message ?? 'En espera de otra operación'); // no es error ni rechazo
           total.enEspera++;
@@ -342,6 +349,7 @@ export class OfflineSyncService {
     const partes = [
       r.sincronizadas > 0 ? `${r.sincronizadas} ${r.sincronizadas === 1 ? 'sincronizada' : 'sincronizadas'}` : '',
       r.rechazadas > 0 ? `${r.rechazadas} ${r.rechazadas === 1 ? 'rechazada' : 'rechazadas'}` : '',
+      r.enConflicto > 0 ? `${r.enConflicto} en conflicto (la resuelve el encargado)` : '',
       r.fallidas > 0 ? `${r.fallidas} ${r.fallidas === 1 ? 'pendiente de reintentar' : 'pendientes de reintentar'}` : '',
       r.enEspera > 0 ? `${r.enEspera} en espera` : '',
     ].filter(Boolean);

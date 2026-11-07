@@ -296,6 +296,9 @@ class DevolucionDao {
       throw VentaNoDevolvible('Solo se admiten cambios y devoluciones de ventas de contado.');
     }
     if (venta['estado'] == 'rechazada') throw VentaNoDevolvible('La venta fue rechazada por el servidor.');
+    if (venta['estado'] == 'en_conflicto') {
+      throw VentaNoDevolvible('La venta está en conflicto de stock: espera a que el encargado la resuelva.');
+    }
     if (venta['sucursal_id'] != sucursalId) throw VentaNoDevolvible('La venta es de otra sucursal.');
     final fecha = DateTime.parse(venta['fecha'] as String);
     if (ahora.difference(fecha) > Duration(days: plazoDias)) {
@@ -341,7 +344,7 @@ class DevolucionDao {
       return await db.query(
         Schema.tablaOperaciones,
         columns: ['uuid', 'fecha', 'total_centavos', 'estado'],
-        where: "tipo_operacion = 'VENTA_CONTADO' AND estado != 'rechazada' AND sucursal_id = ?"
+        where: "tipo_operacion = 'VENTA_CONTADO' AND estado NOT IN ('rechazada', 'en_conflicto') AND sucursal_id = ?"
             "${t.isEmpty ? '' : ' AND LOWER(uuid) LIKE ?'}",
         whereArgs: [sucursalId, if (t.isNotEmpty) '$t%'],
         orderBy: 'fecha DESC, rowid DESC',

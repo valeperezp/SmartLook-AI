@@ -47,7 +47,14 @@ class AppDatabase {
       ruta,
       version: Schema.version,
       // SQLite trae las claves foráneas DESACTIVADAS por defecto: sin esto no hay integridad referencial.
+      // Excepción: al migrar de una versión anterior se dejan DESACTIVADAS (reconstruir una tabla padre con ellas
+      // activas borraría en cascada sus hijos); `onOpen` las reactiva siempre, ya fuera de la transacción.
       onConfigure: (db) async {
+        final versionActual = Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')) ?? 0;
+        final migrando = versionActual > 0 && versionActual < Schema.version;
+        await db.execute('PRAGMA foreign_keys = ${migrando ? 'OFF' : 'ON'}');
+      },
+      onOpen: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: (db, version) async {
@@ -71,6 +78,16 @@ class AppDatabase {
         if (anterior < 4) {
           for (final sentencia in Schema.migracionV4) {
             await db.execute(sentencia);
+          }
+        }
+        if (anterior < 5) {
+          for (final sentencia in Schema.migracionV5) {
+            await db.execute(sentencia);
+          }
+          // Con las claves foráneas desactivadas nada las vigiló: se comprueba antes de confirmar (si falla, se revierte todo).
+          final violaciones = await db.rawQuery('PRAGMA foreign_key_check');
+          if (violaciones.isNotEmpty) {
+            throw StateError('La migración a v5 dejó ${violaciones.length} claves foráneas rotas: $violaciones');
           }
         }
         debugPrint('[AppDatabase] Esquema migrado de v$anterior a v$nueva.');

@@ -259,6 +259,19 @@ class SyncQueueDao {
     return devueltas;
   }
 
+  /// CU13: el servidor guardó la venta [uuid] pero SIN stock suficiente (queda `en_conflicto` en el servidor, a la
+  /// espera de que un encargado la resuelva desde la web). La venta ya se hizo en este dispositivo, así que NO se
+  /// devuelve el stock local ni se anulan sus puntos. No se reenvía. [idServidor] es el id de la venta en el servidor.
+  Future<void> marcarEnConflicto(String uuid, String motivo, {int? idServidor}) {
+    return _cerrarOperacion(
+      uuid,
+      estadoCola: 'en_conflicto',
+      estadoOperacion: 'en_conflicto',
+      motivo: motivo,
+      idServidor: idServidor,
+    );
+  }
+
   Future<void> _cerrarOperacion(
     String uuid, {
     required String estadoCola,

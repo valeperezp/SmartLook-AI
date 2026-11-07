@@ -268,6 +268,13 @@ export const routes: Routes = [
             (m) => m.VentasSucursal
           ),
       },
+      {
+        path: 'conflictos',
+        loadComponent: () =>
+          import('./features/encargado/conflictos/conflictos-sync').then(
+            (m) => m.ConflictosSyncPage
+          ),
+      },
     ],
   },
   {

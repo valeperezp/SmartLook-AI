@@ -243,6 +243,14 @@ export class OfflineDbService {
   }
 
   /** El servidor rechazó la operación (p. ej. sin stock): queda 'rechazada' y se devuelve al catálogo local el stock que descontó. */
+  /**
+   * CU13: el servidor guardó la venta pero sin stock suficiente (queda `en_conflicto` hasta que un encargado la resuelva).
+   * NO se devuelve el stock local: la venta ya se hizo. Guarda el id del servidor y no se vuelve a enviar.
+   */
+  async marcarEnConflicto(uuid: string, motivo: string, idServidor: number | null): Promise<void> {
+    await this.cerrar(uuid, { cola: 'en_conflicto', operacion: 'en_conflicto', motivo, idServidor });
+  }
+
   async marcarRechazada(uuid: string, motivo: string): Promise<void> {
     await this.cerrar(uuid, { cola: 'rechazado', operacion: 'rechazada', motivo, idServidor: null, devolverStock: true });
   }

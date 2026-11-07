@@ -1,0 +1,269 @@
+:host {
+  display: block;
+}
+
+.conflictos {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  h1 {
+    margin: 0 0 0.3rem;
+  }
+
+  p {
+    margin: 0;
+    max-width: 60ch;
+    color: var(--text-secondary);
+  }
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.vacio {
+  display: grid;
+  place-items: center;
+  gap: 0.4rem;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}
+
+.aviso {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-md);
+}
+
+.aviso-error {
+  color: var(--danger);
+}
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.item-conflicto {
+  display: grid;
+  gap: 0.7rem;
+  border-left: 3px solid var(--warning);
+}
+
+.cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+
+  strong {
+    display: block;
+  }
+}
+
+.etiqueta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--overlay-1);
+  color: var(--warning);
+  white-space: nowrap;
+}
+
+.motivo {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  color: var(--warning);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.prendas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+.pie {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+// ---------- modal ----------
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+
+  h2 {
+    margin: 0 0 0.2rem;
+    font-size: 1.15rem;
+  }
+
+  .cerrar {
+    border: 0;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+}
+
+.modal-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.nota {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+
+  input {
+    font-size: 0.95rem;
+  }
+}
+
+.acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+
+  &.tres button {
+    flex: 1;
+    min-width: 8.5rem;
+  }
+}
+
+.confirmar {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--overlay-1);
+
+  p {
+    margin: 0;
+  }
+}
+
+.btn-danger {
+  border: 1px solid var(--danger);
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.ajuste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8rem;
+
+  li {
+    display: grid;
+    gap: 0.35rem;
+  }
+}
+
+.fila-ajuste {
+  display: flex;
+  gap: 0.5rem;
+
+  select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  input {
+    width: 5rem;
+  }
+}

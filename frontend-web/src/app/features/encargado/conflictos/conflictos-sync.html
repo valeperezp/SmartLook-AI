@@ -1,0 +1,165 @@
+<div class="conflictos">
+  @if (toast()) {
+    <div class="toast" role="status"><app-icon name="check-circle" [size]="18" /> <span>{{ toast() }}</span></div>
+  }
+
+  <header class="page-header">
+    <div>
+      <h1>Conflictos de sincronización</h1>
+      <p>
+        Ventas hechas sin conexión que el servidor no pudo cumplir por falta de stock. Quedaron guardadas
+        <b>en conflicto</b> (sin descontar inventario) hasta que las resuelvas.
+      </p>
+    </div>
+    <button type="button" class="btn-secondary" (click)="cargar()" [disabled]="cargando()">Actualizar</button>
+  </header>
+
+  @if (error()) {
+    <div class="card aviso aviso-error" role="alert">{{ error() }}</div>
+  }
+
+  @if (cargando()) {
+    <div class="card vacio" aria-busy="true">Cargando conflictos…</div>
+  } @else if (conflictos().length === 0 && !error()) {
+    <div class="card vacio">
+      <app-icon name="check-circle" [size]="22" />
+      <p>No hay ventas en conflicto. Todo lo sincronizado se aplicó sin problemas.</p>
+    </div>
+  } @else {
+    <ul class="lista">
+      @for (c of conflictos(); track c.venta_id) {
+        <li class="card item-conflicto">
+          <div class="cabecera">
+            <div>
+              <strong>Venta #{{ c.venta_id }}</strong>
+              <span class="muted">
+                {{ c.nombre_sucursal }} · {{ c.nombre_cajero || 'Cajero' }} ·
+                {{ c.creada_en | date: 'dd/MM/yyyy HH:mm' }}
+              </span>
+            </div>
+            <span class="etiqueta">En conflicto</span>
+          </div>
+          <p class="motivo"><app-icon name="alert-circle" [size]="16" /> {{ c.motivo || 'Stock insuficiente' }}</p>
+          <ul class="prendas">
+            @for (i of c.items; track $index) {
+              <li>
+                <span>{{ i.cantidad }} × {{ i.nombre_producto }} <span class="muted">({{ etiquetaVariante(i.nombre_talla, i.nombre_color) }})</span></span>
+                <span>{{ i.precio_unitario * i.cantidad | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+              </li>
+            }
+          </ul>
+          <div class="pie">
+            <strong>Total {{ c.total | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
+            <button type="button" class="btn-primary" (click)="abrir(c)">Resolver</button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (seleccionado(); as c) {
+    <div class="modal-backdrop" (click)="cerrar()">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Resolver conflicto" (click)="$event.stopPropagation()">
+        <header class="modal-head">
+          <div>
+            <h2>Resolver venta #{{ c.venta_id }}</h2>
+            <span class="muted">{{ c.nombre_sucursal }} · {{ c.nombre_cajero || 'Cajero' }}</span>
+          </div>
+          <button type="button" class="cerrar" (click)="cerrar()" [disabled]="procesando()" aria-label="Cerrar">✕</button>
+        </header>
+
+        <div class="modal-body">
+          <p class="motivo"><app-icon name="alert-circle" [size]="16" /> {{ c.motivo || 'Stock insuficiente' }}</p>
+
+          @if (modo() === 'detalle') {
+            <ul class="prendas">
+              @for (i of c.items; track $index) {
+                <li>
+                  <span>{{ i.cantidad }} × {{ i.nombre_producto }} <span class="muted">({{ etiquetaVariante(i.nombre_talla, i.nombre_color) }})</span></span>
+                  <span>{{ i.precio_unitario * i.cantidad | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+                </li>
+              }
+            </ul>
+
+            <label class="nota">
+              Nota (opcional)
+              <input type="text" name="nota" maxlength="200" [(ngModel)]="nota" placeholder="ej: el cliente aceptó otra talla" />
+            </label>
+
+            @if (confirmando() === 'ANULAR') {
+              <div class="confirmar">
+                <p>¿Anular la venta #{{ c.venta_id }}? <b>No se descuenta stock</b> y la venta queda anulada.</p>
+                <div class="acciones">
+                  <button type="button" class="btn-secondary" (click)="cancelarConfirmacion()" [disabled]="procesando()">Volver</button>
+                  <button type="button" class="btn-danger" (click)="confirmar('ANULAR')" [disabled]="procesando()">
+                    {{ procesando() ? 'Anulando…' : 'Sí, anular' }}
+                  </button>
+                </div>
+              </div>
+            } @else if (confirmando() === 'FORZAR') {
+              <div class="confirmar">
+                <p>¿Forzar la venta #{{ c.venta_id }}? Se descuenta el stock <b>aunque el inventario quede en negativo</b>: asumes esa diferencia.</p>
+                <div class="acciones">
+                  <button type="button" class="btn-secondary" (click)="cancelarConfirmacion()" [disabled]="procesando()">Volver</button>
+                  <button type="button" class="btn-primary" (click)="confirmar('FORZAR')" [disabled]="procesando()">
+                    {{ procesando() ? 'Forzando…' : 'Sí, forzar venta' }}
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <div class="acciones tres">
+                <button type="button" class="btn-danger" (click)="pedirConfirmacion('ANULAR')" [disabled]="procesando()">Anular Venta</button>
+                <button type="button" class="btn-secondary" (click)="iniciarAjuste()" [disabled]="procesando()">Ajustar Variante</button>
+                <button type="button" class="btn-primary" (click)="pedirConfirmacion('FORZAR')" [disabled]="procesando()">Forzar Venta</button>
+              </div>
+            }
+          } @else {
+            <p class="muted">Elige la talla/color que sí hay en stock para entregar en lugar de lo pedido.</p>
+            @if (cargandoVariantes()) {
+              <p class="muted" aria-busy="true">Consultando el stock…</p>
+            } @else {
+              <ul class="ajuste">
+                @for (f of filasAjuste(); track $index) {
+                  <li>
+                    <strong>{{ f.nombreProducto }}</strong>
+                    @if (f.opciones.length === 0) {
+                      <span class="muted">Sin stock en ninguna variante de esta sucursal.</span>
+                    } @else {
+                      <div class="fila-ajuste">
+                        <select [name]="'variante' + $index" [(ngModel)]="f.seleccion" aria-label="Variante">
+                          @for (o of f.opciones; track $index) {
+                            <option [value]="o.talla_id + '_' + o.color_id">
+                              {{ etiquetaVariante(o.nombre_talla, o.nombre_color) }} — {{ o.cantidad_disponible }} disp.
+                            </option>
+                          }
+                        </select>
+                        <input
+                          type="number"
+                          min="1"
+                          [name]="'cantidad' + $index"
+                          [(ngModel)]="f.cantidad"
+                          [max]="opcionElegida(f)?.cantidad_disponible || 1"
+                          aria-label="Cantidad"
+                        />
+                      </div>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            <div class="acciones">
+              <button type="button" class="btn-secondary" (click)="volverAlDetalle()" [disabled]="procesando()">Volver</button>
+              <button type="button" class="btn-primary" (click)="confirmarAjuste()" [disabled]="procesando() || cargandoVariantes() || !ajusteValido()">
+                {{ procesando() ? 'Aplicando…' : 'Confirmar ajuste' }}
+              </button>
+            </div>
+          }
+
+          @if (errorModal()) {
+            <div class="aviso aviso-error" role="alert">{{ errorModal() }}</div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

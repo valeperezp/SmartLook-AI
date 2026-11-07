@@ -15,7 +15,7 @@
 class Schema {
   Schema._();
 
-  static const int version = 4;
+  static const int version = 5;
   static const String nombreArchivo = 'smartlook_offline.db';
 
   static const String tablaCatalogoLocal = 'catalogo_local';
@@ -94,7 +94,7 @@ CREATE TABLE operaciones_locales (
   total_centavos INTEGER NOT NULL CHECK (total_centavos >= 0),
   fecha TEXT NOT NULL,
   estado TEXT NOT NULL DEFAULT 'pendiente_sync'
-    CHECK (estado IN ('pendiente_sync', 'sincronizada', 'rechazada')),
+    CHECK (estado IN ('pendiente_sync', 'sincronizada', 'rechazada', 'en_conflicto')),
   id_servidor INTEGER,
   turno_uuid TEXT REFERENCES turnos_caja(id),
   CHECK (tipo_operacion <> 'VENTA_CONTADO' OR cajero_id IS NOT NULL),
@@ -217,7 +217,7 @@ CREATE TABLE sync_queue (
   CHECK (tipo_operacion <> 'DEVOLUCION' OR
          (devolucion_id IS NOT NULL AND operacion_uuid IS NULL AND turno_uuid IS NULL))
 )''';
-  // v4: la `sync_queue` vigente (se reconstruye otra vez al migrar de v3).
+  // v4/v5: la `sync_queue` vigente (v5 amplía su CHECK de estado con 'en_conflicto').
   static const String _syncQueue = '''
 CREATE TABLE sync_queue (
   id TEXT PRIMARY KEY,
@@ -230,7 +230,7 @@ CREATE TABLE sync_queue (
   movimiento_puntos_id TEXT REFERENCES movimientos_puntos(id) ON DELETE RESTRICT,
   payload_json TEXT NOT NULL,
   estado TEXT NOT NULL DEFAULT 'pendiente'
-    CHECK (estado IN ('pendiente', 'en_proceso', 'sincronizado', 'error', 'rechazado')),
+    CHECK (estado IN ('pendiente', 'en_proceso', 'sincronizado', 'error', 'rechazado', 'en_conflicto')),
   intentos INTEGER NOT NULL DEFAULT 0 CHECK (intentos >= 0),
   ultimo_error TEXT,
   fecha_ultimo_intento TEXT,
@@ -378,6 +378,31 @@ CREATE INDEX ix_items_operacion ON operaciones_locales_items (operacion_uuid)'''
             'estado, intentos, ultimo_error, fecha_ultimo_intento, fecha_creacion) '
             'SELECT id, tipo_operacion, operacion_uuid, turno_uuid, devolucion_id, payload_json, '
             'estado, intentos, ultimo_error, fecha_ultimo_intento, fecha_creacion FROM sync_queue',
+        'DROP TABLE sync_queue',
+        'ALTER TABLE sync_queue_nueva RENAME TO sync_queue',
+        _indiceSyncCola,
+      ];
+
+  /// v4 → v5: estado `en_conflicto` (CU13). SQLite no puede cambiar un CHECK con ALTER: `operaciones_locales` y
+  /// `sync_queue` se reconstruyen copiando todas sus filas. Como `operaciones_locales` es tabla PADRE (ítems,
+  /// cola y devoluciones la referencian), la migración corre con las claves foráneas DESACTIVADAS (ver
+  /// `AppDatabase.abrir`): con ellas activas, `DROP TABLE` borraría en cascada los ítems. Al terminar se comprueba
+  /// `PRAGMA foreign_key_check` y se reactivan.
+  static List<String> get migracionV5 => [
+        _operacionesLocales.replaceFirst('CREATE TABLE operaciones_locales', 'CREATE TABLE operaciones_locales_nueva'),
+        'INSERT INTO operaciones_locales_nueva (uuid, tipo_operacion, sucursal_id, cajero_id, cliente_id, '
+            'total_centavos, fecha, estado, id_servidor, turno_uuid) '
+            'SELECT uuid, tipo_operacion, sucursal_id, cajero_id, cliente_id, '
+            'total_centavos, fecha, estado, id_servidor, turno_uuid FROM operaciones_locales',
+        'DROP TABLE operaciones_locales',
+        'ALTER TABLE operaciones_locales_nueva RENAME TO operaciones_locales',
+        _indiceOperacionesTurno,
+        _syncQueue.replaceFirst('CREATE TABLE sync_queue', 'CREATE TABLE sync_queue_nueva'),
+        'INSERT INTO sync_queue_nueva (id, tipo_operacion, operacion_uuid, turno_uuid, devolucion_id, '
+            'movimiento_puntos_id, payload_json, estado, intentos, ultimo_error, fecha_ultimo_intento, fecha_creacion) '
+            'SELECT id, tipo_operacion, operacion_uuid, turno_uuid, devolucion_id, '
+            'movimiento_puntos_id, payload_json, estado, intentos, ultimo_error, fecha_ultimo_intento, fecha_creacion '
+            'FROM sync_queue',
         'DROP TABLE sync_queue',
         'ALTER TABLE sync_queue_nueva RENAME TO sync_queue',
         _indiceSyncCola,

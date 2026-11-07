@@ -24,7 +24,7 @@ from typing import Callable
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.modules.bitacora import service as bitacora
 from app.modules.catalogo.models import Producto
@@ -44,7 +44,7 @@ from app.modules.sync.models import (
 from app.modules.usuarios.models import Usuario
 from app.modules.ventas import schemas as ventas_schemas
 from app.modules.ventas import service as ventas_service
-from app.modules.ventas.models import Venta
+from app.modules.ventas.models import Venta, VentaItem
 
 TIPO_VENTA = "VENTA_CONTADO"
 TIPO_RESERVA = "RESERVA_CLIENTE"
@@ -62,6 +62,15 @@ class AplazarSync(Exception):
     """Todavía no se puede decidir (falta algo por sincronizar): no se registra nada y la app reintenta."""
 
 
+class VentaEnConflicto(Exception):
+    """Venta offline sin stock suficiente: se guardó SIN descontar stock, a la espera de que un encargado la resuelva (CU13)."""
+
+    def __init__(self, venta_id: int, mensaje: str):
+        super().__init__(mensaje)
+        self.venta_id = venta_id
+        self.mensaje = mensaje
+
+
 def _recortar(mensaje: str) -> str:
     return mensaje[:255]
 
@@ -73,6 +82,9 @@ def _dinero(centavos: int | None) -> Decimal:
 def _resultado(registro: SyncOperacion) -> schemas.ResultadoItem:
     if registro.estado == "ok":
         return schemas.ResultadoItem(uuid=registro.uuid, status="ok", id_servidor=registro.entidad_id, entidad=registro.entidad)
+    if registro.estado == "en_conflicto":
+        return schemas.ResultadoItem(uuid=registro.uuid, status="en_conflicto", id_servidor=registro.entidad_id,
+                                     entidad=registro.entidad, message=registro.mensaje)
     return schemas.ResultadoItem(uuid=registro.uuid, status="conflict", message=registro.mensaje)
 
 
@@ -148,6 +160,16 @@ def _procesar(db: Session, usuario: Usuario, uuid: str, tipo_operacion: str,
         db.add(registro)
         db.commit()  # lo aplicado + stock + registro de idempotencia: todo o nada
         return _resultado(registro)
+    except VentaEnConflicto as e:
+        # La venta (sin descontar stock) ya está en la sesión: se confirma junto con el registro de idempotencia
+        registro = SyncOperacion(
+            empresa_id=usuario.empresa_id, uuid=uuid, tipo_operacion=tipo_operacion[:30], entidad="venta",
+            entidad_id=e.venta_id, estado="en_conflicto", mensaje=_recortar(e.mensaje), usuario_id=usuario.id,
+        )
+        db.add(registro)
+        bitacora.registrar(db, "sync.venta_en_conflicto", f"Venta {e.venta_id} en conflicto: {e.mensaje}", usuario=usuario)
+        db.commit()
+        return _resultado(registro)
     except ConflictoSync as e:
         db.rollback()
         return _registrar_conflicto(db, usuario, uuid, tipo_operacion, str(e))
@@ -212,8 +234,16 @@ def _aplicar_operacion(db: Session, usuario: Usuario, op: schemas.OperacionSync)
             cliente_id=_cliente_de_la_empresa(db, empresa_id, op.cliente_id),
             items=[ventas_schemas.VentaItemCreate(producto_id=i.producto_id, talla_id=i.talla_id, color_id=i.color_id, cantidad=i.cantidad) for i in op.items],
         )
-        venta = ventas_service.crear_venta_presencial(db, data, cajero_id=usuario.id, commit=False)
         fecha = _fecha_local(op.fecha)
+        # CU13: sin stock suficiente la venta NO se rechaza: se guarda `en_conflicto` (sin descontar nada) y la resuelve
+        # un encargado desde la web. Otros problemas (producto ajeno, sin permiso...) siguen siendo conflicto definitivo.
+        faltantes = ventas_service.detectar_faltantes_de_stock(db, op.sucursal_id, data.items)
+        if faltantes:
+            venta = ventas_service.crear_venta_en_conflicto(db, data, cajero_id=usuario.id)
+            if fecha is not None:
+                venta.creada_en = fecha
+            raise VentaEnConflicto(venta.id, "; ".join(faltantes))
+        venta = ventas_service.crear_venta_presencial(db, data, cajero_id=usuario.id, commit=False)
         if fecha is not None:
             venta.creada_en = fecha
         return "venta", venta.id
@@ -266,6 +296,8 @@ def _aplicar_devolucion(db: Session, usuario: Usuario, d: schemas.DevolucionSync
     origen = _origen(db, empresa_id, d.venta_uuid)
     if origen is None:
         raise AplazarSync("La venta original aún no está sincronizada")
+    if origen.estado == "en_conflicto":
+        raise AplazarSync("La venta original está en conflicto de stock: espera a que el encargado la resuelva")
     if origen.estado != "ok" or origen.entidad != "venta":
         raise ConflictoSync("La venta original fue rechazada por el servidor")
     venta = db.query(Venta).filter(Venta.id == origen.entidad_id).first()
@@ -372,6 +404,8 @@ def _aplicar_puntos(db: Session, usuario: Usuario, m: schemas.MovimientoPuntosSy
         origen = _origen(db, empresa_id, m.operacion_uuid)
         if origen is None:
             raise AplazarSync("La operación de origen aún no está sincronizada")
+        if origen.estado == "en_conflicto":
+            raise AplazarSync("La operación de origen está en conflicto de stock: espera a que el encargado la resuelva")
         if origen.estado != "ok":
             raise ConflictoSync("La operación de origen fue rechazada por el servidor")
 
@@ -406,7 +440,7 @@ def _aplicar_cierre(db: Session, usuario: Usuario, c: schemas.CierreCajaSync) ->
     venta_ids: list[int] = []
     for uuid in c.operaciones:
         origen = _origen(db, empresa_id, uuid)
-        if origen is None:
+        if origen is None or origen.estado == "en_conflicto":  # en conflicto: su total aún no es definitivo
             faltan += 1
         elif origen.estado != "ok" or origen.entidad != "venta":
             raise ConflictoSync("Una venta del turno fue rechazada por el servidor")
@@ -419,7 +453,7 @@ def _aplicar_cierre(db: Session, usuario: Usuario, c: schemas.CierreCajaSync) ->
         elif origen.estado != "ok":
             raise ConflictoSync("Un cambio o devolución del turno fue rechazado por el servidor")
     if faltan:
-        raise AplazarSync(f"Faltan {faltan} operaciones del turno por sincronizar")
+        raise AplazarSync(f"Faltan {faltan} operaciones del turno por sincronizar o resolver")
 
     total_ventas = Decimal(0)
     if venta_ids:
@@ -475,3 +509,133 @@ def sincronizar_lote(db: Session, usuario: Usuario, lote: schemas.LoteSyncReques
         )
         db.commit()
     return schemas.LoteSyncResponse(resultados=resultados)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Resolución manual de conflictos de stock (CU13): lo hace un encargado (de su sucursal) o un administrador
+# ---------------------------------------------------------------------------------------------------------------
+
+def listar_conflictos(db: Session, usuario: Usuario, sucursal_id: int | None = None) -> list[schemas.ConflictoOut]:
+    """Ventas `en_conflicto` de la empresa. Un encargado ve solo las de su sucursal; el administrador, todas (o una)."""
+    consulta = (
+        db.query(Venta)
+        .join(Sucursal, Venta.sucursal_id == Sucursal.id)
+        .options(
+            joinedload(Venta.items).joinedload(VentaItem.producto),
+            joinedload(Venta.items).joinedload(VentaItem.talla),
+            joinedload(Venta.items).joinedload(VentaItem.color),
+            joinedload(Venta.sucursal),
+            joinedload(Venta.cajero),
+        )
+        .filter(Venta.estado == "en_conflicto", Sucursal.empresa_id == usuario.empresa_id)
+    )
+    if usuario.rol == "encargado_sucursal":
+        if usuario.sucursal_id is None:
+            return []
+        consulta = consulta.filter(Venta.sucursal_id == usuario.sucursal_id)
+    elif sucursal_id is not None:
+        consulta = consulta.filter(Venta.sucursal_id == sucursal_id)
+    ventas = consulta.order_by(Venta.creada_en, Venta.id).all()
+
+    registros = {}
+    if ventas:
+        for r in db.query(SyncOperacion).filter(
+            SyncOperacion.empresa_id == usuario.empresa_id, SyncOperacion.entidad == "venta",
+            SyncOperacion.estado == "en_conflicto", SyncOperacion.entidad_id.in_([v.id for v in ventas]),
+        ):
+            registros[r.entidad_id] = r
+
+    salida = []
+    for v in ventas:
+        r = registros.get(v.id)
+        salida.append(schemas.ConflictoOut(
+            venta_id=v.id, uuid=r.uuid if r else None, sucursal_id=v.sucursal_id, nombre_sucursal=v.nombre_sucursal,
+            cajero_id=v.cajero_id, nombre_cajero=v.nombre_cajero, total=float(v.total),
+            creada_en=v.creada_en.isoformat() if v.creada_en else None, motivo=r.mensaje if r else None,
+            items=[schemas.ConflictoItemOut(
+                producto_id=i.producto_id, nombre_producto=i.producto.nombre if i.producto else f"Producto {i.producto_id}",
+                talla_id=i.talla_id, nombre_talla=i.talla.nombre if i.talla else None,
+                color_id=i.color_id, nombre_color=i.color.nombre if i.color else None,
+                cantidad=i.cantidad, precio_unitario=float(i.precio_unitario),
+            ) for i in v.items],
+        ))
+    return salida
+
+
+def _descontar_pedido(db: Session, usuario: Usuario, sucursal_id: int, pedido: dict[tuple, int], motivo: str) -> None:
+    """Descuenta del inventario lo pedido (aunque deje el stock negativo) y registra el movimiento de cada variante."""
+    for (producto_id, talla_id, color_id), cantidad in pedido.items():
+        inventario = ventas_service._buscar_inventario(db, producto_id, sucursal_id, talla_id, color_id)
+        if inventario is None:
+            producto = db.get(Producto, producto_id)
+            nombre = ventas_service.nombre_variante(db, producto, talla_id, color_id) if producto else f"producto {producto_id}"
+            raise HTTPException(status_code=400, detail=f"No hay inventario de {nombre} en esta sucursal: usa Ajustar variante")
+        inventario.cantidad_disponible -= cantidad
+        inventario.cantidad_vendida += cantidad
+        db.add(MovimientoInventario(inventario_id=inventario.id, tipo="venta", cantidad=cantidad, motivo=motivo, usuario_id=usuario.id))
+    db.flush()
+
+
+def resolver_conflicto(db: Session, usuario: Usuario, venta_id: int, data: schemas.ResolverConflictoRequest,
+                       request=None) -> schemas.ResolverConflictoResponse:
+    """Resuelve una venta `en_conflicto`: ANULAR (no descuenta), AJUSTAR (otras prendas, con stock) o FORZAR (descuenta aunque quede negativo)."""
+    venta = (
+        db.query(Venta)
+        .join(Sucursal, Venta.sucursal_id == Sucursal.id)
+        .filter(Venta.id == venta_id, Sucursal.empresa_id == usuario.empresa_id)
+        .with_for_update(of=Venta)
+        .first()
+    )
+    # Una venta de otra empresa (o de otra sucursal, para un encargado) se trata como si no existiera
+    if venta is None or (usuario.rol == "encargado_sucursal" and venta.sucursal_id != usuario.sucursal_id):
+        raise HTTPException(status_code=404, detail="Venta no encontrada")
+    if venta.estado != "en_conflicto":
+        raise HTTPException(status_code=409, detail="Esta venta ya no está en conflicto")
+
+    registro = db.query(SyncOperacion).filter(
+        SyncOperacion.empresa_id == usuario.empresa_id, SyncOperacion.entidad == "venta", SyncOperacion.entidad_id == venta.id,
+    ).first()
+    nota = f": {data.motivo.strip()}" if data.motivo and data.motivo.strip() else ""
+
+    try:
+        if data.accion == "ANULAR":
+            venta.estado = "anulada"  # no se descontó nada al guardarla, así que no hay nada que devolver
+            if registro:
+                registro.estado, registro.mensaje = "conflict", _recortar(f"Venta anulada por el encargado{nota}")
+        elif data.accion == "FORZAR":
+            _descontar_pedido(db, usuario, venta.sucursal_id, ventas_service.agrupar_por_variante(venta.items),
+                              "Venta forzada por el encargado (el stock puede quedar negativo)")
+            venta.estado = "completada"
+            if registro:
+                registro.estado, registro.mensaje = "ok", _recortar(f"Forzada por el encargado{nota}")
+        else:  # AJUSTAR
+            if not data.items:
+                raise HTTPException(status_code=400, detail="Indica las prendas del ajuste")
+            for pid in {i.producto_id for i in data.items}:
+                if db.query(Producto.id).filter(Producto.id == pid, Producto.empresa_id == usuario.empresa_id).first() is None:
+                    raise HTTPException(status_code=400, detail=f"Producto {pid} no encontrado en tu empresa")
+            faltantes = ventas_service.detectar_faltantes_de_stock(db, venta.sucursal_id, data.items)
+            if faltantes:
+                raise HTTPException(status_code=400, detail="; ".join(faltantes))
+            for item in list(venta.items):
+                db.delete(item)
+            db.flush()
+            total = 0.0
+            for it in data.items:
+                precio = float(db.get(Producto, it.producto_id).precio)
+                db.add(VentaItem(venta_id=venta.id, producto_id=it.producto_id, talla_id=it.talla_id, color_id=it.color_id,
+                                 cantidad=it.cantidad, precio_unitario=precio))
+                total += precio * it.cantidad
+            venta.total = total
+            _descontar_pedido(db, usuario, venta.sucursal_id, ventas_service.agrupar_por_variante(data.items),
+                              "Venta ajustada por el encargado")
+            venta.estado = "completada"
+            if registro:
+                registro.estado, registro.mensaje = "ok", _recortar(f"Ajustada por el encargado{nota}")
+
+        bitacora.registrar(db, "sync.conflicto_resuelto", f"Venta {venta.id}: {data.accion}{nota}", usuario=usuario, request=request)
+        db.commit()
+    except HTTPException:
+        db.rollback()
+        raise
+    return schemas.ResolverConflictoResponse(venta_id=venta.id, accion=data.accion, estado=venta.estado, total=float(venta.total))
