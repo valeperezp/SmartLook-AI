@@ -232,6 +232,30 @@ describe('TPV del cajero: venta sin conexión', () => {
       expect(pos.varianteSeleccionada()?.talla_id).toBe(2);
     });
 
+    it('CU8: con el catálogo guardado de hace 2 días el TPV muestra "Información desactualizada"', async () => {
+      await db_guardar([{ ...fila(101, 1, 2, 5), sincronizado_en: new Date(Date.now() - 48 * 3_600_000).toISOString() }]);
+      await crear(false);
+      responderArranque('sin-red');
+      await esperar(() => pos.catalogoLocal());
+      await sync.refrescarEstado();
+      fixture.detectChanges();
+
+      const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(texto).toContain('Información desactualizada');
+      expect(texto).toContain('La información puede estar desactualizada. Conéctate a internet para actualizar.');
+    });
+
+    it('CU8: con un catálogo guardado reciente el TPV no muestra el aviso de desactualizado', async () => {
+      await db_guardar([{ ...fila(101, 1, 2, 5), sincronizado_en: new Date().toISOString() }]);
+      await crear(false);
+      responderArranque('sin-red');
+      await esperar(() => pos.catalogoLocal());
+      await sync.refrescarEstado();
+      fixture.detectChanges();
+
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Información desactualizada');
+    });
+
     it('CU13: la venta offline descuenta el stock que ofrece el selector y un rechazo del servidor lo devuelve', async () => {
       await db_guardar([fila(101, 1, 2, 5)]);
       await crear(false);

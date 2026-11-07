@@ -9,16 +9,25 @@ import '../data/sync_queue_dao.dart';
 import '../models/catalogo_item.dart';
 import '../services/catalogo_sync_service.dart';
 
+/// Pasadas estas horas sin descargar el catálogo, se avisa que la información puede estar desactualizada (CU8).
+const Duration limiteCatalogoDesactualizado = Duration(hours: 24);
+
 /// Catálogo offline del cliente (CU8) y reserva local de un producto (CU9).
 class CatalogoOfflineProvider extends ChangeNotifier {
-  CatalogoOfflineProvider({CatalogoLocalDao? catalogoDao, SyncQueueDao? colaDao, CatalogoSyncService? catalogoSync})
-      : _catalogoDao = catalogoDao ?? CatalogoLocalDao(),
+  CatalogoOfflineProvider({
+    CatalogoLocalDao? catalogoDao,
+    SyncQueueDao? colaDao,
+    CatalogoSyncService? catalogoSync,
+    DateTime Function()? ahora,
+  })  : _catalogoDao = catalogoDao ?? CatalogoLocalDao(),
         _colaDao = colaDao ?? SyncQueueDao(),
-        _catalogoSyncInyectado = catalogoSync;
+        _catalogoSyncInyectado = catalogoSync,
+        _ahora = ahora ?? DateTime.now;
 
   final CatalogoLocalDao _catalogoDao;
   final SyncQueueDao _colaDao;
   final CatalogoSyncService? _catalogoSyncInyectado;
+  final DateTime Function() _ahora;
   late final CatalogoSyncService _catalogoSync = _catalogoSyncInyectado ?? CatalogoSyncService(dao: _catalogoDao);
   static const _uuid = Uuid();
 
@@ -27,12 +36,28 @@ class CatalogoOfflineProvider extends ChangeNotifier {
   bool _cargando = false;
   String? _error;
   String? _ultimoMensaje;
+  DateTime? _descargadoEn;
   final Set<int> _reservando = {};
 
   List<CatalogoItem> get productos => _productos;
   int get pendientes => _pendientes;
   bool get cargando => _cargando;
   String? get error => _error;
+
+  /// Cuándo se descargó el catálogo que se está mostrando (null si no hay catálogo guardado).
+  DateTime? get descargadoEn => _descargadoEn;
+
+  /// Hace cuánto se descargó el catálogo (null si no hay catálogo).
+  Duration? get antiguedad => _descargadoEn == null ? null : _ahora().difference(_descargadoEn!);
+
+  /// El catálogo tiene más de 24 horas sin actualizarse: la pantalla muestra "Información desactualizada".
+  bool get desactualizado => estaDesactualizado(_descargadoEn, _ahora());
+
+  /// `ahora - fechaDescarga > 24 h`. Sin catálogo (fecha nula) o con una fecha futura (reloj desajustado) no hay aviso.
+  static bool estaDesactualizado(DateTime? fechaDescarga, DateTime ahora) {
+    if (fechaDescarga == null) return false;
+    return ahora.difference(fechaDescarga) > limiteCatalogoDesactualizado;
+  }
 
   /// Resultado legible de la última acción (reserva, carga de datos de prueba) para mostrar en un SnackBar.
   String? get ultimoMensaje => _ultimoMensaje;
@@ -162,5 +187,6 @@ class CatalogoOfflineProvider extends ChangeNotifier {
     final pendientes = await _colaDao.obtenerOperacionesPendientes();
     _productos = filas.map(CatalogoItem.fromMap).toList(growable: false);
     _pendientes = pendientes.length;
+    _descargadoEn = filas.isEmpty ? null : await _catalogoDao.obtenerFechaUltimaDescarga();
   }
 }

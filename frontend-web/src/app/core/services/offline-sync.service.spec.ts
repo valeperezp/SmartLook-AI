@@ -147,6 +147,68 @@ describe('OfflineSyncService', () => {
     expect(await db.obtenerOperacionesPendientes()).toEqual([]);
   });
 
+  describe('catálogo desactualizado (CU8: más de 24 h sin actualizarse)', () => {
+    const HORA = 3_600_000;
+    const ahora = Date.parse('2026-11-07T12:00:00.000Z');
+    const hace = (ms: number) => new Date(ahora - ms).toISOString();
+
+    it('regla: justo 24 h no avisa; pasadas las 24 h sí; sin fecha, ilegible o futura no', () => {
+      const esViejo = OfflineSyncService.esCatalogoDesactualizado;
+      expect(esViejo(null, ahora)).toBe(false);
+      expect(esViejo('no-es-una-fecha', ahora)).toBe(false);
+      expect(esViejo(hace(23 * HORA + 59 * 60_000), ahora)).toBe(false);
+      expect(esViejo(hace(24 * HORA), ahora)).toBe(false);
+      expect(esViejo(hace(24 * HORA + 60_000), ahora)).toBe(true);
+      expect(esViejo(hace(48 * HORA), ahora)).toBe(true);
+      expect(esViejo(new Date(ahora + 5 * HORA).toISOString(), ahora)).toBe(false);
+    });
+
+    it('el texto de antigüedad cuenta en horas hasta 48 h y en días después', () => {
+      const texto = OfflineSyncService.antiguedadTexto;
+      expect(texto(hace(10 * 60_000), ahora)).toBe('hace 1 hora');
+      expect(texto(hace(30 * HORA), ahora)).toBe('hace 30 horas');
+      expect(texto(hace(51 * HORA), ahora)).toBe('hace 2 días');
+    });
+
+    const catalogo = (descargadoEn: string) => [{
+      clave: OfflineDbService.claveCatalogo('1', 1, 101, 2, 1), empresa: '1', sucursal_id: 1, nombre_sucursal: 'Centro', producto_id: 101,
+      nombre_producto: 'Camisa', descripcion: null, categoria_id: 1, nombre_categoria: 'Camisas', talla_id: 2, nombre_talla: 'M',
+      color_id: 1, nombre_color: 'Negro', precio_centavos: 1999, imagen_url: null, cantidad_disponible: 5, sincronizado_en: descargadoEn,
+    }];
+
+    it('un catálogo descargado hace 2 días marca catalogoDesactualizado', async () => {
+      iniciar();
+      await db.guardarCatalogo(catalogo(new Date(Date.now() - 48 * HORA).toISOString()), '1');
+
+      await sync.refrescarEstado();
+
+      expect(sync.catalogoDesactualizado()).toBe(true);
+      expect(sync.catalogoDescargadoEn()).toBeTruthy();
+    });
+
+    it('uno descargado hace unas horas no, y sin catálogo tampoco', async () => {
+      iniciar();
+      await sync.refrescarEstado();
+      expect(sync.catalogoDesactualizado()).toBe(false); // nunca se descargó nada
+
+      await db.guardarCatalogo(catalogo(new Date(Date.now() - 5 * HORA).toISOString()), '1');
+      await sync.refrescarEstado();
+
+      expect(sync.catalogoDesactualizado()).toBe(false);
+    });
+
+    it('al volver a descargar el catálogo el aviso desaparece', async () => {
+      iniciar();
+      await db.guardarCatalogo(catalogo(new Date(Date.now() - 72 * HORA).toISOString()), '1');
+      await sync.refrescarEstado();
+      expect(sync.catalogoDesactualizado()).toBe(true);
+
+      await sync.descargarCatalogo(); // guarda las filas con la fecha de ahora
+
+      expect(sync.catalogoDesactualizado()).toBe(false);
+    });
+  });
+
   it('CU13: un "conflict" por falta de stock en el servidor devuelve el stock local y avisa a las pantallas (catalogoVersion)', async () => {
     iniciar();
     const hace1Min = new Date(Date.now() - 60_000).toISOString();

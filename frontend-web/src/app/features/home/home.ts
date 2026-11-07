@@ -10,6 +10,7 @@ import { ReservasService } from '../../core/services/reservas.service';
 import { CarritoService } from '../../core/services/carrito.service';
 import { AuthService } from '../../core/services/auth.service';
 import { IaService } from '../../core/services/ia.service';
+import { CatalogoDesactualizado } from '../../core/components/catalogo-desactualizado/catalogo-desactualizado';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
 
 import {
@@ -28,7 +29,7 @@ import { IconComponent } from '../../core/components/icon/icon';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [CommonModule, FormsModule, IconComponent, CatalogoDesactualizado],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })

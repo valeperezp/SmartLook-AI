@@ -1,5 +1,8 @@
 <div class="tpv-container">
   <app-offline-banner mensaje="Puedes seguir cobrando: cada venta queda guardada aquí." />
+  @if (catalogoLocal()) {
+    <app-catalogo-desactualizado />
+  }
 
   @if (toast()) {
     <div class="toast-banner" [class.toast-error]="toastError()">

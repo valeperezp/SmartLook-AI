@@ -10,6 +10,7 @@ import '../models/catalogo_item.dart';
 import '../providers/catalogo_offline_provider.dart';
 import '../providers/suscripciones_provider.dart';
 import '../services/sync_service.dart';
+import '../widgets/banner_catalogo_desactualizado.dart';
 import '../widgets/banner_offline.dart';
 
 /// Catálogo leído de SQLite (funciona sin red) con reserva local de productos.
@@ -165,6 +166,7 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
                 ],
               ),
             ),
+          const BannerCatalogoDesactualizado(),
           Expanded(child: _cuerpo(provider, suscripciones)),
         ],
       ),

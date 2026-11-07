@@ -11,6 +11,7 @@ import { Categoria, DisponibilidadTallaColor, Producto } from '../../../core/mod
 import { Venta, VentaPresencialCreate } from '../../../core/models/venta.model';
 import { Pago } from '../../../core/models/pago.model';
 import { IconComponent } from '../../../core/components/icon/icon';
+import { CatalogoDesactualizado } from '../../../core/components/catalogo-desactualizado/catalogo-desactualizado';
 import { OfflineBanner } from '../../../core/components/offline-banner/offline-banner';
 import { PagoModal } from '../pagos/pago-modal';
 import { PagoQRModal } from '../pagos/pago-qr-modal';
@@ -29,7 +30,7 @@ export interface ItemCarrito {
 @Component({
   selector: 'app-nueva-venta',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, PagoModal, PagoQRModal, OfflineBanner],
+  imports: [CommonModule, FormsModule, IconComponent, PagoModal, PagoQRModal, OfflineBanner, CatalogoDesactualizado],
   templateUrl: './nueva-venta.html',
   styleUrl: './nueva-venta.scss',
 })

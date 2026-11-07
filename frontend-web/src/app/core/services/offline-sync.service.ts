@@ -22,6 +22,9 @@ const TIMEOUT_ENVIO_MS = 30_000;
 /** Cuántas disponibilidades se piden a la vez al descargar el catálogo (una por producto). */
 const PARALELISMO_DESCARGA = 6;
 
+/** Pasadas estas horas sin descargar el catálogo, se avisa que la información puede estar desactualizada (CU8). */
+export const LIMITE_CATALOGO_DESACTUALIZADO_MS = 24 * 60 * 60 * 1000;
+
 const RESULTADO_VACIO: ResultadoSyncWeb = {
   sincronizadas: 0,
   rechazadas: 0,
@@ -59,6 +62,8 @@ export class OfflineSyncService {
   /** Variantes del catálogo guardadas para esta tienda y cuándo se descargaron. */
   readonly variantesOffline = signal(0);
   readonly catalogoDescargadoEn = signal<string | null>(null);
+  /** El catálogo guardado tiene más de 24 horas sin actualizarse: las pantallas que lo muestran avisan. */
+  readonly catalogoDesactualizado = signal(false);
   /**
    * Sube cada vez que cambia el catálogo local (se descargó, una operación offline descontó stock o un rechazo lo
    * devolvió). Las pantallas que muestran el catálogo guardado lo observan para volver a leerlo.
@@ -342,6 +347,25 @@ export class OfflineSyncService {
     return r;
   }
 
+  /**
+   * `ahora - fechaDescarga > 24 h`. Sin catálogo (fecha nula o ilegible) o con una fecha futura (reloj desajustado)
+   * no hay aviso. [fechaDescarga] es el `sincronizado_en` (ISO) que se guarda en cada fila al descargar el catálogo.
+   */
+  static esCatalogoDesactualizado(fechaDescarga: string | null, ahora: number = Date.now()): boolean {
+    if (!fechaDescarga) return false;
+    const descargado = Date.parse(fechaDescarga);
+    if (Number.isNaN(descargado)) return false;
+    return ahora - descargado > LIMITE_CATALOGO_DESACTUALIZADO_MS;
+  }
+
+  /** "hace 5 horas" / "hace 2 días" (menos de 48 h se cuenta en horas). */
+  static antiguedadTexto(fechaDescarga: string, ahora: number = Date.now()): string {
+    const horas = Math.max(1, Math.floor((ahora - Date.parse(fechaDescarga)) / 3_600_000));
+    if (horas < 48) return `hace ${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+    const dias = Math.floor(horas / 24);
+    return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`;
+  }
+
   static resumen(r: ResultadoSyncWeb): string {
     if (r.yaEnCurso) return 'Ya hay una sincronización en curso.';
     if (r.sinRed && r.fallidas === 0) return 'Sin conexión: no se sincronizó nada.';
@@ -363,7 +387,9 @@ export class OfflineSyncService {
       this.pendientes.set(await this.db.contarPendientes(this.auth.currentUser()?.id ?? null));
       const catalogo = await this.db.obtenerCatalogo(this.empresaActual());
       this.variantesOffline.set(catalogo.length);
-      this.catalogoDescargadoEn.set(catalogo.reduce<string | null>((max, f) => (max === null || f.sincronizado_en > max ? f.sincronizado_en : max), null));
+      const descargadoEn = catalogo.reduce<string | null>((max, f) => (max === null || f.sincronizado_en > max ? f.sincronizado_en : max), null);
+      this.catalogoDescargadoEn.set(descargadoEn);
+      this.catalogoDesactualizado.set(OfflineSyncService.esCatalogoDesactualizado(descargadoEn));
       this.catalogoVersion.update((v) => v + 1);
     } catch (error) {
       console.error('[OfflineSync] No se pudo leer el estado de la base local', error);

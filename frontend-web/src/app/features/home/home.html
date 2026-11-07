@@ -1,3 +1,6 @@
+@if (mostrandoCatalogoLocal()) {
+<app-catalogo-desactualizado />
+}
 <!-- Modo offline: sin red se avisa, y lo que se registre queda guardado para enviarse al volver la conexión -->
 @if (!offline.online()) {
 <div class="offline-banner" role="status">

@@ -49,6 +49,21 @@ class CatalogoLocalDao {
     }
   }
 
+  /// Cuándo se descargó el catálogo local por última vez (`sincronizado_en` más reciente), o null si no hay catálogo.
+  /// Todas las filas se escriben juntas en cada descarga, así que comparten la misma fecha.
+  Future<DateTime?> obtenerFechaUltimaDescarga() async {
+    final db = await _appDb.database;
+    if (db == null) return null;
+    try {
+      final filas = await db.rawQuery('SELECT MAX(sincronizado_en) AS fecha FROM ${Schema.tablaCatalogoLocal}');
+      final texto = filas.isEmpty ? null : filas.first['fecha'] as String?;
+      return texto == null ? null : DateTime.tryParse(texto);
+    } catch (e, st) {
+      debugPrint('[CatalogoLocalDao] Error al leer la fecha de la última descarga: $e\n$st');
+      rethrow;
+    }
+  }
+
   /// Todos los registros del catálogo local (opcionalmente solo los de una sucursal).
   Future<List<Map<String, dynamic>>> obtenerProductos({int? sucursalId}) async {
     final db = await _appDb.database;
