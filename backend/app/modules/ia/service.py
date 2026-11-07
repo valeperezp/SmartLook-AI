@@ -595,12 +595,14 @@ def _completar_chat_openai(
 
 
 def interpretar_json(
-    db: Session, system_prompt: str, mensaje: str, timeout_s: float = 90.0, max_tokens: int = 400
+    db: Session, system_prompt: str, mensaje: str, timeout_s: float = 90.0, max_tokens: int = 4000
 ) -> dict | None:
     """Pide al modelo una respuesta en JSON (CU14: intención y filtros de un reporte).
 
     Al modelo solo le llega el texto del usuario y las instrucciones: ningún dato de la base.
     Devuelve None si el proveedor no responde o no devuelve un JSON válido.
+    `max_tokens` es amplio a propósito: los modelos que "razonan" antes de responder (p. ej. nemotron)
+    gastan cientos de tokens pensando y, con un límite chico, se cortan sin llegar a escribir el JSON.
     """
     config = obtener_configuracion_ia(db)
     config = SimpleNamespace(base_url=config.base_url, api_key=config.api_key, modelo=config.modelo)
