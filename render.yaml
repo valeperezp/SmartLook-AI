@@ -1,0 +1,38 @@
+# Despliegue del backend en Render (Blueprint). Ver docs/DESPLIEGUE-RENDER.md.
+# Render crea el servicio a partir de este archivo; las claves (sync: false) se cargan en el panel.
+services:
+  - type: web
+    name: smartlook-ai-api
+    runtime: docker
+    plan: free
+    region: ohio
+    branch: main
+    autoDeploy: true
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: CORS_ORIGINS
+        value: https://smartlook-ai.vercel.app
+      - key: VESTIDOR_MAX_POR_USUARIO_DIA
+        value: "5"
+      - key: SECRET_KEY
+        generateValue: true
+      # Se completan en el panel de Render con los valores de backend/.env:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: REPLICATE_API_TOKEN
+        sync: false

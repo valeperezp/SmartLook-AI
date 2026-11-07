@@ -15,7 +15,7 @@ class Env {
       return 'http://localhost:8000';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'https://smartlook-ai-production.up.railway.app';
+      return 'https://smartlook-ai-api.onrender.com';
     }
     return 'http://localhost:8000';
   }

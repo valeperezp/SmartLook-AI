@@ -2,6 +2,7 @@
 Configuración global de la aplicación, cargada desde variables de entorno.
 Cualquier módulo que necesite settings importa desde aquí (no duplicar env vars).
 """
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,7 +22,11 @@ class Settings(BaseSettings):
 
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
-    uploads_base_url: str = "http://localhost:8000"
+    # URL pública del backend para armar los enlaces a /uploads. En Render se toma sola de
+    # RENDER_EXTERNAL_URL (la define la plataforma), salvo que se indique UPLOADS_BASE_URL.
+    uploads_base_url: str = Field(
+        default="http://localhost:8000", validation_alias=AliasChoices("UPLOADS_BASE_URL", "RENDER_EXTERNAL_URL")
+    )
     uploads_dir: str = "/app/uploads"
 
     # Chatbot (CU21) — modelo local vía Ollama, corriendo en la máquina host (no en Docker).
