@@ -64,6 +64,9 @@ import { AdminUiService } from '../../../core/services/admin-ui.service';
           <a routerLink="/encargado/pagos-pendientes" routerLinkActive="active">
             <app-icon name="credit-card" [size]="18" /> <span>Pagos por verificar</span>
           </a>
+          <a routerLink="/encargado/devoluciones" routerLinkActive="active">
+            <app-icon name="receipt" [size]="18" /> <span>Cambios y devoluciones</span>
+          </a>
           <a routerLink="/encargado/conflictos" routerLinkActive="active">
             <app-icon name="alert-circle" [size]="18" /> <span>Conflictos de sync</span>
           </a>

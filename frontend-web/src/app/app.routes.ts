@@ -275,6 +275,11 @@ export const routes: Routes = [
             (m) => m.ConflictosSyncPage
           ),
       },
+      {
+        path: 'devoluciones',
+        loadComponent: () =>
+          import('./features/devoluciones/devoluciones-page').then((m) => m.DevolucionesPage),
+      },
     ],
   },
   {
@@ -333,6 +338,11 @@ export const routes: Routes = [
           import('./features/encargado/pagos-pendientes/pagos-pendientes').then(
             (m) => m.PagosPendientes
           ),
+      },
+      {
+        path: 'devoluciones',
+        loadComponent: () =>
+          import('./features/devoluciones/devoluciones-page').then((m) => m.DevolucionesPage),
       },
     ],
   },

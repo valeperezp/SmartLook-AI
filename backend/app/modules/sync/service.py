@@ -16,18 +16,17 @@ Reglas comunes:
   se puede decidir porque falta algo por sincronizar (la venta original de una devolución, las ventas de un cierre): no
   se registra nada y la app lo reintenta. Un error inesperado NO es conflicto: sube como 500 y la app reintenta.
 """
-from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Callable
 
 from fastapi import HTTPException
-from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.bitacora import service as bitacora
 from app.modules.catalogo.models import Producto
+from app.modules.devoluciones import service as devoluciones_service
 from app.modules.fidelizacion import service as fidelizacion
 from app.modules.inventario.models import MovimientoInventario
 from app.modules.reservas import schemas as reservas_schemas
@@ -35,8 +34,6 @@ from app.modules.reservas import service as reservas_service
 from app.modules.sucursales.models import Sucursal
 from app.modules.sync import schemas
 from app.modules.sync.models import (
-    Devolucion,
-    DevolucionItem,
     MovimientoPuntos,
     PuntosCliente,
     SyncOperacion,
@@ -288,20 +285,6 @@ def _aplicar_operacion(db: Session, usuario: Usuario, op: schemas.OperacionSync)
 # Cambios y devoluciones
 # ---------------------------------------------------------------------------------------------------------------
 
-def _agrupar(items: list[schemas.ItemDevolucionSync]) -> dict[tuple, dict]:
-    """Suma las cantidades de la misma prenda (producto + talla + color)."""
-    grupos: dict[tuple, dict] = {}
-    for i in items:
-        if i.cantidad < 1:
-            raise ConflictoSync(f"Cantidad inválida para el producto {i.producto_id}")
-        clave = (i.producto_id, i.talla_id or 0, i.color_id or 0)
-        if clave in grupos:
-            grupos[clave]["cantidad"] += i.cantidad
-        else:
-            grupos[clave] = {"producto_id": i.producto_id, "talla_id": i.talla_id, "color_id": i.color_id, "cantidad": i.cantidad}
-    return grupos
-
-
 def _aplicar_devolucion(db: Session, usuario: Usuario, d: schemas.DevolucionSync) -> tuple[str, int]:
     empresa_id = usuario.empresa_id
     _validar_permiso_caja(usuario, d.sucursal_id)
@@ -321,82 +304,16 @@ def _aplicar_devolucion(db: Session, usuario: Usuario, d: schemas.DevolucionSync
     if venta is None or venta.sucursal_id != d.sucursal_id:
         raise ConflictoSync("La venta original no pertenece a esta sucursal")
 
-    devueltos = _agrupar(d.items_devueltos)
-    nuevos = _agrupar(d.items_nuevos)
-
-    # Lo que se puede devolver: lo vendido menos lo ya devuelto en cambios/devoluciones anteriores de esa venta
-    vendidas: dict[tuple, dict] = {}
-    for vi in venta.items:
-        clave = (vi.producto_id, vi.talla_id or 0, vi.color_id or 0)
-        linea = vendidas.setdefault(clave, {"item": vi, "cantidad": 0})
-        linea["cantidad"] += vi.cantidad
-    ya_devueltas: dict[tuple, int] = defaultdict(int)
-    previas = (
-        db.query(DevolucionItem.producto_id, DevolucionItem.talla_id, DevolucionItem.color_id, func.sum(DevolucionItem.cantidad))
-        .join(Devolucion, Devolucion.id == DevolucionItem.devolucion_id)
-        .filter(Devolucion.venta_id == venta.id, DevolucionItem.tipo_item == "devuelto")
-        .group_by(DevolucionItem.producto_id, DevolucionItem.talla_id, DevolucionItem.color_id)
-        .all()
-    )
-    for pid, tid, cid, cant in previas:
-        ya_devueltas[(pid, tid or 0, cid or 0)] += int(cant)
-    for clave, g in devueltos.items():
-        linea = vendidas.get(clave)
-        if linea is None:
-            raise ConflictoSync("Una de las prendas no pertenece a la venta original")
-        maximo = linea["cantidad"] - ya_devueltas.get(clave, 0)
-        if g["cantidad"] > maximo:
-            raise ConflictoSync(f"De '{linea['item'].nombre_producto}' solo se pueden devolver {max(maximo, 0)} unidad(es)")
-    _validar_productos(db, empresa_id, [g["producto_id"] for g in nuevos.values()])
-
-    dev = Devolucion(
-        empresa_id=empresa_id, uuid=d.uuid, venta_id=venta.id, sucursal_id=d.sucursal_id, cajero_id=usuario.id,
-        tipo=(d.tipo or "cambio")[:30], motivo=(d.motivo or None) and d.motivo[:255], turno_uuid=d.turno_uuid,
-        fecha=_fecha_local(d.fecha),
-    )
-    db.add(dev)
-    db.flush()
-
-    # 1) Lo devuelto vuelve a la estantería (primero, así un cambio por la misma prenda no choca con stock 0)
-    total_devuelto = Decimal(0)
-    for clave in sorted(devueltos):
-        g, vi = devueltos[clave], vendidas[clave]["item"]
-        inventario = ventas_service._buscar_inventario(db, vi.producto_id, venta.sucursal_id, vi.talla_id, vi.color_id)
-        if inventario is None:
-            raise ConflictoSync(f"No hay inventario de '{vi.nombre_producto}' en esta sucursal")
-        inventario.cantidad_disponible += g["cantidad"]
-        inventario.cantidad_vendida = max(0, inventario.cantidad_vendida - g["cantidad"])
-        db.flush()
-        db.add(MovimientoInventario(inventario_id=inventario.id, tipo="devolucion", cantidad=g["cantidad"],
-                                    motivo=f"Devolución #{dev.id} de la venta #{venta.id}", usuario_id=usuario.id))
-        precio = Decimal(str(vi.precio_unitario))  # se reembolsa al precio de la venta original
-        db.add(DevolucionItem(devolucion_id=dev.id, tipo_item="devuelto", producto_id=vi.producto_id, talla_id=vi.talla_id,
-                              color_id=vi.color_id, cantidad=g["cantidad"], precio_unitario=precio))
-        total_devuelto += precio * g["cantidad"]
-
-    # 2) Lo nuevo (en un cambio) se descuenta del inventario al precio vigente
-    total_nuevo = Decimal(0)
-    for clave in sorted(nuevos):
-        g = nuevos[clave]
-        producto = db.query(Producto).filter(Producto.id == g["producto_id"]).first()
-        inventario = ventas_service._buscar_inventario(db, g["producto_id"], venta.sucursal_id, g["talla_id"], g["color_id"])
-        if inventario is None:
-            raise ConflictoSync(f"No hay inventario de '{producto.nombre}' en esta sucursal")
-        if inventario.cantidad_disponible < g["cantidad"]:
-            raise ConflictoSync(f"Stock insuficiente para '{producto.nombre}'. Disponible: {inventario.cantidad_disponible}, solicitado: {g['cantidad']}")
-        inventario.cantidad_disponible -= g["cantidad"]
-        inventario.cantidad_vendida += g["cantidad"]
-        db.flush()
-        db.add(MovimientoInventario(inventario_id=inventario.id, tipo="venta", cantidad=g["cantidad"],
-                                    motivo=f"Cambio #{dev.id} de la venta #{venta.id}", usuario_id=usuario.id))
-        precio = Decimal(str(producto.precio))
-        db.add(DevolucionItem(devolucion_id=dev.id, tipo_item="nuevo", producto_id=g["producto_id"], talla_id=g["talla_id"],
-                              color_id=g["color_id"], cantidad=g["cantidad"], precio_unitario=precio))
-        total_nuevo += precio * g["cantidad"]
-
-    dev.total_devuelto = total_devuelto
-    dev.total_nuevo = total_nuevo
-    db.flush()
+    # Las reglas (plazo, cantidades, stock) las aplica el servidor, igual que en la web. El plazo se mide contra la fecha en que
+    # el dispositivo hizo la devolución (nunca en el futuro): una devolución válida hecha sin red no se rechaza por sincronizar tarde.
+    fecha = _fecha_local(d.fecha)
+    try:
+        dev = devoluciones_service.aplicar_devolucion(
+            db, usuario, venta, uuid=d.uuid, tipo=d.tipo, motivo=d.motivo, turno_uuid=d.turno_uuid, fecha=fecha,
+            items_devueltos=d.items_devueltos, items_nuevos=d.items_nuevos, ahora=fecha or datetime.now(timezone.utc),
+        )
+    except devoluciones_service.DevolucionError as e:
+        raise ConflictoSync(str(e))
     return "devolucion", dev.id
 
 

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' show Database, DatabaseExecutor, Transaction;
 import 'package:uuid/uuid.dart';
 
+import '../../../core/config/regla_devoluciones.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
 import 'puntos_dao.dart';
@@ -60,12 +61,16 @@ class ResultadoDevolucion {
 /// Lo devuelto se reembolsa al precio de la venta original; lo nuevo se cobra al precio del catálogo local.
 /// La diferencia en efectivo (nuevo - devuelto) la incluye el arqueo del turno.
 class DevolucionDao {
-  DevolucionDao({AppDatabase? appDatabase, this.plazoDias = 7}) : _appDb = appDatabase ?? AppDatabase.instance;
+  DevolucionDao({AppDatabase? appDatabase, int? plazoDias})
+      : _appDb = appDatabase ?? AppDatabase.instance,
+        _plazoFijo = plazoDias;
 
   final AppDatabase _appDb;
+  final int? _plazoFijo;
 
-  /// Días, desde la venta, dentro de los cuales se admite un cambio o devolución.
-  final int plazoDias;
+  /// Días, desde la venta, que ESTIMA el dispositivo para admitir un cambio o devolución (el plazo que informó el backend).
+  /// Es solo un aviso: la regla la aplica el servidor al sincronizar y puede rechazar la devolución (CU11).
+  int get plazoDias => _plazoFijo ?? ReglaDevoluciones.plazoDias;
   static const _uuid = Uuid();
 
   Future<Database> _db() async {
@@ -111,7 +116,7 @@ class DevolucionDao {
         final sucursalId = turno['sucursal_id'] as int;
 
         // 2. Venta original
-        final venta = await _validarVenta(txn, ventaUuid, sucursalId, ahoraUtc);
+        final venta = await _validarVenta(txn, ventaUuid, sucursalId);
         final vendidas = await _itemsDeLaVenta(txn, ventaUuid);
         final yaDevueltas = await _cantidadesYaDevueltas(txn, ventaUuid);
 
@@ -288,7 +293,7 @@ class DevolucionDao {
     return r;
   }
 
-  Future<Map<String, Object?>> _validarVenta(DatabaseExecutor ex, String ventaUuid, int sucursalId, DateTime ahora) async {
+  Future<Map<String, Object?>> _validarVenta(DatabaseExecutor ex, String ventaUuid, int sucursalId) async {
     final filas = await ex.query(Schema.tablaOperaciones, where: 'uuid = ?', whereArgs: [ventaUuid]);
     if (filas.isEmpty) throw VentaNoDevolvible('La venta no existe en este dispositivo.');
     final venta = filas.first;
@@ -300,10 +305,8 @@ class DevolucionDao {
       throw VentaNoDevolvible('La venta está en conflicto de stock: espera a que el encargado la resuelva.');
     }
     if (venta['sucursal_id'] != sucursalId) throw VentaNoDevolvible('La venta es de otra sucursal.');
-    final fecha = DateTime.parse(venta['fecha'] as String);
-    if (ahora.difference(fecha) > Duration(days: plazoDias)) {
-      throw VentaNoDevolvible('Pasaron más de $plazoDias días desde la venta: ya no admite cambios ni devoluciones.');
-    }
+    // El plazo de días YA NO se valida aquí: lo manda el backend (rechaza con "El plazo para cambios ha vencido" al sincronizar y
+    // este dispositivo deshace entonces el efecto local). La pantalla solo avisa con una estimación (ver `plazoDias`).
     return venta;
   }
 

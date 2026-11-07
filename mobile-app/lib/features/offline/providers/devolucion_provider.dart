@@ -27,6 +27,7 @@ class DevolucionProvider extends ChangeNotifier {
   bool _cargando = false;
   bool _guardando = false;
   String? _mensaje;
+  String? _avisoPlazo;
   ResultadoDevolucion? _ultimoResultado;
 
   List<VentaLocal> get ventas => _ventas;
@@ -41,6 +42,10 @@ class DevolucionProvider extends ChangeNotifier {
   /// Resultado legible de la última acción, para mostrar en un SnackBar.
   String? get mensaje => _mensaje;
   ResultadoDevolucion? get ultimoResultado => _ultimoResultado;
+
+  /// Aviso (no bloqueo) cuando, según el plazo que informó el backend, la venta abierta parece fuera de plazo. Es solo una
+  /// estimación del dispositivo: el servidor decide al sincronizar y puede rechazar el cambio.
+  String? get avisoPlazo => _avisoPlazo;
 
   // ---------------------------------------------------------------------------
   // Búsqueda y selección de la venta
@@ -90,11 +95,6 @@ class DevolucionProvider extends ChangeNotifier {
         return false;
       }
       final venta = VentaLocal.fromMap(datos);
-      if (!venta.dentroDePlazo(plazoDias)) {
-        _mensaje = 'Pasaron más de $plazoDias días desde la venta: ya no admite cambios ni devoluciones.';
-        notifyListeners();
-        return false;
-      }
       if (venta.items.every((i) => i.devolvible <= 0)) {
         _mensaje = 'Todas las prendas de esta venta ya fueron devueltas.';
         notifyListeners();
@@ -104,6 +104,11 @@ class DevolucionProvider extends ChangeNotifier {
       _devolver.clear();
       _nuevos.clear();
       _mensaje = null;
+      // El plazo de días lo manda el backend; aquí solo se avisa con la estimación guardada (no se bloquea)
+      _avisoPlazo = venta.dentroDePlazo(plazoDias)
+          ? null
+          : 'Pasaron más de $plazoDias días desde la venta (estimación de este dispositivo). El servidor decide: si el plazo venció, '
+              'rechazará el cambio al sincronizar y se deshará lo registrado aquí.';
       notifyListeners();
       return true;
     } catch (e, st) {
@@ -117,6 +122,7 @@ class DevolucionProvider extends ChangeNotifier {
   /// Vuelve a la lista de ventas descartando lo armado.
   void limpiar() {
     _venta = null;
+    _avisoPlazo = null;
     _devolver.clear();
     _nuevos.clear();
     notifyListeners();

@@ -197,7 +197,7 @@ void main() {
       await sinCambios(() => registrar('DEVOLUCION', [item(_camiseta, 0)], []), throwsArgumentError);
     });
 
-    test('fuera del plazo de 7 días no se admite; dentro del plazo sí', () async {
+    test('el plazo de 7 días YA NO se valida en el dispositivo: la venta vieja se registra y el servidor decide al sincronizar', () async {
       final vieja = DateTime.now().toUtc().subtract(const Duration(days: 10)).toIso8601String();
       final reciente = DateTime.now().toUtc().subtract(const Duration(days: 6)).toIso8601String();
       Future<void> venderConFecha(String uuid, String fecha) => cola.guardarOperacionOffline({
@@ -207,8 +207,10 @@ void main() {
       await venderConFecha('vieja', vieja);
       await venderConFecha('reciente', reciente);
 
-      await sinCambios(() => registrar('DEVOLUCION', [item(_camiseta, 1)], [], ventaUuid: 'vieja'), throwsA(isA<VentaNoDevolvible>()));
+      // Antes esto lanzaba VentaNoDevolvible: ahora solo es una estimación (la regla la aplica el backend, CU11)
+      await registrar('DEVOLUCION', [item(_camiseta, 1)], [], ventaUuid: 'vieja');
       await registrar('DEVOLUCION', [item(_camiseta, 1)], [], ventaUuid: 'reciente');
+      expect(await contar(Schema.tablaDevoluciones), 2);
     });
 
     test('una venta rechazada o de otra sucursal, o una reserva, no admite devoluciones', () async {
@@ -406,6 +408,27 @@ void main() {
       expect(await turnos.calcularMontoEsperado(turno), 10000); // ni venta ni devolución cuentan
     });
 
+    test('CU11: si el servidor rechaza por PLAZO VENCIDO, se deshace lo local y queda el motivo que dio el backend', () async {
+      await cola.marcarSincronizada(venta, idServidor: 1);
+      final jean = await stock(_jean);
+      await registrar('DEVOLUCION', [item(_jean, 1)], []); // el dispositivo la aceptó (solo estima el plazo)
+      expect(await stock(_jean), jean + 1);
+
+      final res = await servicio(enviar: (lote) async => {
+            'resultados': [
+              for (final d in (lote['devoluciones'] as List? ?? const []))
+                {'uuid': (d as Map)['uuid'], 'status': 'conflict', 'message': 'El plazo para cambios ha vencido'},
+            ],
+          }).sincronizarPendientes();
+
+      expect(res.rechazadas, 1);
+      expect(await stock(_jean), jean, reason: 'el servidor manda: lo registrado aquí se deshace');
+      expect(await turnos.calcularMovimientoDevoluciones(turno), 0);
+      final db = (await appDb.database)!;
+      expect((await db.query(Schema.tablaDevoluciones)).single['estado'], 'rechazada');
+      expect((await db.query(Schema.tablaSyncQueue, where: "tipo_operacion = 'DEVOLUCION'")).single['ultimo_error'], 'El plazo para cambios ha vencido');
+    });
+
     test('si el servidor rechaza la devolución se deshace su stock y deja de afectar la caja', () async {
       await cola.marcarSincronizada(venta, idServidor: 1);
       final jean = await stock(_jean);
@@ -468,7 +491,20 @@ void main() {
       expect(provider.venta, isNotNull); // conserva lo armado
     });
 
-    test('una venta fuera de plazo o ya devuelta por completo no se abre', () async {
+    test('una venta que parece fuera de plazo SÍ se abre, con un aviso de estimación (el servidor decide)', () async {
+      final vieja = DateTime.now().toUtc().subtract(const Duration(days: 10)).toIso8601String();
+      await cola.guardarOperacionOffline({
+        'sucursal_id': 1, 'cajero_id': 7, 'fecha': vieja,
+        'items': [{'producto_id': _camiseta, 'talla_id': 2, 'color_id': 1, 'nombre_producto': 'Camiseta', 'cantidad': 1, 'precio_unitario_centavos': 1999}],
+      }, 'vieja', Schema.tipoVentaContado, null, turnoUuid: turno);
+
+      expect(await provider.seleccionarVenta('vieja'), isTrue);
+      expect(provider.avisoPlazo, allOf(contains('7 días'), contains('estimación'), contains('El servidor decide')));
+      expect(await provider.seleccionarVenta(venta), isTrue);
+      expect(provider.avisoPlazo, isNull, reason: 'una venta reciente no avisa nada');
+    });
+
+    test('una venta ya devuelta por completo no se abre', () async {
       expect(await provider.seleccionarVenta('no-existe'), isFalse);
       await registrar('DEVOLUCION', [item(_camiseta, 2), item(_jean, 1)], []);
       expect(await provider.seleccionarVenta(venta), isFalse);

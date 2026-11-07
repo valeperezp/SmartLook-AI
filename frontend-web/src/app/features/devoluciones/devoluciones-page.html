@@ -1,0 +1,208 @@
+<div class="devoluciones">
+  <header class="page-header">
+    <h1>Cambios y devoluciones</h1>
+    <p>Busca la venta por número de ticket o UUID, elige qué prendas vuelven y, si es un cambio, qué se lleva el cliente.</p>
+  </header>
+
+  <form class="card buscador" (ngSubmit)="buscar()">
+    <label for="ticket" class="sr-only">Número de ticket o UUID de la venta</label>
+    <div class="entrada">
+      <input
+        id="ticket"
+        name="ticket"
+        type="text"
+        autocomplete="off"
+        [(ngModel)]="busqueda"
+        placeholder="N.º de ticket (ej: 123) o UUID / recibo (ej: A1B2C3D4)"
+      />
+      <button type="submit" class="btn-primary" [disabled]="buscando() || !busqueda.trim()">
+        <app-icon name="search" [size]="16" /> {{ buscando() ? 'Buscando…' : 'Buscar venta' }}
+      </button>
+    </div>
+    @if (errorBusqueda()) {
+      <p class="error" role="alert">{{ errorBusqueda() }}</p>
+    }
+  </form>
+
+  @if (resultado(); as r) {
+    <section class="card exito" role="status">
+      <h2><app-icon name="check-circle" [size]="20" /> {{ r.tipo === 'cambio' ? 'Cambio registrado' : 'Devolución registrada' }}</h2>
+      <p>Operación #{{ r.id }} de la venta #{{ r.venta_id }}.</p>
+      <ul class="montos">
+        <li><span>Reembolso por lo devuelto</span><b>{{ r.total_devuelto | currency: 'USD' : 'symbol' : '1.2-2' }}</b></li>
+        @if (r.tipo === 'cambio') {
+          <li><span>Prendas nuevas</span><b>{{ r.total_nuevo | currency: 'USD' : 'symbol' : '1.2-2' }}</b></li>
+        }
+        <li class="final">
+          @if (r.diferencia > 0) {
+            <span>El cliente paga la diferencia</span><b>{{ r.diferencia | currency: 'USD' : 'symbol' : '1.2-2' }}</b>
+          } @else if (r.diferencia < 0) {
+            <span>Se devuelve al cliente</span><b>{{ -r.diferencia | currency: 'USD' : 'symbol' : '1.2-2' }}</b>
+          } @else {
+            <span>Sin diferencia a cobrar</span><b>{{ 0 | currency: 'USD' : 'symbol' : '1.2-2' }}</b>
+          }
+        </li>
+      </ul>
+      <button type="button" class="btn-secondary" (click)="nuevaBusqueda()">Atender otra venta</button>
+    </section>
+  }
+
+  @if (venta(); as v) {
+    <section class="card venta">
+      <header class="venta-cabecera">
+        <div>
+          <h2>Venta #{{ v.venta_id }} <span class="muted">· recibo {{ v.recibo }}</span></h2>
+          <span class="muted">{{ v.nombre_sucursal }} · {{ v.creada_en | date: 'dd/MM/yyyy HH:mm' }} · {{ v.total | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+        </div>
+        <button type="button" class="btn-secondary" (click)="nuevaBusqueda()">Cambiar venta</button>
+      </header>
+
+      @if (v.dentro_de_plazo) {
+        <p class="plazo ok"><app-icon name="clock" [size]="16" /> Dentro del plazo: la venta tiene {{ v.dias_transcurridos }} día(s) y se admiten cambios hasta {{ v.plazo_dias }} días.</p>
+      } @else {
+        <p class="plazo vencido" role="alert">
+          <app-icon name="alert-circle" [size]="16" /> Pasaron {{ v.dias_transcurridos }} días desde la venta y el plazo es de {{ v.plazo_dias }}:
+          es probable que el sistema rechace el cambio. Puedes intentarlo y el servidor decide.
+        </p>
+      }
+
+      @if (v.estado !== 'completada') {
+        <p class="plazo vencido" role="alert"><app-icon name="alert-circle" [size]="16" /> La venta está en estado «{{ v.estado }}»: solo se pueden devolver ventas completadas.</p>
+      }
+
+      <h3>Prendas de la venta</h3>
+      <div class="tabla-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Prenda</th>
+              <th class="num">Vendidas</th>
+              <th class="num">Ya devueltas</th>
+              <th class="num">Se pueden devolver</th>
+              <th class="num">Precio</th>
+              <th class="num">Devolver</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of v.items; track $index) {
+              <tr>
+                <td>
+                  {{ i.nombre_producto }}
+                  <span class="muted">{{ etiquetaVariante(i.nombre_talla, i.nombre_color) }}</span>
+                </td>
+                <td class="num">{{ i.cantidad_vendida }}</td>
+                <td class="num">{{ i.cantidad_devuelta }}</td>
+                <td class="num">{{ i.cantidad_devolvible }}</td>
+                <td class="num">{{ i.precio_unitario | currency: 'USD' : 'symbol' : '1.2-2' }}</td>
+                <td class="num">
+                  @if (i.cantidad_devolvible > 0) {
+                    <input
+                      type="number"
+                      min="0"
+                      [max]="i.cantidad_devolvible"
+                      [name]="'devolver' + $index"
+                      [ngModel]="cantidadDe(i)"
+                      (ngModelChange)="fijarCantidad(i, $event)"
+                      [attr.aria-label]="'Unidades a devolver de ' + i.nombre_producto"
+                    />
+                    <button type="button" class="link-btn" (click)="devolverTodo(i)">Todo</button>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Tipo de operación</h3>
+      <div class="selector-tipo" role="group" aria-label="Tipo de operación">
+        <button type="button" [class.activo]="tipo() === 'devolucion'" [attr.aria-pressed]="tipo() === 'devolucion'" (click)="elegirTipo('devolucion')">
+          Solo Devolución <small>(reembolso)</small>
+        </button>
+        <button type="button" [class.activo]="tipo() === 'cambio'" [attr.aria-pressed]="tipo() === 'cambio'" (click)="elegirTipo('cambio')">
+          Cambio <small>(otra prenda)</small>
+        </button>
+      </div>
+
+      @if (tipo() === 'cambio') {
+        <div class="cambio">
+          <h3>¿Qué se lleva el cliente?</h3>
+          @if (cargandoProductos()) {
+            <p class="muted" aria-busy="true">Cargando catálogo…</p>
+          } @else {
+            <div class="fila-nueva">
+              <select name="productoNuevo" [ngModel]="productoNuevoId()" (ngModelChange)="elegirProductoNuevo($event)" aria-label="Producto nuevo">
+                <option [ngValue]="null">Elegí un producto…</option>
+                @for (p of productos(); track p.id) {
+                  <option [ngValue]="p.id">{{ p.nombre }} — {{ p.precio | currency: 'USD' : 'symbol' : '1.2-2' }}</option>
+                }
+              </select>
+              @if (productoNuevoId() !== null) {
+                @if (cargandoVariantes()) {
+                  <span class="muted">Consultando stock…</span>
+                } @else if (variantes().length === 0) {
+                  <span class="muted">Sin stock en esta sucursal.</span>
+                } @else {
+                  <select name="varianteNueva" [(ngModel)]="varianteNueva" aria-label="Talla y color">
+                    @for (o of variantes(); track $index) {
+                      <option [value]="o.talla_id + '_' + o.color_id">{{ etiquetaVariante(o.nombre_talla, o.nombre_color) }} — {{ o.cantidad_disponible }} disp.</option>
+                    }
+                  </select>
+                  <input type="number" min="1" name="cantidadNueva" [(ngModel)]="cantidadNueva" aria-label="Cantidad" />
+                  <button type="button" class="btn-secondary" (click)="agregarNueva()" [disabled]="!puedeAgregarNueva()">
+                    <app-icon name="plus" [size]="14" /> Agregar
+                  </button>
+                }
+              }
+            </div>
+
+            @if (nuevas().length) {
+              <ul class="nuevas">
+                @for (n of nuevas(); track $index) {
+                  <li>
+                    <span>{{ n.cantidad }} × {{ n.nombre }} <span class="muted">({{ etiquetaVariante(n.nombre_talla, n.nombre_color) }})</span></span>
+                    <span>{{ n.precio * n.cantidad | currency: 'USD' : 'symbol' : '1.2-2' }}</span>
+                    <button type="button" class="link-btn" (click)="quitarNueva(n)" aria-label="Quitar">Quitar</button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="muted">Agrega al menos una prenda nueva para registrar el cambio.</p>
+            }
+          }
+        </div>
+      }
+
+      <label class="motivo">
+        Motivo (opcional)
+        <input type="text" name="motivo" maxlength="255" [(ngModel)]="motivo" placeholder="ej: no le quedó bien" />
+      </label>
+
+      <ul class="montos">
+        <li><span>Reembolso por lo devuelto</span><b>{{ totalDevuelto() | currency: 'USD' : 'symbol' : '1.2-2' }}</b></li>
+        @if (tipo() === 'cambio') {
+          <li><span>Prendas nuevas</span><b>{{ totalNuevo() | currency: 'USD' : 'symbol' : '1.2-2' }}</b></li>
+          <li class="final">
+            @if (diferencia() > 0) {
+              <span>El cliente paga la diferencia</span><b>{{ diferencia() | currency: 'USD' : 'symbol' : '1.2-2' }}</b>
+            } @else if (diferencia() < 0) {
+              <span>Se devuelve al cliente</span><b>{{ -diferencia() | currency: 'USD' : 'symbol' : '1.2-2' }}</b>
+            } @else {
+              <span>Sin diferencia a cobrar</span><b>{{ 0 | currency: 'USD' : 'symbol' : '1.2-2' }}</b>
+            }
+          </li>
+        }
+      </ul>
+
+      @if (errorProceso()) {
+        <p class="error" role="alert"><app-icon name="alert-circle" [size]="16" /> {{ errorProceso() }}</p>
+      }
+
+      <button type="button" class="btn-primary procesar" (click)="procesar()" [disabled]="!puedeProcesar()">
+        {{ procesando() ? 'Procesando…' : 'Procesar Devolución' }}
+      </button>
+    </section>
+  }
+</div>

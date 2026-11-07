@@ -38,10 +38,12 @@ from app.modules.analitica_ml.router import router as analitica_router
 from app.modules.bitacora.router import router as bitacora_router
 from app.modules.sync.router import router as sync_router
 from app.modules.fidelizacion.router import router as fidelizacion_router
+from app.modules.devoluciones.router import router as devoluciones_router
 
 import app.modules.bitacora.models
 import app.modules.sync.models
 import app.modules.fidelizacion.models
+import app.modules.devoluciones.models
 import app.modules.analitica_ml.models
 import app.modules.reportes.models
 import app.modules.empresas.models
@@ -109,6 +111,7 @@ app.include_router(promociones_router)
 app.include_router(vestidor_router)
 app.include_router(sync_router)
 app.include_router(fidelizacion_router)
+app.include_router(devoluciones_router)
 
 
 @app.get("/", tags=["health"])

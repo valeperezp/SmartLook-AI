@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/devoluciones_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/catalogo_item.dart';
 import '../models/devolucion_models.dart';
@@ -45,6 +46,10 @@ class _PantallaDevolucionesState extends State<PantallaDevoluciones> {
         ..buscar(sucursalId)
         ..cargarCatalogo(sucursalId);
       context.read<TurnoCajaProvider>().cargar(usuario.id, sucursalId);
+      // El plazo de días lo define el backend: se descarga (si hay red) para la estimación sin conexión
+      DevolucionesService().sincronizarPlazo().then((_) {
+        if (mounted) setState(() {});
+      }).catchError((Object _) {});
     });
   }
 
@@ -222,13 +227,13 @@ class _PantallaDevolucionesState extends State<PantallaDevoluciones> {
                       itemBuilder: (context, i) {
                         final v = provider.ventas[i];
                         final enPlazo = v.dentroDePlazo(provider.plazoDias);
+                        // El plazo es solo una estimación del dispositivo: no se bloquea, el servidor decide al sincronizar
                         return ListTile(
-                          enabled: enPlazo,
                           leading: const Icon(Icons.receipt_long),
                           title: Text('Recibo ${v.recibo} · ${_dinero(v.totalCentavos)}'),
-                          subtitle: Text(enPlazo ? _fecha(v.fecha) : '${_fecha(v.fecha)} · fuera de plazo (${provider.plazoDias} días)'),
+                          subtitle: Text(enPlazo ? _fecha(v.fecha) : '${_fecha(v.fecha)} · posiblemente fuera de plazo (${provider.plazoDias} días)'),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: enPlazo ? () => _abrirVenta(v) : null,
+                          onTap: () => _abrirVenta(v),
                         );
                       },
                     ),
@@ -247,6 +252,22 @@ class _PantallaDevolucionesState extends State<PantallaDevoluciones> {
       padding: const EdgeInsets.all(12),
       children: [
         Text('Venta ${venta.recibo} · ${_fecha(venta.fecha)} · ${_dinero(venta.totalCentavos)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        if (provider.avisoPlazo != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            key: const Key('aviso_plazo'),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(8)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.schedule, size: 18, color: Colors.amber.shade900),
+                const SizedBox(width: 8),
+                Expanded(child: Text(provider.avisoPlazo!, style: TextStyle(color: Colors.amber.shade900, fontSize: 12.5))),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         Text('Prendas que devuelve el cliente', style: Theme.of(context).textTheme.titleSmall),
         for (final item in venta.items) _filaDevuelto(provider, item),
