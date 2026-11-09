@@ -256,7 +256,7 @@ def _aplicar_operacion(db: Session, usuario: Usuario, op: schemas.OperacionSync)
             if fecha is not None:
                 venta.creada_en = fecha
             raise VentaEnConflicto(venta.id, "; ".join(faltantes))
-        venta = ventas_service.crear_venta_presencial(db, data, cajero_id=usuario.id, commit=False)
+        venta = ventas_service.crear_venta_presencial(db, data, cajero_id=usuario.id, commit=False, empresa_id=empresa_id)
         _aplicar_descuento_por_puntos(db, empresa_id, op.puntos_canjeados, venta)
         if fecha is not None:
             venta.creada_en = fecha
@@ -272,7 +272,7 @@ def _aplicar_operacion(db: Session, usuario: Usuario, op: schemas.OperacionSync)
             sucursal_id=op.sucursal_id,
             items=[reservas_schemas.ReservaItemCreate(producto_id=i.producto_id, talla_id=i.talla_id, color_id=i.color_id, cantidad=i.cantidad) for i in op.items],
         )
-        reserva = reservas_service.crear_reserva(db, data, cliente_id=usuario.id, commit=False)
+        reserva = reservas_service.crear_reserva(db, data, cliente_id=usuario.id, commit=False, empresa_id=empresa_id)
         fecha = _fecha_local(op.fecha)
         if fecha is not None:
             reserva.creada_en = fecha

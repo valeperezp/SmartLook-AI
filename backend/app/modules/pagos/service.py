@@ -4,7 +4,7 @@ from decimal import ROUND_HALF_UP, Decimal
 import stripe
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-
+
 from app.modules.fidelizacion.service import devolver_canje_de_venta
 from app.modules.pagos import models, schemas
 from app.modules.ventas.models import Venta
@@ -122,7 +122,7 @@ def confirmar_pago(db: Session, data: schemas.PagoConfirmar) -> models.Pago:
         if venta.canal == "online" and venta.estado == "pendiente":
             venta.estado = "cancelada"
             devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
-            db.commit()
+        db.commit()
         db.refresh(pago)
     else:
         # processing / requires_action (3DS) / otros: el cobro sigue en curso; no se cancela nada.
@@ -295,16 +295,19 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
         if venta and venta.canal == "online":
             venta.estado = "cancelada"
             devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
-            db.commit()
+        db.commit()
         db.refresh(pago)
     
     return pago
 
 
-def listar_pagos_pendientes_qr(db: Session, sucursal_id: int | None = None) -> list[models.Pago]:
-    """Lista los pagos QR pendientes de verificación."""
+def listar_pagos_pendientes_qr(
+    db: Session, sucursal_id: int | None = None, empresa_id: int | None = None
+) -> list[models.Pago]:
+    """Lista los pagos QR pendientes de verificación (de la empresa, si se indica)."""
+    from app.modules.sucursales.models import Sucursal
     from app.modules.ventas.models import Venta
-    
+
     query = (
         db.query(models.Pago)
         .join(models.Pago.venta)
@@ -318,7 +321,9 @@ def listar_pagos_pendientes_qr(db: Session, sucursal_id: int | None = None) -> l
     
     if sucursal_id:
         query = query.filter(Venta.sucursal_id == sucursal_id)
-    
+    if empresa_id is not None:
+        query = query.join(Sucursal, Venta.sucursal_id == Sucursal.id).filter(Sucursal.empresa_id == empresa_id)
+
     return query.order_by(models.Pago.procesado_en.desc()).all()
 
 

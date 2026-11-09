@@ -15,7 +15,7 @@ class Env {
       return 'http://localhost:8000';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'https://smartlook-ai-production.up.railway.app';
+      return 'https://smartlook-ai-api.onrender.com';
     }
     return 'http://localhost:8000';
   }
@@ -25,7 +25,7 @@ class Env {
   // (provisional hasta definir el dominio real). En web/escritorio se usa el servidor de desarrollo.
   // Para cambiarla sin tocar el código: flutter run --dart-define=WEB_URL=https://tu-dominio.com
   static const String _webUrlOverride = String.fromEnvironment('WEB_URL', defaultValue: '');
-  static const String _webUrlProduccion = 'https://smartlook-ai.vercel.app';
+  static const String _webUrlProduccion = 'https://smart-look-ai.vercel.app';
 
   static String get webUrl {
     if (_webUrlOverride.isNotEmpty) return _webUrlOverride;

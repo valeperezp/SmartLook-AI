@@ -9,6 +9,8 @@ class Promocion(Base):
     __tablename__ = "promociones"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Cada empresa tiene sus propias promociones (RNF-02).
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
     nombre = Column(String(150), nullable=False)
     descripcion = Column(String(500), nullable=True)
     tipo = Column(String(30), nullable=False)  # 'porcentaje' | 'monto_fijo'

@@ -44,8 +44,8 @@
     {
       "name": "api-catalogo",
       "urls": [
-        "https://smartlook-ai-production.up.railway.app/catalogo/**",
-        "https://smartlook-ai-production.up.railway.app/sucursales",
+        "https://smartlook-ai-api.onrender.com/catalogo/**",
+        "https://smartlook-ai-api.onrender.com/sucursales",
         "http://localhost:8001/catalogo/**",
         "http://localhost:8001/sucursales"
       ],
@@ -59,7 +59,7 @@
     {
       "name": "imagenes-productos",
       "urls": [
-        "https://smartlook-ai-production.up.railway.app/uploads/**",
+        "https://smartlook-ai-api.onrender.com/uploads/**",
         "http://localhost:8001/uploads/**"
       ],
       "cacheConfig": {
