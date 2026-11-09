@@ -87,6 +87,7 @@ export interface TipoReporte {
   usa_productos: boolean;
   usa_limite: boolean;
   grafico: Grafico;
+  agrupa_por_sucursal?: boolean;
 }
 
 export interface CatalogoReportes {
@@ -109,7 +110,13 @@ export interface IntencionReporte {
 export interface ColumnaReporte {
   clave: string;
   titulo: string;
-  tipo: 'texto' | 'numero' | 'moneda' | 'fecha';
+  tipo: 'texto' | 'numero' | 'moneda' | 'fecha' | 'porcentaje';
+}
+
+/** Un bloque de un reporte por sucursal: se dibuja un gráfico por cada uno. */
+export interface GrupoReporte {
+  nombre: string;
+  puntos: { etiqueta: string; valor: number }[];
 }
 
 export type EstadoReporte = 'ok' | 'sin_datos' | 'aclaracion' | 'no_soportado' | 'ia_no_disponible' | 'plan_sin_ia';
@@ -129,6 +136,13 @@ export interface ResultadoReporte {
   totales?: Record<string, number>;
   grafico?: Grafico;
   medida?: string;
+  /** Reportes por sucursal: un bloque por sucursal (null en los demás). */
+  grupos?: GrupoReporte[] | null;
+  sucursales_sin_datos?: string[];
+  /** La respuesta en lenguaje natural: qué dicen los datos. */
+  resumen?: string | null;
+  /** Cómo seguir la conversación ("ahora solo Centro", "mostralo en torta"…). */
+  sugerencias?: string[];
   generado_en?: string;
   origen?: 'ia' | 'manual';
 }

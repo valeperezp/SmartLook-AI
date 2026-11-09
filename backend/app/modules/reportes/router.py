@@ -145,7 +145,7 @@ async def solicitar_reporte(
         return {"estado": "plan_sin_ia", "mensaje": "Los reportes generativos están disponibles en el plan Profesional",
                 "ejemplos": generativo.ejemplos()}
     # La interpretación puede tardar (modelo local): fuera del event loop.
-    return await run_in_threadpool(generativo.solicitar, db, usuario, data.solicitud)
+    return await run_in_threadpool(generativo.solicitar, db, usuario, data.solicitud, data.contexto)
 
 
 @router.post("/ejecutar")

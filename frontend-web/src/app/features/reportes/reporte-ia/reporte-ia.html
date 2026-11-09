@@ -21,7 +21,9 @@
             maxlength="500"
             autocomplete="off"
             [(ngModel)]="solicitud"
-            placeholder="ej: Mostrame las ventas de septiembre agrupadas por sucursal"
+            [placeholder]="enConversacion()
+              ? 'Seguí preguntando: “ahora solo Centro”, “mostralo en torta”, “¿y la estimación?”'
+              : 'ej: Los 10 productos más vendidos de los últimos 3 meses agrupados por sucursal'"
           />
           @if (vozDisponible) {
             <button
@@ -37,9 +39,16 @@
             </button>
           }
           <button type="submit" class="btn-primary" [disabled]="cargando() || solicitud.trim().length < 3">
-            {{ cargando() ? 'Generando…' : 'Generar' }}
+            {{ cargando() ? 'Generando…' : enConversacion() ? 'Enviar' : 'Generar' }}
           </button>
         </div>
+        @if (enConversacion()) {
+          <p class="muted modo-charla">
+            <app-icon name="message-circle" [size]="14" />
+            Continuás sobre el reporte en pantalla.
+            <button type="button" class="link-btn" (click)="nuevaConsulta()">Empezar una consulta nueva</button>
+          </p>
+        }
         @if (escuchando()) {
           <p class="muted escuchando" aria-live="polite">
             <span class="punto-rec" aria-hidden="true"></span>
@@ -61,6 +70,17 @@
           </div>
         }
       </form>
+    }
+
+    @if (turnosVisibles().length) {
+      <ol class="conversacion" aria-label="Conversación con el asistente de reportes" aria-live="polite">
+        @for (t of turnosVisibles(); track $index) {
+          <li [class]="t.rol">
+            <span class="quien">{{ t.rol === 'usuario' ? 'Vos' : 'SmartLook IA' }}</span>
+            <p>{{ t.texto }}</p>
+          </li>
+        }
+      </ol>
     }
 
     @if (error()) {
@@ -125,6 +145,13 @@
               <span class="origen">{{ r.origen === 'ia' ? 'Interpretado con IA' : 'Reporte convencional' }}</span>
             </header>
 
+            @if (r.resumen) {
+              <p class="resumen">
+                <app-icon name="sparkles" [size]="16" />
+                <span>{{ r.resumen }}</span>
+              </p>
+            }
+
             @if (r.estado === 'sin_datos') {
               <p class="vacio">{{ r.mensaje }}.</p>
             } @else {
@@ -135,12 +162,36 @@
                   </button>
                 }
               </div>
-              <app-grafico-reporte
-                [datos]="puntos()"
-                [tipo]="grafico()"
-                [formato]="columnaMedida()?.tipo === 'moneda' ? 'moneda' : 'numero'"
-                [etiquetaMedida]="columnaMedida()?.titulo || ''"
-              />
+              @if (r.grupos?.length) {
+                <!-- Un gráfico por sucursal, con la misma escala para poder compararlas -->
+                <div class="grupos">
+                  @for (g of r.grupos!; track g.nombre) {
+                    <section class="grupo" [attr.aria-label]="g.nombre">
+                      <h3>{{ g.nombre }}</h3>
+                      <app-grafico-reporte
+                        [datos]="g.puntos"
+                        [tipo]="grafico()"
+                        [maximo]="grafico() === 'torta' ? null : maxGrupos()"
+                        [formato]="formatoMedida()"
+                        [etiquetaMedida]="columnaMedida()?.titulo || ''"
+                      />
+                    </section>
+                  }
+                  @for (s of r.sucursales_sin_datos ?? []; track s) {
+                    <section class="grupo grupo-vacio" [attr.aria-label]="s">
+                      <h3>{{ s }}</h3>
+                      <p class="muted">Sin datos en este reporte.</p>
+                    </section>
+                  }
+                </div>
+              } @else {
+                <app-grafico-reporte
+                  [datos]="puntos()"
+                  [tipo]="grafico()"
+                  [formato]="formatoMedida()"
+                  [etiquetaMedida]="columnaMedida()?.titulo || ''"
+                />
+              }
 
               <div class="table-wrap">
                 <table class="data-table">
@@ -182,6 +233,15 @@
                   <app-icon name="download" [size]="15" /> {{ exportando() === 'pdf' ? 'Generando…' : 'PDF' }}
                 </button>
               </footer>
+            }
+
+            @if (r.sugerencias?.length && catalogo()?.plan_incluye_ia !== false) {
+              <div class="seguir">
+                <span class="muted">Seguí preguntando:</span>
+                @for (s of r.sugerencias!; track s) {
+                  <button type="button" class="chip" [disabled]="cargando()" (click)="seguir(s)">{{ s }}</button>
+                }
+              </div>
             }
           </article>
         }

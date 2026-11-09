@@ -31,12 +31,17 @@ export class GraficoReporte {
   /** moneda → "Bs 1.234"; numero → "1.234" */
   @Input() formato: 'moneda' | 'numero' = 'numero';
   @Input() etiquetaMedida = '';
+  /** Escala compartida: con varios gráficos (uno por sucursal) todos usan el mismo máximo y se comparan a ojo. */
+  @Input() set maximo(v: number | null | undefined) {
+    this.maxFijo.set(v ?? null);
+  }
 
   puntos = signal<Punto[]>([]);
   forma = signal<Grafico>('barras');
   hover = signal<number | null>(null);
+  private maxFijo = signal<number | null>(null);
 
-  max = computed(() => Math.max(1, ...this.puntos().map((p) => p.valor)));
+  max = computed(() => Math.max(1, this.maxFijo() ?? 0, ...this.puntos().map((p) => p.valor)));
   total = computed(() => this.puntos().reduce((a, p) => a + p.valor, 0) || 1);
 
   // ---------- líneas ----------

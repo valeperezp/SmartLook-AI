@@ -20,7 +20,14 @@ import {
 } from '../../../core/models/reporte.model';
 import { GraficoReporte } from '../shared/grafico-reporte';
 
-/** CU14 — Solicitar reporte generativo: frase (escrita o dictada) → IA → reporte del catálogo permitido. */
+/** Un mensaje de la conversación: lo que pidió la persona o lo que respondió el sistema. */
+interface Turno {
+  rol: 'usuario' | 'asistente';
+  texto: string;
+}
+
+/** CU14 — Solicitar reporte generativo: frase (escrita o dictada) → IA → reporte del catálogo permitido.
+ *  Es una conversación: cada frase nueva se interpreta sobre el reporte que está en pantalla. */
 @Component({
   selector: 'app-reporte-ia',
   standalone: true,
@@ -57,6 +64,18 @@ export class ReporteIa implements OnInit, OnDestroy {
   mostrarConvencional = signal(false);
   error = signal<string | null>(null);
 
+  /** Conversación en curso y la intención del último reporte generado (el "contexto" de la charla). */
+  conversacion = signal<Turno[]>([]);
+  private contexto = signal<IntencionReporte | null>(null);
+  enConversacion = computed(() => this.contexto() !== null);
+  /** La última respuesta ya se ve en la tarjeta del reporte: en el hilo se muestran las anteriores. */
+  turnosVisibles = computed(() => {
+    const turnos = this.conversacion();
+    const ultimo = turnos[turnos.length - 1];
+    const enTarjeta = !this.cargando() && this.resultado()?.estado === 'ok' && ultimo?.rol === 'asistente';
+    return enTarjeta ? turnos.slice(0, -1) : turnos;
+  });
+
   // Dictado por voz (3a): Web Speech API del navegador, a través de SpeechService.
   private voz = inject(SpeechService);
   private destroyRef = inject(DestroyRef);
@@ -79,6 +98,11 @@ export class ReporteIa implements OnInit, OnDestroy {
   });
   columnaMedida = computed<ColumnaReporte | undefined>(() =>
     this.resultado()?.columnas?.find((c) => c.clave === this.resultado()?.medida)
+  );
+  formatoMedida = computed<'moneda' | 'numero'>(() => (this.columnaMedida()?.tipo === 'moneda' ? 'moneda' : 'numero'));
+  /** Máximo común a todos los gráficos por sucursal: misma escala, se comparan de un vistazo. */
+  maxGrupos = computed(() =>
+    Math.max(1, ...(this.resultado()?.grupos ?? []).flatMap((g) => g.puntos.map((p) => p.valor)))
   );
 
   ngOnInit() {
@@ -121,14 +145,17 @@ export class ReporteIa implements OnInit, OnDestroy {
     this.reportesService.historial().subscribe((h) => this.historial.set(h));
   }
 
-  // ---------- flujo con IA ----------
-  generar(texto?: string) {
+  // ---------- flujo con IA (conversación) ----------
+  /** Envía la frase. Si hay un reporte en pantalla, va como contexto: la frase puede ser un ajuste
+   *  ("ahora solo Centro", "mostralo en torta") y la IA la interpreta sobre ese reporte. */
+  generar(texto?: string, turnoVisible?: string) {
     const solicitud = (texto ?? this.solicitud).trim();
     if (solicitud.length < 3 || this.cargando()) return;
-    this.solicitud = solicitud;
     this.cargando.set(true);
     this.error.set(null);
-    this.reportesService.solicitar(solicitud).subscribe({
+    this.agregarTurno('usuario', turnoVisible ?? solicitud);
+    this.solicitud = '';
+    this.reportesService.solicitar(solicitud, this.contexto()).subscribe({
       next: (r) => this.mostrar(r, solicitud),
       error: (err) => {
         this.cargando.set(false);
@@ -142,12 +169,29 @@ export class ReporteIa implements OnInit, OnDestroy {
     const respuesta = this.respuestaAclaracion.trim();
     if (!respuesta) return;
     this.respuestaAclaracion = '';
-    this.generar(`${this.ultimaSolicitud() ?? this.solicitud}, ${respuesta}`);
+    this.generar(`${this.ultimaSolicitud() ?? ''}, ${respuesta}`, respuesta);
   }
 
+  /** Un ejemplo empieza una conversación nueva; una sugerencia la continúa. */
   usarEjemplo(ejemplo: string) {
-    this.solicitud = ejemplo;
-    this.generar();
+    this.nuevaConsulta();
+    this.generar(ejemplo);
+  }
+
+  seguir(sugerencia: string) {
+    this.generar(sugerencia);
+  }
+
+  nuevaConsulta() {
+    this.conversacion.set([]);
+    this.contexto.set(null);
+    this.resultado.set(null);
+    this.ultimaSolicitud.set(null);
+    this.error.set(null);
+  }
+
+  private agregarTurno(rol: Turno['rol'], texto: string) {
+    this.conversacion.update((c) => [...c, { rol, texto }].slice(-12));
   }
 
   // ---------- reportes convencionales ----------
@@ -171,7 +215,8 @@ export class ReporteIa implements OnInit, OnDestroy {
   }
 
   repetir(h: HistorialReporte) {
-    this.solicitud = h.solicitud ?? '';
+    this.nuevaConsulta();
+    if (h.solicitud) this.agregarTurno('usuario', h.solicitud);
     this.ejecutarIntencion(h.intencion, h.solicitud);
   }
 
@@ -193,7 +238,18 @@ export class ReporteIa implements OnInit, OnDestroy {
     this.ultimaSolicitud.set(solicitud);
     if (r.grafico) this.grafico.set(r.grafico);
     if (r.estado === 'ia_no_disponible' || r.estado === 'plan_sin_ia') this.mostrarConvencional.set(true);
-    if (r.estado === 'ok' || r.estado === 'sin_datos') this.cargarHistorial();
+    if (r.estado === 'ok' || r.estado === 'sin_datos') {
+      this.cargarHistorial();
+      if (r.intencion) {
+        const intencion: IntencionReporte & { descartados?: string[] } = { ...r.intencion };
+        delete intencion.descartados;
+        this.contexto.set(intencion); // el próximo pedido continúa sobre este reporte
+      }
+    }
+    // La respuesta del sistema también queda en la conversación, en lenguaje natural.
+    const respuesta =
+      r.estado === 'ok' ? r.resumen || r.titulo : r.estado === 'aclaracion' ? r.pregunta : r.mensaje;
+    if (respuesta) this.agregarTurno('asistente', respuesta);
   }
 
   // ---------- voz ----------
@@ -230,7 +286,8 @@ export class ReporteIa implements OnInit, OnDestroy {
   }
 
   celda(col: ColumnaReporte, valor: any): string {
-    if (valor === null || valor === undefined || valor === '') return '';
+    if (valor === null || valor === undefined || valor === '') return col.tipo === 'porcentaje' ? '—' : '';
+    if (col.tipo === 'porcentaje') return `${Number(valor) > 0 ? '+' : ''}${Math.round(Number(valor))}%`;
     if (col.tipo === 'moneda') return 'Bs ' + Number(valor).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (col.tipo === 'numero') return Number(valor).toLocaleString('es-BO');
     if (col.tipo === 'fecha') return new Date(valor + 'T00:00:00').toLocaleDateString('es-BO', { weekday: 'short', day: '2-digit', month: 'short' });

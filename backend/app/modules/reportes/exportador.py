@@ -191,6 +191,10 @@ def generar_excel(datos: dict, titulo: str) -> bytes:
 # ======================================================================
 
 def _valor(col: dict, valor) -> str:
+    if valor is None:
+        return "—"
+    if col["tipo"] == "porcentaje":
+        return f"{'+' if valor > 0 else ''}{valor:.0f}%"
     if col["tipo"] == "moneda":
         return _bs(float(valor))
     if col["tipo"] == "numero":
@@ -202,9 +206,20 @@ def _grafico_pdf(resultado: dict) -> Drawing | None:
     filas, medida = resultado["filas"], resultado["medida"]
     if not filas:
         return None
-    etiquetas = [str(f["etiqueta"])[:28] for f in filas]
-    valores = [float(f[medida]) for f in filas]
     tipo = resultado["grafico"]
+    agrupado = "sucursal" in filas[0]
+    if agrupado and tipo == "lineas":
+        return _lineas_por_sucursal(filas, medida)
+    if resultado.get("tipo") == "evolucion_por_sucursal":
+        # En barras o torta, la evolución se compara por su total en cada sucursal.
+        totales: dict[str, float] = {}
+        for f in filas:
+            totales[f["sucursal"]] = totales.get(f["sucursal"], 0.0) + float(f[medida] or 0)
+        etiquetas, valores = list(totales), list(totales.values())
+    else:
+        # En los reportes por sucursal cada barra/porción lleva su sucursal: "Centro · Camiseta".
+        etiquetas = [(f"{f['sucursal']} · {f['etiqueta']}" if agrupado else str(f["etiqueta"]))[:34] for f in filas]
+        valores = [float(f[medida] or 0) for f in filas]
     if tipo == "torta":
         # Más de 6 porciones no se leen: el resto se agrupa en "Otros".
         if len(valores) > 6:
@@ -237,7 +252,7 @@ def _grafico_pdf(resultado: dict) -> Drawing | None:
         d.add(lc)
         return d
     # barras horizontales: etiquetas largas (productos, sucursales) se leen mejor
-    alto = max(120, 22 * len(valores) + 30)
+    alto = max(120, min(600, 22 * len(valores) + 30))  # acotado: tiene que entrar en una página
     d = Drawing(500, alto)
     bc = HorizontalBarChart()
     bc.x, bc.y, bc.width, bc.height = 150, 15, 320, alto - 30
@@ -248,6 +263,30 @@ def _grafico_pdf(resultado: dict) -> Drawing | None:
     bc.bars[0].fillColor, bc.bars[0].strokeColor = colors.HexColor(f"#{COLOR_MARCA}"), None
     bc.barSpacing = 2
     d.add(bc)
+    return d
+
+
+def _lineas_por_sucursal(filas: list[dict], medida: str) -> Drawing:
+    """Una línea por sucursal sobre los mismos períodos, con su leyenda (evolución comparada)."""
+    periodos = list(dict.fromkeys(str(f["etiqueta"]) for f in filas))
+    sucursales = list(dict.fromkeys(f["sucursal"] for f in filas))
+    valores = {(f["sucursal"], str(f["etiqueta"])): float(f[medida] or 0) for f in filas}
+    d = Drawing(500, 220)
+    lc = HorizontalLineChart()
+    lc.x, lc.y, lc.width, lc.height = 45, 45, 430, 150
+    lc.data = [[valores.get((s, p), 0.0) for p in periodos] for s in sucursales]
+    paso = max(1, len(periodos) // 8)
+    lc.categoryAxis.categoryNames = [p if i % paso == 0 else "" for i, p in enumerate(periodos)]
+    lc.categoryAxis.labels.fontSize, lc.valueAxis.labels.fontSize = 7, 7
+    lc.categoryAxis.labels.angle, lc.categoryAxis.labels.dy = 30, -8
+    lc.valueAxis.valueMin = 0
+    for i in range(len(sucursales)):
+        lc.lines[i].strokeColor, lc.lines[i].strokeWidth = colors.HexColor(f"#{PALETA[i % len(PALETA)]}"), 2
+    d.add(lc)
+    for i, s in enumerate(sucursales):
+        x = 45 + i * 140
+        d.add(Rect(x, 205, 10, 10, fillColor=colors.HexColor(f"#{PALETA[i % len(PALETA)]}"), strokeColor=None))
+        d.add(String(x + 16, 206, s[:20], fontSize=9, fillColor=colors.HexColor("#374151")))
     return d
 
 
@@ -273,6 +312,8 @@ def exportar_consulta_pdf(resultado: dict, empresa_nombre: str, logo_url: str | 
     ]
     if resultado.get("solicitud"):
         elementos.append(Paragraph(f"Solicitud: <i>{escape(resultado['solicitud'])}</i>", e["sub"]))
+    if resultado.get("resumen"):
+        elementos += [Spacer(1, 0.2 * cm), Paragraph(escape(resultado["resumen"]), e["sub"])]
     grafico = _grafico_pdf(resultado)
     if grafico:
         elementos += [Spacer(1, 0.4 * cm), grafico]
@@ -305,7 +346,8 @@ def exportar_consulta_excel(resultado: dict, empresa_nombre: str) -> bytes:
     if filas:
         col_medida = next(i for i, c in enumerate(cols, start=1) if c["clave"] == resultado["medida"])
         datos_ref = Reference(ws, min_col=col_medida, min_row=fila_enc, max_row=ultima)
-        etiquetas_ref = Reference(ws, min_col=1, min_row=primera, max_row=ultima)
+        col_etiqueta = next(i for i, c in enumerate(cols, start=1) if c["clave"] == "etiqueta")
+        etiquetas_ref = Reference(ws, min_col=col_etiqueta, min_row=primera, max_row=ultima)
         tipo = resultado["grafico"]
         chart = PieChart() if tipo == "torta" else LineChart() if tipo == "lineas" else BarChart()
         if isinstance(chart, BarChart):

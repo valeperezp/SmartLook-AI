@@ -7,7 +7,11 @@
    del usuario; lo que no pertenece a la empresa se descarta (flujo 6b).
 3. Ejecuta la consulta parametrizada (siempre filtrada por la empresa) y guarda la
    solicitud en el historial.
+4. Responde también en lenguaje natural (un resumen de lo que muestran los datos) y sugiere
+   cómo seguir. La conversación continúa: el siguiente pedido ("ahora solo Norte", "mostralo
+   en torta", "¿y la estimación?") se interpreta sobre el reporte que el usuario está viendo.
 """
+import json
 import re
 import unicodedata
 from datetime import date, datetime, timedelta
@@ -16,6 +20,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.modules.catalogo.models import Categoria, Producto
+from app.modules.empresas import service as empresas_service
 from app.modules.ia import service as ia_service
 from app.modules.reportes import catalogo_reportes as catalogo
 from app.modules.reportes.models import ReporteHistorial
@@ -37,27 +42,41 @@ def _normalizar(texto: str) -> str:
     return "".join(c for c in sin_tildes if unicodedata.category(c) != "Mn")
 
 
+_EJEMPLOS_DESTACADOS = (
+    "productos_por_sucursal", "prediccion_por_sucursal", "evolucion_por_sucursal",
+    "ventas_por_producto", "ventas_por_categoria", "stock_bajo",
+)
+
+
 def ejemplos() -> list[str]:
-    return [t.ejemplo for t in catalogo.TIPOS.values() if t.ejemplo][:6]
+    return [catalogo.TIPOS[i].ejemplo for i in _EJEMPLOS_DESTACADOS if i in catalogo.TIPOS]
 
 
 def catalogo_para_ui() -> list[dict]:
     return [
         {"id": t.id, "titulo": t.titulo, "descripcion": t.descripcion, "usa_fechas": t.usa_fechas,
          "usa_categorias": t.usa_categorias, "usa_productos": t.usa_productos, "usa_limite": t.usa_limite,
-         "grafico": t.grafico}
+         "grafico": t.grafico, "agrupa_por_sucursal": t.agrupa_por_sucursal}
         for t in catalogo.TIPOS.values()
     ]
 
 
 # ---------------------------------------------------------------- interpretación (IA)
 
-def _prompt_sistema() -> str:
+def _prompt_sistema(previo: dict | None = None) -> str:
     tipos = "\n".join(
-        f'- "{t.id}": {t.descripcion}' + ("" if t.usa_fechas else " (estado actual: no usa fechas)")
+        f'- "{t.id}": {t.descripcion}' + ("" if t.usa_fechas else " (no usa fechas)")
         for t in catalogo.TIPOS.values()
     )
     hoy = _hoy()
+    conversacion = (
+        "\nCONVERSACIÓN: el usuario ya está viendo este reporte: "
+        f"{json.dumps(previo, ensure_ascii=False)}.\n"
+        "Si el nuevo pedido es una continuación o un ajuste (por ejemplo 'ahora solo Norte', 'mostralo en torta', "
+        "'y por sucursal?', 'el mes pasado', 'solo el top 3', 'y la estimación?'), devolvé la intención COMPLETA: "
+        "copiá el reporte anterior y cambiá solo lo que pide. Si es un pedido nuevo e independiente, ignorá el anterior.\n"
+        if previo else ""
+    )
     return (
         "Convertís pedidos de reportes de una tienda de ropa en una intención estructurada. "
         "No tenés acceso a datos: solo elegís el tipo de reporte y los filtros.\n"
@@ -73,8 +92,20 @@ def _prompt_sistema() -> str:
         "Interpretá fechas relativas a hoy: 'septiembre' = todo septiembre del año en curso (o del anterior si "
         "todavía no llegó), 'la última semana' = los últimos 7 días hasta hoy, 'este mes' = desde el día 1 hasta hoy. "
         "En sucursales, categorías y productos poné SOLO lo que el usuario nombró explícitamente, tal como lo "
-        "escribió; si no nombró ninguno, dejá la lista vacía []. Nunca inventes nombres.\n\n"
+        "escribió; si no nombró ninguno, dejá la lista vacía []. Nunca inventes nombres.\n"
+        "Si pide los productos más vendidos 'por sucursal', 'en cada sucursal' o 'agrupados por sucursal', usá "
+        '"productos_por_sucursal" (no "ventas_por_producto"). Si pide comparar la evolución de las ventas entre '
+        'sucursales, usá "evolucion_por_sucursal". Si pide una estimación, predicción, proyección o lo que se va a '
+        'vender, usá "prediccion_demanda" (o "prediccion_por_sucursal" si lo quiere por sucursal).\n'
+        f"{conversacion}\n"
         "Ejemplos:\n"
+        'Pedido: "los 10 productos más vendidos de los últimos 3 meses agrupados por sucursal" → '
+        '{"tipo": "productos_por_sucursal", '
+        f'"fecha_inicio": "{(hoy - timedelta(days=89)).isoformat()}", "fecha_fin": "{hoy.isoformat()}", '
+        '"sucursales": [], "categorias": [], "productos": [], "limite": 10, "grafico": null}\n'
+        'Pedido: "cuánto vamos a vender el próximo mes en cada sucursal" → {"tipo": "prediccion_por_sucursal", '
+        '"fecha_inicio": null, "fecha_fin": null, "sucursales": [], "categorias": [], "productos": [], '
+        '"limite": null, "grafico": null}\n'
         'Pedido: "ventas de septiembre agrupadas por sucursal" → {"tipo": "ventas_por_sucursal", '
         f'"fecha_inicio": "{_ejemplo_mes(9, hoy)}-01", "fecha_fin": "{_ejemplo_mes(9, hoy)}-30", "sucursales": [], '
         '"categorias": [], "productos": [], "limite": null, "grafico": null}\n'
@@ -153,20 +184,97 @@ def fechas_por_reglas(solicitud: str) -> tuple[date, date] | None:
     return None
 
 
-def _interpretar(db: Session, solicitud: str) -> dict | None:
-    intencion = ia_service.interpretar_json(db, _prompt_sistema(), solicitud)
+_POR_SUCURSAL = re.compile(
+    r"(por|cada|entre|segun)\s+(la\s+|las\s+)?sucursal|agrupad\w*\s+(por\s+)?sucursal|sucursal\s+por\s+sucursal"
+    r"|compar\w*\s+(las\s+)?sucursales|separad\w*\s+por\s+sucursal"
+)
+_ESTIMACION = re.compile(
+    r"estim|predic|proyec|pronost|se va a vender|vamos a vender|venderemos|vender el proximo"
+    r"|proxim[oa]s?\s+(\d+\s+)?(dias|semanas|mes)"
+)
+_PRODUCTOS = re.compile(r"product|prenda|articulo|mas vendid")
+_EN_TOTAL = re.compile(r"en total|toda la empresa|todas las sucursales juntas|en general|global|sin separar")
+_SIN_AGRUPAR = {"productos_por_sucursal": "ventas_por_producto", "evolucion_por_sucursal": "ventas_por_dia",
+                "prediccion_por_sucursal": "prediccion_demanda"}
+_EVOLUCION = re.compile(r"evoluci|tendencia|dia a dia|por dia|por semana|semanal|diari|en el tiempo")
+_GRAFICOS = (("torta", re.compile(r"\btorta|pastel|circular")), ("lineas", re.compile(r"\blinea")),
+             ("barras", re.compile(r"\bbarra")))
+
+
+def _aplicar_reglas(intencion: dict, texto: str, previo: dict | None) -> None:
+    """Refuerza con reglas fijas lo que un modelo chico suele confundir (el tipo y el gráfico).
+
+    La IA sigue eligiendo el reporte; estas reglas solo corrigen casos claros, por ejemplo
+    "más vendidos ... agrupados por sucursal" interpretado como un top general.
+    """
+    tipo = intencion.get("tipo")
+    por_sucursal = bool(_POR_SUCURSAL.search(texto))
+    previo_agrupado = bool(previo and catalogo.TIPOS.get(previo.get("tipo") or "") and
+                           catalogo.TIPOS[previo["tipo"]].agrupa_por_sucursal)
+    if _ESTIMACION.search(texto):
+        en_total = bool(_EN_TOTAL.search(texto))
+        agrupar = por_sucursal or (not en_total and (tipo == "prediccion_por_sucursal" or previo_agrupado))
+        intencion["tipo"] = "prediccion_por_sucursal" if agrupar else "prediccion_demanda"
+    elif por_sucursal:
+        if tipo == "ventas_por_producto" or (tipo in (None, "ventas_por_sucursal") and _PRODUCTOS.search(texto)):
+            intencion["tipo"] = "productos_por_sucursal"
+        elif tipo == "ventas_por_dia" or (tipo == "ventas_por_sucursal" and _EVOLUCION.search(texto)):
+            intencion["tipo"] = "evolucion_por_sucursal"
+        elif tipo == "prediccion_demanda":
+            intencion["tipo"] = "prediccion_por_sucursal"
+    elif _EN_TOTAL.search(texto) and tipo in _SIN_AGRUPAR:
+        intencion["tipo"] = _SIN_AGRUPAR[tipo]  # "ahora para toda la empresa": se deja de separar por sucursal
+    for grafico, patron in _GRAFICOS:
+        if patron.search(texto):
+            intencion["grafico"] = grafico
+            break
+
+
+def _interpretar(db: Session, solicitud: str, previo: dict | None = None) -> dict | None:
+    intencion = ia_service.interpretar_json(db, _prompt_sistema(previo), solicitud)
     if intencion is None:
         return None
+    texto = _normalizar(solicitud)
+    _aplicar_reglas(intencion, texto, previo)
     reglas = fechas_por_reglas(solicitud)
     if reglas:
         intencion["fecha_inicio"], intencion["fecha_fin"] = reglas[0].isoformat(), reglas[1].isoformat()
-    # Los modelos chicos a veces "completan" listas con nombres inventados: solo se aceptan
-    # los que el usuario realmente escribió.
-    texto = _normalizar(solicitud)
+    # Los modelos chicos a veces "completan" listas con nombres inventados: solo se aceptan los que el
+    # usuario escribió ahora o los que ya estaban en el reporte que está viendo (continuación de la charla).
     for clave in ("sucursales", "categorias", "productos"):
         valores = intencion.get(clave) if isinstance(intencion.get(clave), list) else []
-        intencion[clave] = [v for v in valores if isinstance(v, str) and _mencionado(v, texto)]
+        anteriores = {_normalizar(n) for n in (previo or {}).get(clave, [])}
+        intencion[clave] = [
+            v for v in valores
+            if isinstance(v, str) and (_mencionado(v, texto) or _normalizar(v) in anteriores)
+        ]
     return intencion
+
+
+def _previo(db: Session, usuario: Usuario, contexto: dict | None) -> dict | None:
+    """El reporte que el usuario está viendo, con nombres (no ids) para que la IA lo entienda.
+
+    El contexto lo manda la web: los ids se vuelven a filtrar por la empresa del usuario.
+    """
+    if not isinstance(contexto, dict) or contexto.get("tipo") not in catalogo.TIPOS:
+        return None
+
+    def nombres(modelo, ids) -> list[str]:
+        ids = [i for i in (ids or []) if isinstance(i, int)]
+        if not ids:
+            return []
+        return [n for (n,) in db.query(modelo.nombre).filter(modelo.id.in_(ids), modelo.empresa_id == usuario.empresa_id)]
+
+    return {
+        "tipo": contexto["tipo"],
+        "fecha_inicio": contexto.get("fecha_inicio"),
+        "fecha_fin": contexto.get("fecha_fin"),
+        "sucursales": nombres(Sucursal, contexto.get("sucursal_ids")),
+        "categorias": nombres(Categoria, contexto.get("categoria_ids")),
+        "productos": nombres(Producto, contexto.get("producto_ids")),
+        "limite": contexto.get("limite"),
+        "grafico": contexto.get("grafico"),
+    }
 
 
 # ---------------------------------------------------------------- validación
@@ -277,6 +385,8 @@ def _descripcion_filtros(db: Session, tipo: catalogo.TipoReporte, f: catalogo.Fi
             f"Del {f.fecha_inicio.strftime('%d/%m/%Y')} al {f.fecha_fin.strftime('%d/%m/%Y')}"
             if f.fecha_inicio != f.fecha_fin else f"El {f.fecha_inicio.strftime('%d/%m/%Y')}"
         )
+    elif tipo.requiere == "analitica_ml":
+        partes.append("Estimación a 30 días")
     else:
         partes.append("Estado actual")
     def nombres(modelo, ids):
@@ -291,15 +401,177 @@ def _descripcion_filtros(db: Session, tipo: catalogo.TipoReporte, f: catalogo.Fi
     return partes
 
 
+def _fmt(valor, moneda: bool = False) -> str:
+    """Número en formato boliviano: 1.598,40 (moneda con 'Bs')."""
+    valor = float(valor or 0)
+    texto = f"{valor:,.2f}" if moneda else (f"{int(valor):,}" if valor.is_integer() else f"{valor:,.1f}")
+    texto = texto.replace(",", "§").replace(".", ",").replace("§", ".")
+    return f"Bs {texto}" if moneda else texto
+
+
+def _fecha_txt(iso: str) -> str:
+    try:
+        return date.fromisoformat(iso[:10]).strftime("%d/%m/%Y")
+    except ValueError:
+        return iso
+
+
+def _grupos(filas: list[dict], medida: str) -> list[dict]:
+    """Filas de un reporte por sucursal → un bloque por sucursal (la web dibuja un gráfico por cada una)."""
+    grupos: list[dict] = []
+    por_nombre: dict[str, dict] = {}
+    for f in filas:
+        grupo = por_nombre.get(f["sucursal"])
+        if grupo is None:
+            grupo = por_nombre[f["sucursal"]] = {"nombre": f["sucursal"], "puntos": []}
+            grupos.append(grupo)
+        grupo["puntos"].append({"etiqueta": str(f["etiqueta"]), "valor": float(f.get(medida) or 0)})
+    return grupos
+
+
+def _resumen(tipo: catalogo.TipoReporte, filas: list[dict], medida: str, sin_datos: list[str]) -> str:
+    """La respuesta en lenguaje natural: qué dicen los datos, sin inventar nada (se arma con las filas reales)."""
+    if not filas:
+        return "No hay datos para los filtros indicados."
+    col = next(c for c in tipo.columnas if c["clave"] == medida)
+    moneda = col["tipo"] == "moneda"
+    partes: list[str] = []
+
+    if tipo.id == "productos_por_sucursal":
+        for g in _grupos(filas, "unidades"):
+            p = g["puntos"]
+            frase = f"En {g['nombre']}, lo más vendido fue {p[0]['etiqueta']} ({_fmt(p[0]['valor'])} u.)"
+            if len(p) > 1:
+                frase += f", seguido de {p[1]['etiqueta']} ({_fmt(p[1]['valor'])} u.)"
+            partes.append(frase + ".")
+        partes.append(f"En total se vendieron {_fmt(sum(f['unidades'] for f in filas))} unidades por "
+                      f"{_fmt(sum(f['ingresos'] for f in filas), True)}.")
+        if sin_datos:
+            partes.append(f"Sin ventas en el período: {', '.join(sin_datos)}.")
+
+    elif tipo.id == "evolucion_por_sucursal":
+        totales = {}
+        for f in filas:
+            totales[f["sucursal"]] = totales.get(f["sucursal"], 0) + f["ingresos"]
+        total = sum(totales.values()) or 1
+        ranking = sorted(totales.items(), key=lambda x: -x[1])
+        lider, monto = ranking[0]
+        partes.append(f"{lider} lideró con {_fmt(monto, True)} ({monto / total * 100:.0f}% del total)")
+        siguientes = [(n, m) for n, m in ranking[1:] if m]
+        if siguientes:
+            partes[-1] += ", seguida de " + ", ".join(f"{n} ({_fmt(m, True)})" for n, m in siguientes) + "."
+        else:
+            partes[-1] += "."
+        mejor = max((f for f in filas if f["sucursal"] == lider), key=lambda f: f["ingresos"])
+        if mejor["ingresos"]:
+            partes.append(f"Su mejor período fue el del {_fecha_txt(mejor['etiqueta'])} ({_fmt(mejor['ingresos'], True)}).")
+        sin_ventas = [n for n, m in ranking if not m]
+        if sin_ventas:
+            partes.append(f"Sin ventas en el período: {', '.join(sin_ventas)}.")
+
+    elif tipo.id in ("prediccion_demanda", "prediccion_por_sucursal"):
+        antes, despues = sum(f["ultimos_30"] for f in filas), sum(f["proximos_30"] for f in filas)
+        variacion = (despues - antes) / antes * 100 if antes else None
+        partes.append(
+            f"El modelo estima {_fmt(round(despues))} unidades para los próximos 30 días, frente a "
+            f"{_fmt(round(antes))} vendidas en los últimos 30"
+            + (f" ({'+' if variacion >= 0 else ''}{variacion:.0f}%)." if variacion is not None else ".")
+        )
+        if tipo.id == "prediccion_por_sucursal":
+            for g in _grupos(filas, "proximos_30"):
+                estimado = round(sum(p["valor"] for p in g["puntos"]))
+                if estimado:
+                    top = max(g["puntos"], key=lambda p: p["valor"])
+                    partes.append(f"{g['nombre']}: {_fmt(estimado)} u. estimadas ({top['etiqueta']} a la cabeza).")
+                else:
+                    partes.append(f"{g['nombre']}: no se espera demanda en los próximos 30 días.")
+            if sin_datos:
+                partes.append(f"Sin historial suficiente para estimar: {', '.join(sin_datos)}.")
+        else:
+            top = max(filas, key=lambda f: f["proximos_30"])
+            partes.append(f"La categoría con más demanda esperada es {top['etiqueta']} ({_fmt(top['proximos_30'])} u.).")
+            sube = [f for f in filas if f["variacion_pct"] is not None and f["ultimos_30"] >= 3]
+            if sube:
+                mayor = max(sube, key=lambda f: f["variacion_pct"])
+                if mayor["variacion_pct"] > 0:
+                    partes.append(f"La que más crece es {mayor['etiqueta']} (+{mayor['variacion_pct']:.0f}%).")
+        partes.append("Es una predicción del modelo entrenado, no ventas reales.")
+
+    elif tipo.id == "stock_bajo":
+        critica = filas[0]
+        partes.append(f"Hay {len(filas)} prendas en o por debajo de su stock mínimo. La más crítica es "
+                      f"{critica['etiqueta']} ({critica['disponible']} disponibles, mínimo {critica['minimo']}).")
+
+    else:
+        top = max(filas, key=lambda f: f.get(medida) or 0)
+        etiqueta = _fecha_txt(top["etiqueta"]) if tipo.columnas[0]["tipo"] == "fecha" else top["etiqueta"]
+        if tipo.columnas[0]["tipo"] == "fecha":
+            partes.append(f"El mejor día fue el {etiqueta}, con {_fmt(top[medida], moneda)}.")
+        else:
+            cantidad = f"{_fmt(top[medida], moneda)} de {col['titulo'].lower()}" if moneda else \
+                f"{_fmt(top[medida])} {col['titulo'].lower()}"
+            partes.append(f"{etiqueta} encabeza el reporte con {cantidad}.")
+        if tipo.id != "stock_bajo" and len(filas) > 1:
+            partes.append(f"Total: {_fmt(sum(f.get(medida) or 0 for f in filas), moneda)}.")
+    return " ".join(partes)
+
+
+_SUGERENCIAS = {
+    "ventas_por_producto": ["Ahora agrupado por sucursal", "Mostralo en torta", "¿Y la estimación para los próximos 30 días?"],
+    "productos_por_sucursal": ["Solo el top 3 de cada sucursal", "¿Cómo evolucionaron las ventas de cada sucursal?",
+                               "¿Cuánto estimamos vender en cada sucursal?"],
+    "evolucion_por_sucursal": ["Ahora solo el último mes", "Los productos más vendidos de cada sucursal",
+                               "Estimación de demanda por sucursal"],
+    "prediccion_demanda": ["Ahora por sucursal", "Mostralo en torta", "¿Qué se vendió más en los últimos 3 meses?"],
+    "prediccion_por_sucursal": ["Ahora para toda la empresa", "Los productos más vendidos de cada sucursal",
+                                "Mostralo en torta"],
+    "ventas_por_sucursal": ["¿Cómo evolucionaron en el tiempo por sucursal?", "Los productos más vendidos de cada sucursal",
+                            "Mostralo en torta"],
+    "ventas_por_dia": ["Ahora separado por sucursal", "¿Y la estimación para los próximos 30 días?", "Solo el mes pasado"],
+    "stock_bajo": ["¿Cuánto stock hay en cada sucursal?", "¿Cuánto estimamos vender en los próximos 30 días?",
+                   "Los productos más vendidos de cada sucursal"],
+    "inventario_por_sucursal": ["¿Qué prendas están por agotarse?", "Estimación de demanda por sucursal",
+                                "Mostralo en torta"],
+}
+
+
+def _sugerencias(tipo: catalogo.TipoReporte, filas: list[dict]) -> list[str]:
+    lista = list(_SUGERENCIAS.get(tipo.id, ["Ahora agrupado por sucursal", "Mostralo en torta",
+                                            "¿Y la estimación para los próximos 30 días?"]))
+    if tipo.agrupa_por_sucursal and filas:
+        nombre = filas[0]["sucursal"]
+        lista.insert(0, f"Solo la {nombre}" if _normalizar(nombre).startswith("sucursal") else f"Solo la sucursal {nombre}")
+    return lista[:4]
+
+
 def ejecutar(
     db: Session, usuario: Usuario, intencion: dict, solicitud: str | None, origen: str, guardar: bool = True
 ) -> dict:
     """Valida y ejecuta la consulta. `guardar=False` al exportar: no duplica el historial."""
     tipo, filtros, normalizada = validar(db, usuario, intencion)
-    filas = tipo.ejecutar(db, filtros)
+    if tipo.requiere:  # las estimaciones usan el modelo de ML: el plan tiene que incluirlo (RN-05)
+        empresas_service.requiere_funcionalidad(db, usuario.empresa_id, tipo.requiere)
+    try:
+        filas = tipo.ejecutar(db, filtros)
+    except catalogo.SinModeloEntrenado:
+        raise HTTPException(status_code=400, detail="Todavía no hay un modelo entrenado: entrenalo desde el "
+                                                    "Dashboard analítico (Analítica con Machine Learning)")
     medida = catalogo.MEDIDA_GRAFICO[tipo.id]
     numericas = [c["clave"] for c in tipo.columnas if c["tipo"] in ("numero", "moneda")]
     totales = {k: round(sum(f[k] for f in filas), 2) for k in numericas} if tipo.id != "stock_bajo" else {}
+
+    grupos, sin_datos = None, []
+    if tipo.agrupa_por_sucursal:
+        grupos = _grupos(filas, medida)
+        con_datos = {g["nombre"] for g in grupos}
+        sin_datos = [n for _, n in catalogo.sucursales_del_reporte(db, filtros) if n not in con_datos]
+    filtros_aplicados = _descripcion_filtros(db, tipo, filtros)
+    if tipo.requiere == "analitica_ml":
+        modelo = catalogo.modelo_demanda(db, usuario.empresa_id)
+        if modelo:
+            filtros_aplicados.append(
+                f"Modelo {modelo.algoritmo} v{modelo.version} · entrenado el {modelo.entrenado_en.strftime('%d/%m/%Y')}"
+            )
 
     historial = None
     if guardar:
@@ -316,7 +588,7 @@ def ejecutar(
         "mensaje": None if hay_datos else "No hay datos para los filtros indicados",
         "tipo": tipo.id,
         "titulo": tipo.titulo,
-        "filtros_aplicados": _descripcion_filtros(db, tipo, filtros),
+        "filtros_aplicados": filtros_aplicados,
         "descartados": normalizada["descartados"],
         "intencion": normalizada,
         "columnas": tipo.columnas,
@@ -324,6 +596,10 @@ def ejecutar(
         "totales": totales,
         "grafico": normalizada["grafico"],
         "medida": medida,
+        "grupos": grupos,
+        "sucursales_sin_datos": sin_datos,
+        "resumen": _resumen(tipo, filas, medida, sin_datos) if hay_datos else None,
+        "sugerencias": _sugerencias(tipo, filas),
         "generado_en": datetime.now(ZONA_HORARIA_LOCAL),
         "historial_id": historial.id if historial else None,
         "origen": origen,
@@ -334,18 +610,29 @@ def _respuesta(estado: str, mensaje: str, **extra) -> dict:
     return {"estado": estado, "mensaje": mensaje, "ejemplos": ejemplos(), **extra}
 
 
-def solicitar(db: Session, usuario: Usuario, solicitud: str) -> dict:
-    """Flujo completo del CU14 a partir de una frase en lenguaje natural."""
+def solicitar(db: Session, usuario: Usuario, solicitud: str, contexto: dict | None = None) -> dict:
+    """Flujo completo del CU14 a partir de una frase en lenguaje natural.
+
+    `contexto` es la intención del reporte que el usuario está viendo: con él, la frase puede ser una
+    continuación de la conversación ("ahora solo Norte", "mostralo en torta").
+    """
     texto = _normalizar(solicitud)
     if any(p in texto for p in PALABRAS_PROHIBIDAS):
         return _respuesta("no_soportado", "Ese tipo de solicitud no está disponible")  # 6a
 
-    intencion = _interpretar(db, solicitud)
+    previo = _previo(db, usuario, contexto)
+    intencion = _interpretar(db, solicitud, previo)
     if intencion is None:  # 4a
         return _respuesta("ia_no_disponible", "El servicio de interpretación no está disponible")
     tipo = catalogo.TIPOS.get(str(intencion.get("tipo") or ""))
     if tipo is None:  # 6a
         return _respuesta("no_soportado", "Ese tipo de solicitud no está disponible")
+    if previo:
+        # Continuación: lo que la frase no cambia se conserva del reporte anterior.
+        if tipo.usa_fechas and not (_fecha(intencion.get("fecha_inicio")) or _fecha(intencion.get("fecha_fin"))):
+            intencion["fecha_inicio"], intencion["fecha_fin"] = previo.get("fecha_inicio"), previo.get("fecha_fin")
+        if tipo.usa_limite and not intencion.get("limite") and previo.get("limite"):
+            intencion["limite"] = previo["limite"]
     if tipo.usa_fechas and not (_fecha(intencion.get("fecha_inicio")) or _fecha(intencion.get("fecha_fin"))):
         # 5a: falta el período; se pregunta en vez de inventarlo.
         que = ("las reservas" if tipo.id.startswith("reservas") else

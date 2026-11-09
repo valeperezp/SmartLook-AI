@@ -11,6 +11,7 @@ from typing import Callable
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.modules.analitica_ml.models import ModeloML
 from app.modules.catalogo.models import Categoria, Producto
 from app.modules.inventario.models import Inventario
 from app.modules.reservas.models import Reserva, ReservaItem
@@ -45,6 +46,10 @@ class TipoReporte:
     usa_productos: bool = False
     usa_limite: bool = False
     ejemplo: str = ""
+    # Cada fila trae la clave "sucursal": la web dibuja un gráfico por sucursal (comparables).
+    agrupa_por_sucursal: bool = False
+    # Funcionalidad del plan que además exige (p. ej. las estimaciones usan el modelo de ML, CU15).
+    requiere: str | None = None
 
 
 def _rango(f: Filtros) -> tuple[datetime, datetime]:
@@ -197,6 +202,137 @@ def reservas_por_estado(db: Session, f: Filtros) -> list[dict]:
     return [{"etiqueta": (e or "pendiente").capitalize(), "reservas": int(c)} for e, c in filas]
 
 
+# ---------------------------------------------------------------- reportes agrupados por sucursal
+
+def sucursales_del_reporte(db: Session, f: Filtros) -> list[tuple[int, str]]:
+    """(id, nombre) de las sucursales activas que abarca el reporte (todas las de la empresa o las pedidas)."""
+    q = db.query(Sucursal.id, Sucursal.nombre).filter(Sucursal.empresa_id == f.empresa_id, Sucursal.activa.isnot(False))
+    if f.sucursal_ids:
+        q = q.filter(Sucursal.id.in_(f.sucursal_ids))
+    return q.order_by(Sucursal.nombre).all()
+
+
+def productos_por_sucursal(db: Session, f: Filtros) -> list[dict]:
+    """Top N de prendas más vendidas DENTRO de cada sucursal (no un top general filtrado)."""
+    unidades = func.sum(VentaItem.cantidad)
+    q = _ventas(db, f, Sucursal.nombre, Producto.nombre, unidades, _SUBTOTAL)
+    por_sucursal: dict[str, list[dict]] = {}
+    for sucursal, producto, u, t in _con_items(q, f).group_by(Sucursal.nombre, Producto.nombre).all():
+        por_sucursal.setdefault(sucursal, []).append(
+            {"sucursal": sucursal, "etiqueta": producto, "unidades": int(u or 0), "ingresos": round(_num(t), 2)}
+        )
+    filas: list[dict] = []
+    # Primero la sucursal que más vendió; dentro de cada una, el ranking de sus prendas.
+    for sucursal in sorted(por_sucursal, key=lambda s: (-sum(x["unidades"] for x in por_sucursal[s]), s)):
+        ranking = sorted(por_sucursal[sucursal], key=lambda x: (-x["unidades"], -x["ingresos"], x["etiqueta"]))
+        filas.extend(ranking[: f.limite])
+    return filas
+
+
+def evolucion_por_sucursal(db: Session, f: Filtros) -> list[dict]:
+    """Ventas e ingresos en el tiempo de cada sucursal. Por día hasta un mes; por semana en rangos más largos."""
+    semanal = (f.fecha_fin - f.fecha_inicio).days > 31
+    dia = func.date(func.timezone("America/La_Paz", Venta.creada_en))
+    if f.categoria_ids or f.producto_ids:
+        q = _con_items(_ventas(db, f, Venta.sucursal_id, dia, func.count(func.distinct(Venta.id)), _SUBTOTAL), f)
+    else:
+        q = _ventas(db, f, Venta.sucursal_id, dia, func.count(Venta.id), func.sum(Venta.total))
+
+    def periodo(d: date) -> date:
+        return d - timedelta(days=d.weekday()) if semanal else d
+
+    acumulado: dict[tuple[int, date], list[float]] = {}
+    for sucursal_id, d, c, t in q.group_by(Venta.sucursal_id, dia).all():
+        d = d if isinstance(d, date) else date.fromisoformat(str(d)[:10])
+        par = acumulado.setdefault((sucursal_id, periodo(d)), [0, 0.0])
+        par[0] += int(c)
+        par[1] += _num(t)
+
+    paso = timedelta(days=7 if semanal else 1)
+    periodos, actual = [], periodo(f.fecha_inicio)
+    while actual <= f.fecha_fin:
+        periodos.append(actual)
+        actual += paso
+    filas = []
+    for sucursal_id, nombre in sucursales_del_reporte(db, f):
+        for p in periodos:  # períodos sin ventas en 0, para que las líneas sean comparables
+            c, t = acumulado.get((sucursal_id, p), (0, 0.0))
+            filas.append({"sucursal": nombre, "etiqueta": p.isoformat(), "ventas": c, "ingresos": round(t, 2)})
+    return filas
+
+
+# ---------------------------------------------------------------- estimaciones del modelo de ML (CU15)
+
+class SinModeloEntrenado(Exception):
+    """La empresa todavía no entrenó el modelo de demanda en el Dashboard analítico."""
+
+
+def modelo_demanda(db: Session, empresa_id: int) -> ModeloML | None:
+    return (
+        db.query(ModeloML)
+        .filter(ModeloML.empresa_id == empresa_id, ModeloML.tipo == "demanda")
+        .order_by(ModeloML.version.desc())
+        .first()
+    )
+
+
+def _series_demanda(db: Session, f: Filtros) -> dict:
+    modelo = modelo_demanda(db, f.empresa_id)
+    if modelo is None or not (modelo.resultado or {}).get("series"):
+        raise SinModeloEntrenado()
+    return modelo.resultado["series"]
+
+
+def _categorias_pedidas(db: Session, f: Filtros) -> set[str]:
+    if not f.categoria_ids:
+        return set()
+    return {n for (n,) in db.query(Categoria.nombre).filter(Categoria.id.in_(f.categoria_ids))}
+
+
+def _variacion(antes: float, despues: float) -> float | None:
+    return round((despues - antes) / antes * 100, 1) if antes > 0 else None
+
+
+def _filas_estimacion(por_categoria: list[dict], categorias: set[str], sucursal: str | None = None) -> list[dict]:
+    filas = []
+    for c in por_categoria:
+        if categorias and c["categoria"] not in categorias:
+            continue
+        antes, despues = round(_num(c["ultimos_30"]), 1), round(_num(c["proximos_30"]), 1)
+        fila = {"etiqueta": c["categoria"], "ultimos_30": antes, "proximos_30": despues,
+                "variacion_pct": _variacion(antes, despues)}
+        filas.append({"sucursal": sucursal, **fila} if sucursal else fila)
+    return sorted(filas, key=lambda x: -x["proximos_30"])
+
+
+def prediccion_demanda(db: Session, f: Filtros) -> list[dict]:
+    """Lo que el modelo supervisado (Random Forest) estima vender en los próximos 30 días, por categoría."""
+    series = _series_demanda(db, f)
+    if not f.sucursal_ids:
+        return _filas_estimacion(series.get("total", {}).get("por_categoria", []), _categorias_pedidas(db, f))
+    # Varias sucursales pedidas: se suman sus estimaciones categoría por categoría.
+    suma: dict[str, dict] = {}
+    for sucursal_id in f.sucursal_ids:
+        for c in series.get(str(sucursal_id), {}).get("por_categoria", []):
+            acc = suma.setdefault(c["categoria"], {"categoria": c["categoria"], "ultimos_30": 0.0, "proximos_30": 0.0})
+            acc["ultimos_30"] += _num(c["ultimos_30"])
+            acc["proximos_30"] += _num(c["proximos_30"])
+    return _filas_estimacion(list(suma.values()), _categorias_pedidas(db, f))
+
+
+def prediccion_por_sucursal(db: Session, f: Filtros) -> list[dict]:
+    """La estimación del modelo para cada sucursal, por categoría (el modelo se entrena por empresa y sucursal)."""
+    series = _series_demanda(db, f)
+    categorias = _categorias_pedidas(db, f)
+    bloques = []
+    for sucursal_id, nombre in sucursales_del_reporte(db, f):
+        serie = series.get(str(sucursal_id))
+        if serie:
+            bloques.append(_filas_estimacion(serie.get("por_categoria", []), categorias, nombre))
+    bloques.sort(key=lambda b: -sum(x["proximos_30"] for x in b))
+    return [fila for bloque in bloques for fila in bloque]
+
+
 def _col(clave: str, titulo: str, tipo: str = "numero") -> dict:
     return {"clave": clave, "titulo": titulo, "tipo": tipo}
 
@@ -229,6 +365,33 @@ TIPOS: dict[str, TipoReporte] = {t.id: t for t in [
     TipoReporte("reservas_por_estado", "Reservas por estado", "Cantidad de reservas pendientes, confirmadas, atendidas y canceladas.", True, "torta",
                 [_col("etiqueta", "Estado", "texto"), _col("reservas", "Reservas")],
                 reservas_por_estado, usa_productos=True, ejemplo="Reservas de la última semana por estado"),
+    TipoReporte("productos_por_sucursal", "Productos más vendidos por sucursal",
+                "Ranking de prendas más vendidas dentro de cada sucursal (top N de cada una).", True, "barras",
+                [_col("sucursal", "Sucursal", "texto"), _col("etiqueta", "Producto", "texto"), _col("unidades", "Unidades"),
+                 _col("ingresos", "Ingresos", "moneda")],
+                productos_por_sucursal, usa_productos=True, usa_limite=True, agrupa_por_sucursal=True,
+                ejemplo="Los 10 productos más vendidos de los últimos 3 meses agrupados por sucursal"),
+    TipoReporte("evolucion_por_sucursal", "Evolución de ventas por sucursal",
+                "Ingresos a lo largo del tiempo en cada sucursal, para compararlas (por día o por semana).", True, "lineas",
+                [_col("sucursal", "Sucursal", "texto"), _col("etiqueta", "Período", "fecha"), _col("ventas", "Ventas"),
+                 _col("ingresos", "Ingresos", "moneda")],
+                evolucion_por_sucursal, usa_productos=True, agrupa_por_sucursal=True,
+                ejemplo="¿Cómo evolucionaron las ventas de cada sucursal en los últimos 3 meses?"),
+    TipoReporte("prediccion_demanda", "Estimación de demanda (próximos 30 días)",
+                "Unidades que el modelo de Machine Learning entrenado estima vender en los próximos 30 días, por "
+                "categoría, frente a lo vendido en los últimos 30 (predicción, no ventas reales).", False, "barras",
+                [_col("etiqueta", "Categoría", "texto"), _col("ultimos_30", "Vendido últimos 30 días"),
+                 _col("proximos_30", "Estimado próximos 30 días"), _col("variacion_pct", "Variación", "porcentaje")],
+                prediccion_demanda, requiere="analitica_ml",
+                ejemplo="¿Cuánto estimamos vender en los próximos 30 días?"),
+    TipoReporte("prediccion_por_sucursal", "Estimación de demanda por sucursal",
+                "La estimación del modelo de Machine Learning para los próximos 30 días en cada sucursal, por "
+                "categoría (predicción, no ventas reales).", False, "barras",
+                [_col("sucursal", "Sucursal", "texto"), _col("etiqueta", "Categoría", "texto"),
+                 _col("ultimos_30", "Vendido últimos 30 días"), _col("proximos_30", "Estimado próximos 30 días"),
+                 _col("variacion_pct", "Variación", "porcentaje")],
+                prediccion_por_sucursal, agrupa_por_sucursal=True, requiere="analitica_ml",
+                ejemplo="Estimación de demanda del próximo mes en cada sucursal"),
 ]}
 
 # Medida que se grafica para cada tipo (la primera columna numérica relevante).
@@ -236,4 +399,6 @@ MEDIDA_GRAFICO = {
     "ventas_por_sucursal": "ingresos", "ventas_por_categoria": "ingresos", "ventas_por_producto": "unidades",
     "ventas_por_dia": "ingresos", "ventas_por_canal": "ingresos", "mejores_clientes": "monto",
     "inventario_por_sucursal": "disponible", "stock_bajo": "disponible", "reservas_por_estado": "reservas",
+    "productos_por_sucursal": "unidades", "evolucion_por_sucursal": "ingresos",
+    "prediccion_demanda": "proximos_30", "prediccion_por_sucursal": "proximos_30",
 }

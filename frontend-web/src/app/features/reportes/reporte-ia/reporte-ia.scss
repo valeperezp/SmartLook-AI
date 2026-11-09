@@ -410,3 +410,118 @@ tfoot td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+// ---------- conversación (el reporte se sigue refinando con frases nuevas) ----------
+.modo-charla {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: 0.8rem;
+
+  .link-btn {
+    font-size: 0.8rem;
+  }
+}
+
+.conversacion {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+
+  li {
+    max-width: min(85%, 46rem);
+    padding: 0.6rem 0.9rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+
+    p {
+      margin: 0.15rem 0 0;
+      line-height: 1.45;
+    }
+  }
+
+  // Lo que pidió la persona, a la derecha; lo que respondió el sistema, a la izquierda.
+  .usuario {
+    justify-self: end;
+    background: var(--overlay-1);
+  }
+
+  .asistente {
+    justify-self: start;
+    border-left: 3px solid var(--primary);
+  }
+
+  .quien {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+  }
+}
+
+// ---------- respuesta en lenguaje natural ----------
+.resumen {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--overlay-1);
+  border-left: 3px solid var(--primary);
+  line-height: 1.5;
+
+  app-icon {
+    color: var(--primary);
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+}
+
+// ---------- un gráfico por sucursal, con la misma escala ----------
+.grupos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+}
+
+.grupo {
+  min-width: 0;
+  padding: 0.85rem 1rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+  }
+}
+
+.grupo-vacio {
+  border-style: dashed;
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+}
+
+// ---------- seguir la conversación ----------
+.seguir {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+
+  .chip:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}

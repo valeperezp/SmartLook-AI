@@ -76,8 +76,9 @@ export class ReportesService {
   }
 
   /** La IA interpreta la frase; el backend valida y ejecuta un reporte del catálogo permitido. */
-  solicitar(solicitud: string) {
-    return this.http.post<ResultadoReporte>(`${this.base}/solicitar`, { solicitud });
+  /** `contexto`: la intención del reporte en pantalla, para que la frase continúe la conversación. */
+  solicitar(solicitud: string, contexto: IntencionReporte | null = null) {
+    return this.http.post<ResultadoReporte>(`${this.base}/solicitar`, { solicitud, contexto });
   }
 
   /** Reporte convencional (sin IA) o re-ejecución desde el historial. */

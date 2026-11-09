@@ -111,6 +111,8 @@ class Dashboard(BaseModel):
 
 class SolicitudReporte(BaseModel):
     solicitud: str = Field(min_length=3, max_length=500)
+    # Intención del reporte que el usuario está viendo: la frase puede continuar la conversación.
+    contexto: dict | None = None
 
 
 class IntencionReporte(BaseModel):
