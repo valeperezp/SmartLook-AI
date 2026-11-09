@@ -670,3 +670,54 @@
     align-items: flex-end;
   }
 }
+
+// Reembolso de un pedido cancelado: monto y QR bancario que subió el cliente
+.qr-recibido {
+  margin-left: 6px;
+}
+
+.reembolso-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.35));
+  border-radius: 12px;
+
+  .items-title {
+    margin: 0 0 6px;
+  }
+
+  .reembolso-monto {
+    margin: 0 0 6px;
+  }
+
+  .reembolso-estado {
+    margin: 0;
+    font-size: 0.9rem;
+
+    &.ok {
+      color: #1f9d55;
+    }
+
+    &.pendiente {
+      color: #c77700;
+    }
+  }
+}
+
+.reembolso-qr {
+  flex: 0 0 auto;
+}
+
+.reembolso-qr-img {
+  display: block;
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px;
+}

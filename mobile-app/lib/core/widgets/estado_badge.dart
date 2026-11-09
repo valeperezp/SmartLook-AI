@@ -50,6 +50,14 @@ class EstadoBadge extends StatelessWidget {
         color = AppTheme.error;
         displayLabel = label ?? 'Cancelada';
         break;
+      case 'reembolso_pendiente':
+        color = AppTheme.warning;
+        displayLabel = label ?? 'Reembolso pendiente';
+        break;
+      case 'reembolsada':
+        color = AppTheme.textMuted;
+        displayLabel = label ?? 'Reembolsada';
+        break;
       case 'inactivo':
         color = AppTheme.textMuted;
         displayLabel = label ?? 'Inactivo';

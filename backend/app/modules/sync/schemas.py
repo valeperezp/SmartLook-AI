@@ -1,7 +1,7 @@
 """Esquemas Pydantic del módulo Sync. Contrato con la app móvil (`SyncService`).
 
 La app manda UN lote por tipo, con la lista en su propia clave: `operaciones` (ventas y reservas), `devoluciones`,
-`movimientos_puntos` y `cierres_caja`. Cada elemento lleva `uuid` (id local = clave de idempotencia).
+`movimientos_puntos`, `cierres_caja` y `qr_devoluciones`. Cada elemento lleva `uuid` (id local = clave de idempotencia).
 """
 from typing import Literal
 
@@ -85,12 +85,25 @@ class CierreCajaSync(BaseModel):
     devoluciones_neto_centavos: int = 0
 
 
+# ---------- QR bancario para un reembolso ----------
+class QrDevolucionSync(BaseModel):
+    """El cliente adjuntó (quizá sin conexión) su QR bancario a su pedido cancelado. La imagen viaja en base64."""
+
+    uuid: str = Field(..., min_length=1, max_length=64)  # id local de la entrada de la cola = clave de idempotencia
+    reserva_id: int | None = None  # el pedido cancelado: una reserva...
+    venta_id: int | None = None  # ...o una venta
+    nombre_archivo: str | None = None  # informativo: el tipo real sale del contenido
+    imagen_base64: str = Field(..., min_length=1, max_length=14_500_000)  # ~10 MB de imagen; el servidor limita a 5 MB
+    fecha: str | None = None
+
+
 class LoteSyncRequest(BaseModel):
     enviado_en: str | None = None
     operaciones: list[OperacionSync] = []
     devoluciones: list[DevolucionSync] = []
     movimientos_puntos: list[MovimientoPuntosSync] = []
     cierres_caja: list[CierreCajaSync] = []
+    qr_devoluciones: list[QrDevolucionSync] = []
 
 
 class ResultadoItem(BaseModel):
@@ -100,7 +113,7 @@ class ResultadoItem(BaseModel):
     # en_conflicto: la venta SÍ se guardó (con su id_servidor) pero sin descontar stock, por falta de stock: un encargado la resuelve
     status: Literal["ok", "conflict", "pendiente", "en_conflicto"]
     id_servidor: int | None = None  # id de lo creado en el servidor (solo con status ok)
-    entidad: Literal["venta", "reserva", "devolucion", "movimiento_puntos", "turno_caja"] | None = None
+    entidad: Literal["venta", "reserva", "devolucion", "movimiento_puntos", "turno_caja", "reembolso"] | None = None
     message: str | None = None  # motivo del conflicto o de la espera
 
 

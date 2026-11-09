@@ -5,6 +5,7 @@ Tipos que recibe (cada uno en su lista del lote):
 - `devoluciones`: cambios/devoluciones de una venta de contado ya sincronizada.
 - `movimientos_puntos`: puntos de fidelización otorgados o restados.
 - `cierres_caja`: cierre de un turno de caja (exige que sus ventas ya estén sincronizadas).
+- `qr_devoluciones`: el QR bancario que un cliente adjuntó a su pedido cancelado (reembolso); la imagen viaja en base64.
 
 Reglas comunes:
 - Cada elemento se procesa en su PROPIA transacción: un conflicto en uno no afecta a los demás.
@@ -16,6 +17,8 @@ Reglas comunes:
   se puede decidir porque falta algo por sincronizar (la venta original de una devolución, las ventas de un cierre): no
   se registra nada y la app lo reintenta. Un error inesperado NO es conflicto: sube como 500 y la app reintenta.
 """
+import base64
+import binascii
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Callable
@@ -48,6 +51,7 @@ TIPO_VENTA = "VENTA_CONTADO"
 TIPO_RESERVA = "RESERVA_CLIENTE"
 TIPO_DEVOLUCION = "DEVOLUCION"
 TIPO_CIERRE = "CIERRE_CAJA"
+TIPO_QR_DEVOLUCION = "SUBIR_QR_DEVOLUCION"
 ROLES_VENTA = ("cajero", "administrador", "encargado_sucursal")
 ROLES_RESERVA = ("cliente",)
 
@@ -412,6 +416,24 @@ def _aplicar_cierre(db: Session, usuario: Usuario, c: schemas.CierreCajaSync) ->
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# QR bancario de un reembolso
+# ---------------------------------------------------------------------------------------------------------------
+
+def _aplicar_qr_devolucion(db: Session, usuario: Usuario, q: schemas.QrDevolucionSync) -> tuple[str, int]:
+    """El cliente adjuntó su QR a su pedido cancelado. Las mismas reglas que `POST /devoluciones/{id}/qr` (dueño, empresa, imagen)."""
+    if usuario.rol != "cliente":
+        raise ConflictoSync("Solo un cliente puede adjuntar el QR de su reembolso")
+    try:
+        contenido = base64.b64decode(q.imagen_base64, validate=True)
+    except (binascii.Error, ValueError):
+        raise ConflictoSync("La imagen del QR no es válida")
+    # Las reglas del pedido y de la imagen las aplica el servicio (lanza HTTPException, que `_procesar` registra como conflicto)
+    reembolso = devoluciones_service.solicitar_reembolso(db, usuario, q.reserva_id, q.venta_id, commit=False)
+    devoluciones_service.subir_qr(db, usuario, reembolso.id, contenido, commit=False)
+    return "reembolso", reembolso.id
+
+
+# ---------------------------------------------------------------------------------------------------------------
 
 def sincronizar_lote(db: Session, usuario: Usuario, lote: schemas.LoteSyncRequest, request=None) -> schemas.LoteSyncResponse:
     if usuario.empresa_id is None:
@@ -428,6 +450,8 @@ def sincronizar_lote(db: Session, usuario: Usuario, lote: schemas.LoteSyncReques
         trabajos.append((m.uuid, m.tipo_operacion, lambda m=m: _aplicar_puntos(db, usuario, m)))
     for c in lote.cierres_caja:
         trabajos.append((c.uuid, TIPO_CIERRE, lambda c=c: _aplicar_cierre(db, usuario, c)))
+    for q in lote.qr_devoluciones:
+        trabajos.append((q.uuid, TIPO_QR_DEVOLUCION, lambda q=q: _aplicar_qr_devolucion(db, usuario, q)))
 
     resultados: list[schemas.ResultadoItem] = []
     vistos: dict[str, schemas.ResultadoItem] = {}

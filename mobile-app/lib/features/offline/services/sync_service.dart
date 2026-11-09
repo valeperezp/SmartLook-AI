@@ -10,6 +10,7 @@ import '../../../core/database/schema.dart';
 import '../../../core/network/dio_client.dart';
 import '../data/devolucion_dao.dart';
 import '../data/puntos_dao.dart';
+import '../data/qr_devolucion_dao.dart';
 import '../data/sync_queue_dao.dart';
 import '../data/turno_caja_dao.dart';
 
@@ -91,6 +92,7 @@ class SyncService {
     TurnoCajaDao? turnoDao,
     DevolucionDao? devolucionDao,
     PuntosDao? puntosDao,
+    QrDevolucionDao? qrDao,
     Future<bool> Function()? hayRed,
     EnviarLote? enviar,
     Dio? dio,
@@ -102,6 +104,7 @@ class SyncService {
         _turnoDao = turnoDao ?? TurnoCajaDao(),
         _devolucionDao = devolucionDao ?? DevolucionDao(),
         _puntosDao = puntosDao ?? PuntosDao(),
+        _qrDao = qrDao ?? QrDevolucionDao(),
         _hayRed = hayRed ?? _hayRedPorDefecto,
         _dioInyectado = dio {
     _enviar = enviar ?? _enviarPorHttp;
@@ -111,6 +114,7 @@ class SyncService {
   final TurnoCajaDao _turnoDao;
   final DevolucionDao _devolucionDao;
   final PuntosDao _puntosDao;
+  final QrDevolucionDao _qrDao;
   final Future<bool> Function() _hayRed;
   final Dio? _dioInyectado;
   late final Dio _dio = _dioInyectado ?? DioClient().dio;
@@ -224,12 +228,13 @@ class SyncService {
       if (pendientes.isEmpty) return const ResultadoSync();
 
       // Orden: ventas/reservas, cambios/devoluciones (necesitan su venta ya en el servidor), puntos (necesitan su
-      // venta o devolución) y al final los cierres de caja (necesitan todo lo de su turno).
+      // venta o devolución), los cierres de caja (necesitan todo lo de su turno) y los QR de reembolso (no dependen de nada).
       const tiposAparte = {
         Schema.tipoCierreCaja,
         Schema.tipoOperacionDevolucion,
         Schema.tipoPuntosOtorgados,
         Schema.tipoPuntosRestados,
+        Schema.tipoSubirQrDevolucion,
       };
       final operaciones = [for (final p in pendientes) if (!tiposAparte.contains(p['tipo_operacion'])) p];
       final devoluciones = [for (final p in pendientes) if (p['tipo_operacion'] == Schema.tipoOperacionDevolucion) p];
@@ -238,12 +243,14 @@ class SyncService {
           if (p['tipo_operacion'] == Schema.tipoPuntosOtorgados || p['tipo_operacion'] == Schema.tipoPuntosRestados) p,
       ];
       final cierres = [for (final p in pendientes) if (p['tipo_operacion'] == Schema.tipoCierreCaja) p];
+      final qrs = [for (final p in pendientes) if (p['tipo_operacion'] == Schema.tipoSubirQrDevolucion) p];
 
       final etapas = <Future<ResultadoSync> Function()>[
         if (operaciones.isNotEmpty) () => _enviarOperaciones(operaciones),
         if (devoluciones.isNotEmpty) () => _enviarDevoluciones(devoluciones),
         if (puntos.isNotEmpty) () => _enviarPuntos(puntos),
         if (cierres.isNotEmpty) () => _enviarCierres(cierres),
+        if (qrs.isNotEmpty) () => _enviarQrs(qrs),
       ];
       final resultados = <ResultadoSync>[];
       var sesionExpirada = false;
@@ -517,6 +524,63 @@ class SyncService {
     return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
   }
 
+  /// Envía los QR bancarios que los clientes adjuntaron a sus pedidos cancelados (reembolso). Cada uno lleva el id de su entrada en
+  /// la cola como `uuid` (clave de idempotencia: un reintento tras un corte de red no duplica nada) y la imagen en base64.
+  /// No dependen de ninguna otra operación, así que nunca esperan.
+  Future<ResultadoSync> _enviarQrs(List<Map<String, dynamic>> pendientes) async {
+    final lote = {
+      'enviado_en': DateTime.now().toUtc().toIso8601String(),
+      'qr_devoluciones': [
+        for (final p in pendientes) {'uuid': p['id'], ...(jsonDecode(p['payload_json'] as String) as Map<String, dynamic>)},
+      ],
+    };
+    await _colaDao.marcarEnProceso([for (final p in pendientes) p['id'] as String]);
+
+    Map<String, dynamic> respuesta;
+    try {
+      respuesta = await _enviar(lote);
+    } catch (e, st) {
+      debugPrint('[SyncService] Falló el envío de QR de reembolso: $e\n$st');
+      for (final p in pendientes) {
+        await _colaDao.devolverAPendiente(p['id'] as String, 'Error de envío: $e');
+      }
+      return ResultadoSync(fallidas: pendientes.length, sesionExpirada: e is SesionExpiradaSync);
+    }
+
+    final resultados = <String, Map<String, dynamic>>{
+      for (final r in (respuesta['resultados'] as List? ?? const []))
+        if (r is Map && r['uuid'] is String) r['uuid'] as String: Map<String, dynamic>.from(r),
+    };
+    var sincronizadas = 0, rechazadas = 0, fallidas = 0, enEspera = 0;
+    String? motivoEspera;
+    for (final p in pendientes) {
+      final id = p['id'] as String;
+      final r = resultados[id];
+      try {
+        switch (r?['status']) {
+          case 'ok':
+            await _qrDao.marcarSincronizado(id);
+            sincronizadas++;
+          case 'conflict':
+            await _qrDao.marcarRechazado(id, (r!['message'] as String?) ?? 'Rechazado por el servidor');
+            rechazadas++;
+          case 'pendiente':
+            final motivo = (r!['message'] as String?) ?? 'En espera de otra operación';
+            await _colaDao.devolverAPendiente(id, motivo);
+            enEspera++;
+            motivoEspera ??= motivo;
+          default:
+            throw FormatException('respuesta desconocida del servidor: ${r?['status']}');
+        }
+      } catch (e, st) {
+        debugPrint('[SyncService] No se pudo procesar el QR de reembolso $id: $e\n$st');
+        await _colaDao.devolverAPendiente(id, 'Respuesta no procesada: $e');
+        fallidas++;
+      }
+    }
+    return ResultadoSync(sincronizadas: sincronizadas, rechazadas: rechazadas, fallidas: fallidas, enEspera: enEspera, motivoEspera: motivoEspera);
+  }
+
   // ---------------------------------------------------------------------------
 
   Future<Map<String, dynamic>> _armarLote(List<Map<String, dynamic>> pendientes) async {
@@ -642,7 +706,7 @@ class SyncService {
       final ok = datos['status'] == 'ok';
       final idServidor = datos['id_servidor'] is int ? datos['id_servidor'] as int : idServidorDesconocido;
       final uuids = <String>[
-        for (final clave in const ['operaciones', 'devoluciones', 'movimientos_puntos', 'cierres_caja'])
+        for (final clave in const ['operaciones', 'devoluciones', 'movimientos_puntos', 'cierres_caja', 'qr_devoluciones'])
           for (final x in (lote[clave] as List? ?? const []))
             if (x is Map && x['uuid'] is String) x['uuid'] as String,
       ];

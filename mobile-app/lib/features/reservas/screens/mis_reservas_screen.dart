@@ -5,12 +5,21 @@ import 'package:provider/provider.dart';
 import '../../../core/models/reserva.dart';
 import '../../../core/utils/app_notifications.dart';
 import '../../../core/widgets/estado_badge.dart';
+import '../../offline/services/sync_service.dart';
 import '../providers/reservas_provider.dart';
+import '../widgets/banner_reembolso.dart';
 import '../widgets/detalle_reserva_modal.dart';
+import '../widgets/selector_qr.dart';
 import '../../../core/widgets/hoja_clara.dart';
 
 class MisReservasScreen extends StatefulWidget {
-  const MisReservasScreen({super.key});
+  const MisReservasScreen({super.key, this.selectorQr, this.sincronizar});
+
+  /// Cómo se elige el QR del reembolso (por defecto: cámara o galería con image_picker). Las pruebas lo reemplazan.
+  final SelectorQr? selectorQr;
+
+  /// Cómo se envía lo pendiente al adjuntar el QR (por defecto: el `SyncService` de la app).
+  final Future<ResultadoSync> Function()? sincronizar;
 
   @override
   State<MisReservasScreen> createState() => _MisReservasScreenState();
@@ -30,6 +39,28 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
 
   void _verDetalle(BuildContext context, Reserva reserva) {
     mostrarHojaClara(context, (_) => DetalleReservaModal(reserva: reserva));
+  }
+
+  /// El cliente toca el banner rojo: elige su QR bancario (cámara o galería) y se guarda en la cola de sincronización. Si hay red
+  /// se envía enseguida; si no, queda guardado en el celular y se envía solo cuando vuelva la conexión.
+  Future<void> _adjuntarQr(Reserva reserva) async {
+    final elegido = await (widget.selectorQr ?? elegirQrConImagePicker)(context);
+    if (elegido == null || !mounted) return;
+
+    final provider = context.read<ReservasProvider>();
+    final sincronizar = widget.sincronizar ?? context.read<SyncService>().sincronizarPendientes;
+    final r = await provider.adjuntarQr(reserva, imagen: elegido.bytes, nombreArchivo: elegido.nombre, sincronizar: sincronizar);
+    if (!mounted) return;
+
+    switch (r.resultado) {
+      case ResultadoQr.enviado:
+        AppNotifications.success(context, r.mensaje);
+      case ResultadoQr.enCola:
+        AppNotifications.info(context, r.mensaje);
+      case ResultadoQr.rechazado:
+      case ResultadoQr.invalido:
+        AppNotifications.error(context, r.mensaje);
+    }
   }
 
   Future<void> _confirmarCancelar(Reserva reserva) async {
@@ -246,6 +277,13 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                               ),
                             ),
                             const SizedBox(height: 12),
+
+                            // Reembolso: pedido cancelado → pide el QR bancario (funciona sin conexión)
+                            BannerReembolso(
+                              reserva: reserva,
+                              local: provider.qrLocalDe(reserva),
+                              onAdjuntar: () => _adjuntarQr(reserva),
+                            ),
 
                             // Botones de acción
                             Row(

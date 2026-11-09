@@ -95,6 +95,11 @@ class AppDatabase {
             await db.execute(sentencia);
           }
         }
+        if (anterior < 7) {
+          for (final sentencia in Schema.migracionV7) {
+            await db.execute(sentencia);
+          }
+        }
         debugPrint('[AppDatabase] Esquema migrado de v$anterior a v$nueva.');
       },
     );

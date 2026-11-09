@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ReservasService } from '../../../core/services/reservas.service';
+import { DevolucionesService } from '../../../core/services/devoluciones.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { Reserva } from '../../../core/models/reserva.model';
 import { IconComponent } from '../../../core/components/icon/icon';
@@ -15,6 +16,7 @@ import { IconComponent } from '../../../core/components/icon/icon';
 })
 export class EncargadoReservas implements OnInit {
   private reservasService = inject(ReservasService);
+  private devolucionesService = inject(DevolucionesService);
   auth = inject(AuthService);
 
   reservas = signal<Reserva[]>([]);
@@ -55,6 +57,9 @@ export class EncargadoReservas implements OnInit {
   );
   totalCanceladas = computed(
     () => this.reservas().filter((r) => r.estado === 'cancelada').length
+  );
+  totalReembolsadas = computed(
+    () => this.reservas().filter((r) => r.estado === 'reembolsada').length
   );
 
   ngOnInit() {
@@ -222,6 +227,36 @@ export class EncargadoReservas implements OnInit {
     });
   }
 
+  /**
+   * Reembolso de una reserva cancelada: el cajero ya le transfirió el dinero al cliente (al QR que subió desde la app).
+   * La reserva pasa a "Reembolsada". Si el cliente no subió su QR igual se puede marcar (p. ej. se lo devolvieron en efectivo).
+   */
+  procesarReembolso(r: Reserva) {
+    const monto = (r.reembolso?.monto ?? r.total_estimado).toFixed(2);
+    const mensaje = r.reembolso?.qr_devolucion_url
+      ? `¿Ya le transferiste $${monto} al QR del cliente? La Reserva #${r.id} pasará a REEMBOLSADA.`
+      : `El cliente todavía no subió su QR de devolución. ¿Marcar de todos modos la Reserva #${r.id} como REEMBOLSADA ($${monto})?`;
+    if (!confirm(mensaje)) return;
+
+    this.procesando.set(true);
+    this.devolucionesService.procesarReembolso({ reserva_id: r.id }).subscribe({
+      next: (reembolso) => {
+        const actualizar = (item: Reserva): Reserva =>
+          item.id === r.id ? { ...item, estado: 'reembolsada', reembolso } : item;
+        this.reservas.update((lista) => lista.map(actualizar));
+        if (this.reservaSeleccionada()?.id === r.id) {
+          this.reservaSeleccionada.update((item) => (item ? actualizar(item) : null));
+        }
+        this.procesando.set(false);
+        this.mostrarToast(`Reserva #${r.id} reembolsada`, false);
+      },
+      error: (err) => {
+        this.procesando.set(false);
+        this.mostrarToast(err?.error?.detail || 'No se pudo procesar el reembolso', true);
+      },
+    });
+  }
+
   mostrarToast(msg: string, isError = false) {
     if (this.toastTimeout) {
       clearTimeout(this.toastTimeout);
@@ -243,6 +278,8 @@ export class EncargadoReservas implements OnInit {
         return 'badge-success';
       case 'cancelada':
         return 'badge-danger';
+      case 'reembolsada':
+        return 'badge-muted';
       default:
         return 'badge-muted';
     }

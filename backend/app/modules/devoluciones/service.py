@@ -7,6 +7,7 @@ Reglas (las manda SIEMPRE el servidor; las apps solo las estiman):
 - Lo devuelto vuelve al inventario y se reembolsa al precio de la venta original; lo nuevo (en un cambio) se descuenta
   del inventario al precio vigente. Todo en la misma transacción: si algo falla no queda nada a medias.
 """
+import os
 import uuid as uuid_lib
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -14,19 +15,23 @@ from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.modules.bitacora import service as bitacora
 from app.modules.catalogo.models import Color, Producto, Talla
 from app.modules.devoluciones import schemas
-from app.modules.devoluciones.models import ConfiguracionDevoluciones
+from app.modules.devoluciones.models import ConfiguracionDevoluciones, Reembolso
 from app.modules.inventario.models import MovimientoInventario
+from app.modules.reservas.models import Reserva
 from app.modules.sucursales.models import Sucursal
 from app.modules.suscripciones.service import notificar_llegada
 from app.modules.sync.models import Devolucion, DevolucionItem, SyncOperacion
 from app.modules.usuarios.models import Usuario
 from app.modules.ventas import service as ventas_service
 from app.modules.ventas.models import Venta, VentaItem
+from app.shared.core.config import settings
+from app.shared.utils.imagenes import validar_imagen
 
 PLAZO_POR_DEFECTO_DIAS = 7
 MENSAJE_PLAZO = "El plazo para cambios ha vencido"
@@ -320,3 +325,182 @@ def registrar_devolucion(db: Session, usuario: Usuario, data: schemas.Devolucion
         raise
     return _a_salida(db, dev)
 
+
+# ---------------------------------------------------------------------------------------------------------------
+# Reembolsos: devolución de DINERO de un pedido (reserva o venta) cancelado
+#
+# 1. El cliente pide el reembolso de SU pedido cancelado y adjunta su QR bancario (`solicitar_reembolso` + `subir_qr`). Desde la
+#    app puede hacerlo sin conexión: la sincronización llama a estas mismas funciones (`commit=False`).
+# 2. El personal (cajero / encargado de la sucursal / administrador) ve el QR, transfiere el dinero y lo marca (`procesar_reembolso`):
+#    el reembolso queda `reembolsado` y el pedido `reembolsada`.
+# Multi-empresa: un pedido o reembolso de otra empresa (o de otro cliente) se trata como si no existiera (404).
+# ---------------------------------------------------------------------------------------------------------------
+
+ESTADOS_REEMBOLSABLES = ("cancelada", "reembolso_pendiente")
+ESTADO_REEMBOLSADA = "reembolsada"
+MAX_QR_BYTES = 5 * 1024 * 1024  # 5 MB: un QR bancario pesa mucho menos
+
+
+def _buscar_origen(db: Session, empresa_id: int, reserva_id: int | None, venta_id: int | None, bloquear: bool = False):
+    """La reserva o venta (de la empresa). Si no existe o es de otra empresa: 404."""
+    if (reserva_id is None) == (venta_id is None):
+        raise HTTPException(status_code=400, detail="Indica la reserva o la venta (solo una de las dos)")
+    if reserva_id is not None:
+        modelo = Reserva
+        consulta = db.query(Reserva).join(Sucursal, Reserva.sucursal_id == Sucursal.id).filter(
+            Reserva.id == reserva_id, Sucursal.empresa_id == empresa_id)
+    else:
+        modelo = Venta
+        consulta = db.query(Venta).join(Sucursal, Venta.sucursal_id == Sucursal.id).filter(
+            Venta.id == venta_id, Sucursal.empresa_id == empresa_id)
+    if bloquear:  # dos cajeros procesando el mismo reembolso a la vez se serializan: el segundo ya lo ve reembolsado
+        consulta = consulta.with_for_update(of=modelo).populate_existing()
+    origen = consulta.first()
+    if origen is None:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")
+    return origen
+
+
+def _validar_reembolsable(origen) -> None:
+    if origen.estado == ESTADO_REEMBOLSADA:
+        raise HTTPException(status_code=409, detail="Este pedido ya fue reembolsado")
+    if origen.estado not in ESTADOS_REEMBOLSABLES:
+        raise HTTPException(status_code=400, detail="Solo se puede reembolsar un pedido cancelado")
+
+
+def _monto_de(origen) -> Decimal:
+    bruto = origen.total_estimado if isinstance(origen, Reserva) else origen.total
+    return Decimal(str(bruto)).quantize(Decimal("0.01"))
+
+
+def _reembolso_de(db: Session, reserva_id: int | None, venta_id: int | None) -> Reembolso | None:
+    consulta = db.query(Reembolso)
+    consulta = consulta.filter(Reembolso.reserva_id == reserva_id) if reserva_id is not None else consulta.filter(Reembolso.venta_id == venta_id)
+    return consulta.first()
+
+
+def _crear_reembolso(db: Session, empresa_id: int, origen) -> Reembolso:
+    es_reserva = isinstance(origen, Reserva)
+    reembolso = Reembolso(
+        empresa_id=empresa_id, cliente_id=origen.cliente_id, sucursal_id=origen.sucursal_id,
+        reserva_id=origen.id if es_reserva else None, venta_id=None if es_reserva else origen.id, monto=_monto_de(origen),
+    )
+    db.add(reembolso)
+    db.flush()
+    return reembolso
+
+
+def solicitar_reembolso(db: Session, usuario: Usuario, reserva_id: int | None = None, venta_id: int | None = None,
+                        *, commit: bool = True) -> Reembolso:
+    """El cliente pide el reembolso de SU pedido cancelado. Es idempotente: si ya lo pidió devuelve el mismo reembolso."""
+    if usuario.rol != "cliente":
+        raise HTTPException(status_code=403, detail="Solo un cliente puede pedir el reembolso de su pedido")
+    origen = _buscar_origen(db, usuario.empresa_id, reserva_id, venta_id)
+    if origen.cliente_id != usuario.id:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")  # el pedido de otro cliente no existe para este
+    _validar_reembolsable(origen)
+    reembolso = _reembolso_de(db, reserva_id, venta_id)
+    if reembolso is None:
+        reembolso = _crear_reembolso(db, usuario.empresa_id, origen)
+    if commit:
+        try:
+            db.commit()
+        except IntegrityError:  # otra petición lo creó a la vez: se usa ese
+            db.rollback()
+            reembolso = _reembolso_de(db, reserva_id, venta_id)
+            if reembolso is None:
+                raise
+        else:
+            db.refresh(reembolso)
+    return reembolso
+
+
+def _borrar_archivo_qr(ruta_relativa: str | None) -> None:
+    if not ruta_relativa:
+        return
+    try:
+        os.remove(os.path.join(settings.uploads_dir, ruta_relativa))
+    except OSError:
+        pass  # ya no estaba: no importa
+
+
+def subir_qr(db: Session, usuario: Usuario, reembolso_id: int, contenido: bytes, *, commit: bool = True) -> Reembolso:
+    """Guarda el QR bancario del cliente en SU reembolso pendiente. Valida el contenido real de la imagen (PNG/JPG/WEBP)."""
+    if usuario.rol != "cliente":
+        raise HTTPException(status_code=403, detail="Solo el cliente puede adjuntar el QR de su reembolso")
+    reembolso = db.query(Reembolso).filter(
+        Reembolso.id == reembolso_id, Reembolso.empresa_id == usuario.empresa_id, Reembolso.cliente_id == usuario.id,
+    ).first()
+    if reembolso is None:
+        raise HTTPException(status_code=404, detail="Reembolso no encontrado")
+    if reembolso.estado != "pendiente":
+        raise HTTPException(status_code=409, detail="Este reembolso ya fue procesado")
+    _, extension = validar_imagen(contenido, MAX_QR_BYTES)  # tamaño y firma del archivo; la extensión sale del contenido
+
+    relativo = f"qr_devolucion/reembolso_{reembolso.id}_{uuid_lib.uuid4().hex}.{extension}"
+    absoluto = os.path.join(settings.uploads_dir, relativo)
+    os.makedirs(os.path.dirname(absoluto), exist_ok=True)
+    with open(absoluto, "wb") as archivo:
+        archivo.write(contenido)
+
+    anterior = reembolso.qr_devolucion_path
+    reembolso.qr_devolucion_path = relativo
+    reembolso.qr_subido_en = datetime.now(timezone.utc)
+    if commit:
+        db.commit()
+        db.refresh(reembolso)
+        _borrar_archivo_qr(anterior)  # el QR anterior (si lo cambió) ya no sirve
+    else:
+        db.flush()
+    return reembolso
+
+
+def listar_mis_reembolsos(db: Session, usuario: Usuario) -> list[Reembolso]:
+    return (
+        db.query(Reembolso)
+        .filter(Reembolso.empresa_id == usuario.empresa_id, Reembolso.cliente_id == usuario.id)
+        .order_by(Reembolso.creado_en.desc(), Reembolso.id.desc())
+        .all()
+    )
+
+
+def listar_reembolsos(db: Session, usuario: Usuario, estado: str | None = None) -> list[Reembolso]:
+    """Reembolsos de la empresa. Un cajero o encargado ve solo los de su sucursal; el administrador, todos."""
+    consulta = (
+        db.query(Reembolso)
+        .options(joinedload(Reembolso.cliente), joinedload(Reembolso.sucursal))
+        .filter(Reembolso.empresa_id == usuario.empresa_id)
+    )
+    if usuario.rol in ("cajero", "encargado_sucursal"):
+        if usuario.sucursal_id is None:
+            return []
+        consulta = consulta.filter(Reembolso.sucursal_id == usuario.sucursal_id)
+    if estado:
+        consulta = consulta.filter(Reembolso.estado == estado)
+    return consulta.order_by(Reembolso.creado_en.desc(), Reembolso.id.desc()).all()
+
+
+def procesar_reembolso(db: Session, usuario: Usuario, reserva_id: int | None = None, venta_id: int | None = None,
+                       request=None) -> Reembolso:
+    """El personal ya le transfirió el dinero al cliente: el reembolso queda `reembolsado` y el pedido `reembolsada`.
+
+    Funciona aunque el cliente no haya pedido el reembolso ni subido su QR (p. ej. se lo devuelven en efectivo): en ese caso
+    se crea el reembolso en este momento.
+    """
+    origen = _buscar_origen(db, usuario.empresa_id, reserva_id, venta_id, bloquear=True)
+    if usuario.rol in ("cajero", "encargado_sucursal") and origen.sucursal_id != usuario.sucursal_id:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado")  # el de otra sucursal no es suyo
+    _validar_reembolsable(origen)
+    reembolso = _reembolso_de(db, reserva_id, venta_id) or _crear_reembolso(db, usuario.empresa_id, origen)
+    reembolso.estado = "reembolsado"
+    reembolso.procesado_por_id = usuario.id
+    reembolso.procesado_en = datetime.now(timezone.utc)
+    origen.estado = ESTADO_REEMBOLSADA
+    bitacora.registrar(
+        db, "reembolso.procesar",
+        f"Reembolso #{reembolso.id} de {reembolso.origen} #{origen.id} por ${reembolso.monto}",
+        usuario=usuario, request=request,
+    )
+    db.commit()
+    db.refresh(reembolso)
+    return reembolso

@@ -8,6 +8,8 @@
 ///   del cajero se vinculan a un turno (`operaciones_locales.turno_uuid`); las reservas no.
 /// - `sync_queue` también transporta el CIERRE_CAJA de un turno y las DEVOLUCION (cambios/devoluciones), que
 ///   no tienen fila en `operaciones_locales`.
+/// - `sync_queue` también transporta el SUBIR_QR_DEVOLUCION: el QR bancario que el cliente adjunta a un pedido cancelado para
+///   recibir su reembolso (la imagen viaja en base64 dentro de `payload_json`; tampoco tiene fila en `operaciones_locales`).
 /// - `devoluciones_locales` (+ ítems) registra los cambios y devoluciones de una venta; su efecto neto en
 ///   efectivo (nuevo - devuelto) entra al arqueo del turno.
 /// - Los ítems guardan una copia del nombre/precio al momento de la operación, sin FK
@@ -15,7 +17,7 @@
 class Schema {
   Schema._();
 
-  static const int version = 6;
+  static const int version = 7;
   static const String nombreArchivo = 'smartlook_offline.db';
 
   static const String tablaCatalogoLocal = 'catalogo_local';
@@ -39,6 +41,9 @@ class Schema {
   /// Tipos de `sync_queue` para los movimientos de puntos de fidelización.
   static const String tipoPuntosOtorgados = 'PUNTOS_OTORGADOS';
   static const String tipoPuntosRestados = 'PUNTOS_RESTADOS';
+
+  /// Tipo de `sync_queue` para el QR bancario que el cliente adjunta a un pedido cancelado (reembolso).
+  static const String tipoSubirQrDevolucion = 'SUBIR_QR_DEVOLUCION';
 
   static const String puntosGanado = 'ganado';
   static const String puntosPerdido = 'perdido';
@@ -223,7 +228,7 @@ CREATE TABLE sync_queue (
   id TEXT PRIMARY KEY,
   tipo_operacion TEXT NOT NULL
     CHECK (tipo_operacion IN ('VENTA_CONTADO', 'RESERVA_CLIENTE', 'CIERRE_CAJA', 'DEVOLUCION',
-                              'PUNTOS_OTORGADOS', 'PUNTOS_RESTADOS')),
+                              'PUNTOS_OTORGADOS', 'PUNTOS_RESTADOS', 'SUBIR_QR_DEVOLUCION')),
   operacion_uuid TEXT REFERENCES operaciones_locales(uuid) ON DELETE RESTRICT,
   turno_uuid TEXT REFERENCES turnos_caja(id) ON DELETE RESTRICT,
   devolucion_id TEXT REFERENCES devoluciones_locales(id) ON DELETE RESTRICT,
@@ -240,7 +245,9 @@ CREATE TABLE sync_queue (
          (devolucion_id IS NOT NULL AND operacion_uuid IS NULL AND turno_uuid IS NULL)),
   CHECK (tipo_operacion NOT IN ('PUNTOS_OTORGADOS', 'PUNTOS_RESTADOS') OR
          (movimiento_puntos_id IS NOT NULL AND operacion_uuid IS NULL AND turno_uuid IS NULL
-          AND devolucion_id IS NULL))
+          AND devolucion_id IS NULL)),
+  CHECK (tipo_operacion <> 'SUBIR_QR_DEVOLUCION' OR
+         (operacion_uuid IS NULL AND turno_uuid IS NULL AND devolucion_id IS NULL AND movimiento_puntos_id IS NULL))
 )''';
 
   static const String _puntosCliente = '''
@@ -433,5 +440,19 @@ CREATE INDEX ix_items_operacion ON operaciones_locales_items (operacion_uuid)'''
         "ALTER TABLE suscripciones_stock ADD COLUMN sync_estado TEXT NOT NULL DEFAULT 'pendiente' "
             "CHECK (sync_estado IN ('pendiente', 'sincronizado', 'rechazado'))",
         'ALTER TABLE suscripciones_stock ADD COLUMN id_servidor INTEGER',
+      ];
+
+  /// v6 → v7 (reembolsos): `sync_queue` admite el tipo SUBIR_QR_DEVOLUCION. SQLite no puede cambiar un CHECK con ALTER: se
+  /// reconstruye copiando todas sus filas (nadie la referencia: es tabla hija, así que es seguro).
+  static List<String> get migracionV7 => [
+        _syncQueue.replaceFirst('CREATE TABLE sync_queue', 'CREATE TABLE sync_queue_nueva'),
+        'INSERT INTO sync_queue_nueva (id, tipo_operacion, operacion_uuid, turno_uuid, devolucion_id, '
+            'movimiento_puntos_id, payload_json, estado, intentos, ultimo_error, fecha_ultimo_intento, fecha_creacion) '
+            'SELECT id, tipo_operacion, operacion_uuid, turno_uuid, devolucion_id, '
+            'movimiento_puntos_id, payload_json, estado, intentos, ultimo_error, fecha_ultimo_intento, fecha_creacion '
+            'FROM sync_queue',
+        'DROP TABLE sync_queue',
+        'ALTER TABLE sync_queue_nueva RENAME TO sync_queue',
+        _indiceSyncCola,
       ];
 }

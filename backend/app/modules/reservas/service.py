@@ -159,7 +159,7 @@ def cancelar_reserva(db: Session, reserva_id: int, cliente_id: int) -> models.Re
     reserva = obtener_reserva(db, reserva_id, cliente_id)
     if not reserva:
         return None
-    if reserva.estado == "cancelada":
+    if reserva.estado in ("cancelada", "reembolsada"):
         raise HTTPException(status_code=400, detail="La reserva ya está cancelada")
     if reserva.estado == "atendida":
         raise HTTPException(status_code=400, detail="No se puede cancelar una reserva ya atendida")
@@ -223,6 +223,7 @@ ESTADOS_PERMITIDOS = {
     "confirmada": ["atendida", "cancelada"],
     "atendida": [],
     "cancelada": [],
+    "reembolsada": [],  # solo se llega aquí con el reembolso (POST /devoluciones/reembolsos/procesar)
 }
 
 

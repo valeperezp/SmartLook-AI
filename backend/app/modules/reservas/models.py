@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+from app.modules.devoluciones.models import Reembolso  # noqa: F401  (registra el modelo para la relación `reembolso`)
 from app.shared.db.session import Base
 
 
@@ -19,6 +20,8 @@ class Reserva(Base):
     items = relationship("ReservaItem", back_populates="reserva", cascade="all, delete-orphan")
     sucursal = relationship("Sucursal")
     cliente = relationship("Usuario")
+    # Reembolso del pedido cancelado (si lo hay). Solo lectura; se carga en lote junto con las reservas (una consulta por lista).
+    reembolso = relationship("Reembolso", uselist=False, viewonly=True, lazy="selectin")
 
     @property
     def nombre_sucursal(self) -> str | None:

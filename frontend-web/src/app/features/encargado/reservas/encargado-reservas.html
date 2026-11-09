@@ -117,6 +117,14 @@
       >
         Canceladas ({{ totalCanceladas() }})
       </button>
+      <button
+        type="button"
+        class="pill-btn"
+        [class.active]="filtroEstado() === 'reembolsada'"
+        (click)="filtroEstado.set('reembolsada')"
+      >
+        Reembolsadas ({{ totalReembolsadas() }})
+      </button>
     </div>
   </div>
 
@@ -173,6 +181,9 @@
                   <span class="badge" [ngClass]="claseBadgeEstado(r.estado)">
                     {{ r.estado | uppercase }}
                   </span>
+                  @if (r.estado === 'cancelada' && r.reembolso?.tiene_qr) {
+                    <span class="badge badge-info qr-recibido" title="El cliente ya subió su QR de devolución">QR recibido</span>
+                  }
                 </td>
                 <td class="total-cell">${{ r.total_estimado | number:'1.2-2' }}</td>
                 <td style="text-align: right;">
@@ -207,6 +218,18 @@
                         title="Marcar como atendida (entrega de prendas)"
                       >
                         Atender
+                      </button>
+                    }
+
+                    @if (r.estado === 'cancelada') {
+                      <button
+                        type="button"
+                        class="btn-sm btn-success"
+                        (click)="procesarReembolso(r)"
+                        [disabled]="procesando()"
+                        title="Ya le transferí el dinero al cliente: marcar la reserva como reembolsada"
+                      >
+                        Procesar Reembolso
                       </button>
                     }
 
@@ -310,6 +333,30 @@
           </table>
         </div>
 
+        <!-- Reembolso del pedido cancelado: monto y QR bancario que subió el cliente -->
+        @if (r.estado === 'cancelada' || r.estado === 'reembolsada') {
+          <div class="reembolso-box" data-testid="reembolso">
+            <div class="reembolso-info">
+              <h4 class="items-title">Reembolso al cliente</h4>
+              <p class="reembolso-monto">
+                Monto a devolver: <strong>${{ (r.reembolso?.monto ?? r.total_estimado) | number:'1.2-2' }}</strong>
+              </p>
+              @if (r.estado === 'reembolsada') {
+                <p class="reembolso-estado ok">Reembolso realizado{{ r.reembolso?.procesado_en ? ' el ' + (r.reembolso?.procesado_en | date:'dd/MM/yyyy HH:mm') : '' }}.</p>
+              } @else if (r.reembolso?.qr_devolucion_url) {
+                <p class="reembolso-estado ok">El cliente subió su QR: transfiérele el monto y luego marca el reembolso.</p>
+              } @else {
+                <p class="reembolso-estado pendiente">El cliente aún no subió su QR de devolución.</p>
+              }
+            </div>
+            @if (r.reembolso?.qr_devolucion_url; as qr) {
+              <a [href]="qr" target="_blank" rel="noopener" class="reembolso-qr" title="Abrir el QR en grande">
+                <img [src]="qr" alt="QR de devolución del cliente" class="reembolso-qr-img" />
+              </a>
+            }
+          </div>
+        }
+
         <!-- Total Estimado -->
         <div class="reserva-total-box">
           <div class="total-info">
@@ -356,6 +403,17 @@
             [disabled]="procesando()"
           >
             Marcar Atendida (Entregar)
+          </button>
+        }
+
+        @if (r.estado === 'cancelada') {
+          <button
+            type="button"
+            class="btn-success"
+            (click)="procesarReembolso(r)"
+            [disabled]="procesando()"
+          >
+            Procesar Reembolso
           </button>
         }
 

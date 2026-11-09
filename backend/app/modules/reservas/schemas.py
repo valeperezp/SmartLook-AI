@@ -2,6 +2,8 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.devoluciones.schemas import ReembolsoOut
+
 
 # ---------- Items de reserva ----------
 class ReservaItemCreate(BaseModel):
@@ -56,4 +58,5 @@ class ReservaCompletaOut(BaseModel):
     total_estimado: float = 0.0
     nombre_cliente: str | None = None
     email_cliente: str | None = None
+    reembolso: ReembolsoOut | None = None  # si el pedido está cancelado: su reembolso (con el QR del cliente, si lo subió)
 

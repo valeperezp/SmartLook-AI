@@ -48,11 +48,38 @@ class ReservaItem {
       };
 }
 
+/// Reembolso (devolución de dinero) de un pedido cancelado, tal como lo informa el servidor.
+class ReembolsoReserva {
+  final int id;
+  final String estado; // 'pendiente' | 'reembolsado'
+  final double monto;
+
+  /// El cliente ya subió su QR bancario al servidor.
+  final bool tieneQr;
+  final String? qrDevolucionUrl;
+
+  const ReembolsoReserva({
+    required this.id,
+    required this.estado,
+    this.monto = 0,
+    this.tieneQr = false,
+    this.qrDevolucionUrl,
+  });
+
+  factory ReembolsoReserva.fromJson(Map<String, dynamic> json) => ReembolsoReserva(
+        id: json['id'] as int,
+        estado: json['estado'] as String? ?? 'pendiente',
+        monto: (json['monto'] as num?)?.toDouble() ?? 0,
+        tieneQr: json['tiene_qr'] as bool? ?? (json['qr_devolucion_url'] != null),
+        qrDevolucionUrl: json['qr_devolucion_url'] as String?,
+      );
+}
+
 class Reserva {
   final int id;
   final int clienteId;
   final int sucursalId;
-  final String estado; // 'pendiente', 'confirmada', 'atendida', 'cancelada'
+  final String estado; // 'pendiente', 'confirmada', 'atendida', 'cancelada', 'reembolso_pendiente', 'reembolsada'
   final DateTime? horarioAproximado;
   final DateTime creadaEn;
   final String? nombreSucursal;
@@ -62,6 +89,9 @@ class Reserva {
   final int totalItems;
   final int totalUnidades;
   final double totalEstimado;
+
+  /// Si el pedido está cancelado: su reembolso (con el estado del QR del cliente en el servidor).
+  final ReembolsoReserva? reembolso;
 
   Reserva({
     required this.id,
@@ -77,6 +107,7 @@ class Reserva {
     required this.totalItems,
     required this.totalUnidades,
     required this.totalEstimado,
+    this.reembolso,
   });
 
   factory Reserva.fromJson(Map<String, dynamic> json) {
@@ -101,6 +132,7 @@ class Reserva {
       totalItems: json['total_items'] as int? ?? itemsJson.length,
       totalUnidades: json['total_unidades'] as int? ?? 0,
       totalEstimado: (json['total_estimado'] as num?)?.toDouble() ?? 0.0,
+      reembolso: json['reembolso'] is Map<String, dynamic> ? ReembolsoReserva.fromJson(json['reembolso'] as Map<String, dynamic>) : null,
     );
   }
 
@@ -108,6 +140,13 @@ class Reserva {
   bool get isConfirmada => estado.toLowerCase() == 'confirmada';
   bool get isAtendida => estado.toLowerCase() == 'atendida';
   bool get isCancelada => estado.toLowerCase() == 'cancelada';
+  bool get isReembolsada => estado.toLowerCase() == 'reembolsada';
+
+  /// El pedido está cancelado y todavía no se le devolvió el dinero: el cliente puede adjuntar su QR bancario.
+  bool get admiteReembolso {
+    final e = estado.toLowerCase();
+    return e == 'cancelada' || e == 'reembolso_pendiente';
+  }
 }
 
 class ReservaItemCreate {

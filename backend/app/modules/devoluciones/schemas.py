@@ -1,7 +1,8 @@
 """Esquemas Pydantic del módulo Devoluciones."""
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ItemDevolucionIn(BaseModel):
@@ -80,3 +81,44 @@ class ConfiguracionOut(BaseModel):
 
 class ConfiguracionIn(BaseModel):
     plazo_dias: int = Field(..., ge=1, le=3650)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Reembolsos: devolución de DINERO de un pedido (reserva o venta) cancelado
+# ---------------------------------------------------------------------------------------------------------------
+class ReembolsoSolicitud(BaseModel):
+    """Qué pedido cancelado se reembolsa: una reserva O una venta (exactamente una)."""
+
+    reserva_id: int | None = None
+    venta_id: int | None = None
+
+    @model_validator(mode="after")
+    def _un_solo_origen(self):
+        if (self.reserva_id is None) == (self.venta_id is None):
+            raise ValueError("Indica la reserva o la venta (solo una de las dos)")
+        return self
+
+
+class ReembolsoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    estado: str  # pendiente | reembolsado
+    reserva_id: int | None = None
+    venta_id: int | None = None
+    cliente_id: int | None = None
+    monto: float = 0.0
+    tiene_qr: bool = False
+    qr_devolucion_url: str | None = None  # la imagen del QR bancario que subió el cliente
+    qr_subido_en: datetime | None = None
+    procesado_en: datetime | None = None
+
+
+class ReembolsoDetalleOut(ReembolsoOut):
+    """Lo que ve el personal: además, de quién y de qué sucursal es."""
+
+    origen: str  # reserva | venta
+    sucursal_id: int
+    nombre_sucursal: str | None = None
+    nombre_cliente: str | None = None
+    email_cliente: str | None = None
