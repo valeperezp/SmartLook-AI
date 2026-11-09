@@ -405,11 +405,11 @@ CREATE TABLE sync_queue (
       await expectLater(v6.insert('sync_queue', filaQr('x0')), throwsA(anything), reason: 'en v6 el tipo todavía no existe'); // la migración hace falta
       await v6.close();
 
-      final db = await AppDatabase.abrir(ruta); // → onUpgrade(6, 7)
+      final db = await AppDatabase.abrir(ruta); // → onUpgrade(6, versión actual)
       final nuevo = AppDatabase.conBaseDeDatos(db);
       addTearDown(nuevo.cerrar);
 
-      expect(Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')), 7);
+      expect(Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')), Schema.version); // sigue hasta la última versión
       expect(Sqflite.firstIntValue(await db.rawQuery('PRAGMA foreign_keys')), 1);
       final q1 = (await db.query('sync_queue', where: 'id = ?', whereArgs: ['q1'])).single;
       expect((q1['operacion_uuid'], q1['estado'], q1['intentos'], q1['ultimo_error']), ('v1', 'pendiente', 2, 'sin red'));

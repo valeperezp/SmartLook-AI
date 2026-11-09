@@ -18,33 +18,42 @@ enum TipoBannerReembolso {
   recibido,
 }
 
-/// Aviso que corresponde a [reserva] según el estado local de su QR ([local]), o null si no hay nada que avisar (el pedido no
-/// está cancelado, o ya fue reembolsado).
-TipoBannerReembolso? tipoBannerReembolso(Reserva reserva, QrLocal local) {
-  if (!reserva.admiteReembolso) return null; // solo `cancelada` / `reembolso_pendiente`: `reembolsada` ya no tiene nada pendiente
+/// Aviso que corresponde a un pedido (reserva o compra) según si admite reembolso, si el servidor ya tiene su QR ([tieneQr]) y el
+/// estado local del QR ([local]). Null si no hay nada que avisar.
+TipoBannerReembolso? tipoBannerReembolsoDe({required bool admiteReembolso, required bool tieneQr, required QrLocal local}) {
+  if (!admiteReembolso) return null;
   if (local.estado == EstadoQrLocal.enCola) return TipoBannerReembolso.enCola;
-  if (reserva.reembolso?.tieneQr == true) return TipoBannerReembolso.recibido;
+  if (tieneQr) return TipoBannerReembolso.recibido;
   if (local.estado == EstadoQrLocal.rechazado) return TipoBannerReembolso.rechazado;
   return TipoBannerReembolso.adjuntar;
 }
 
-/// Banner de reembolso de un pedido cancelado en "Mis Reservas": pide el QR bancario del cliente y muestra en qué quedó.
-class BannerReembolso extends StatelessWidget {
-  const BannerReembolso({super.key, required this.reserva, required this.local, required this.onAdjuntar});
+/// Aviso que corresponde a [reserva] según el estado local de su QR ([local]), o null si no hay nada que avisar (el pedido no
+/// está cancelado, o ya fue reembolsado).
+TipoBannerReembolso? tipoBannerReembolso(Reserva reserva, QrLocal local) =>
+    // solo `cancelada` / `reembolso_pendiente`: `reembolsada` ya no tiene nada pendiente
+    tipoBannerReembolsoDe(admiteReembolso: reserva.admiteReembolso, tieneQr: reserva.reembolso?.tieneQr == true, local: local);
 
-  static const String textoAdjuntar = 'Tu pedido fue cancelado. Adjunta tu QR para recibir el reembolso';
+/// Banner de reembolso de un pedido: pide el QR bancario del cliente y muestra en qué quedó. Sirve para reservas y para compras;
+/// lo único que cambia es el texto del aviso rojo ([textoAdjuntar]).
+class BannerReembolsoPedido extends StatelessWidget {
+  const BannerReembolsoPedido({super.key, required this.tipo, required this.local, required this.textoAdjuntar, required this.onAdjuntar});
+
+  static const String textoAdjuntarReserva = 'Tu pedido fue cancelado. Adjunta tu QR para recibir el reembolso';
+  static const String textoAdjuntarCompra = 'Tu compra fue rechazada. Adjunta tu QR para recibir el reembolso';
   static const String textoEnCola = 'Tu QR está guardado en el celular. Se enviará cuando vuelva la conexión';
   static const String textoRecibido = 'Recibimos tu QR. Te haremos la transferencia del reembolso';
 
-  final Reserva reserva;
+  final TipoBannerReembolso? tipo;
   final QrLocal local;
+  final String textoAdjuntar;
 
   /// Se llama al tocar el banner rojo (adjuntar o volver a adjuntar).
   final VoidCallback onAdjuntar;
 
   @override
   Widget build(BuildContext context) {
-    final tipo = tipoBannerReembolso(reserva, local);
+    final tipo = this.tipo;
     if (tipo == null) return const SizedBox.shrink();
 
     final (color, icono, texto, detalle) = switch (tipo) {
@@ -96,4 +105,27 @@ class BannerReembolso extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Banner de reembolso de una reserva cancelada en "Mis Reservas".
+class BannerReembolso extends StatelessWidget {
+  const BannerReembolso({super.key, required this.reserva, required this.local, required this.onAdjuntar});
+
+  static const String textoAdjuntar = BannerReembolsoPedido.textoAdjuntarReserva;
+  static const String textoEnCola = BannerReembolsoPedido.textoEnCola;
+  static const String textoRecibido = BannerReembolsoPedido.textoRecibido;
+
+  final Reserva reserva;
+  final QrLocal local;
+
+  /// Se llama al tocar el banner rojo (adjuntar o volver a adjuntar).
+  final VoidCallback onAdjuntar;
+
+  @override
+  Widget build(BuildContext context) => BannerReembolsoPedido(
+        tipo: tipoBannerReembolso(reserva, local),
+        local: local,
+        textoAdjuntar: textoAdjuntar,
+        onAdjuntar: onAdjuntar,
+      );
 }

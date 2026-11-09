@@ -32,6 +32,7 @@ import 'features/offline/providers/conectividad_provider.dart';
 import 'features/offline/providers/devolucion_provider.dart';
 import 'features/offline/providers/puntos_provider.dart';
 import 'features/offline/providers/suscripciones_provider.dart';
+import 'features/offline/services/qr_sucursal_cache.dart';
 import 'features/offline/providers/turno_caja_provider.dart';
 import 'features/offline/providers/venta_offline_provider.dart';
 import 'features/offline/services/sync_service.dart';
@@ -160,7 +161,7 @@ class _SmartLookAppState extends State<SmartLookApp> {
           create: (_) => ProveedorProvider(),
         ),
         ChangeNotifierProvider<CatalogoOfflineProvider>(
-          create: (_) => CatalogoOfflineProvider(),
+          create: (_) => CatalogoOfflineProvider(qrCache: QrSucursalCache()),
         ),
         ChangeNotifierProvider<VentaOfflineProvider>(
           create: (_) => VentaOfflineProvider(),

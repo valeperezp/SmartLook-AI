@@ -2,6 +2,8 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.devoluciones.schemas import ReembolsoOut
+
 
 class VentaItemCreate(BaseModel):
     producto_id: int
@@ -49,6 +51,7 @@ class VentaOut(BaseModel):
     estado: str
     total: float
     creada_en: datetime
+    reembolso: ReembolsoOut | None = None  # si la compra se canceló o rechazó: su reembolso (con el QR del cliente, si lo subió)
     nombre_sucursal: str | None = None
     nombre_cajero: str | None = None
     nombre_cliente: str | None = None

@@ -1,5 +1,7 @@
 """Esquemas Pydantic del módulo Pagos (CU19 - Stripe)."""
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -43,6 +45,19 @@ class PagoQRCreate(BaseModel):
 class PagoConfirmarQR(BaseModel):
     aprobar: bool
     motivo_rechazo: str | None = None
+
+
+class PagoVerificar(BaseModel):
+    """Decisión del personal sobre el comprobante de un pago QR: APROBAR (descuenta el stock y completa la venta) o
+    RECHAZAR (cancela la venta y deja un reembolso pendiente para el cliente)."""
+
+    accion: Literal["APROBAR", "RECHAZAR"]
+    motivo: str | None = None
+
+
+class PagoVerificadoOut(PagoOut):
+    venta_estado: str | None = None  # completada | cancelada
+    reembolso_id: int | None = None  # el reembolso pendiente que se creó al rechazar
 
 
 class PagoPublicoOut(BaseModel):

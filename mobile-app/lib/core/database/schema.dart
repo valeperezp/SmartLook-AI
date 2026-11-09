@@ -10,6 +10,9 @@
 ///   no tienen fila en `operaciones_locales`.
 /// - `sync_queue` también transporta el SUBIR_QR_DEVOLUCION: el QR bancario que el cliente adjunta a un pedido cancelado para
 ///   recibir su reembolso (la imagen viaja en base64 dentro de `payload_json`; tampoco tiene fila en `operaciones_locales`).
+/// - `operaciones_locales` también guarda la VENTA_CLIENTE_QR: compra del cliente sin conexión, pagada por QR (el comprobante
+///   de la transferencia viaja en base64 dentro de `payload_json` de `sync_queue`).
+/// - `qr_sucursal_cache` guarda la imagen del QR bancario de cada sucursal, descargada con red, para poder cobrar sin ella.
 /// - `devoluciones_locales` (+ ítems) registra los cambios y devoluciones de una venta; su efecto neto en
 ///   efectivo (nuevo - devuelto) entra al arqueo del turno.
 /// - Los ítems guardan una copia del nombre/precio al momento de la operación, sin FK
@@ -17,7 +20,7 @@
 class Schema {
   Schema._();
 
-  static const int version = 7;
+  static const int version = 8;
   static const String nombreArchivo = 'smartlook_offline.db';
 
   static const String tablaCatalogoLocal = 'catalogo_local';
@@ -30,6 +33,7 @@ class Schema {
   static const String tablaPuntosCliente = 'puntos_cliente';
   static const String tablaMovimientosPuntos = 'movimientos_puntos';
   static const String tablaSuscripcionesStock = 'suscripciones_stock';
+  static const String tablaQrSucursalCache = 'qr_sucursal_cache';
 
   static const String tipoVentaContado = 'VENTA_CONTADO';
   static const String tipoReservaCliente = 'RESERVA_CLIENTE';
@@ -44,6 +48,9 @@ class Schema {
 
   /// Tipo de `sync_queue` para el QR bancario que el cliente adjunta a un pedido cancelado (reembolso).
   static const String tipoSubirQrDevolucion = 'SUBIR_QR_DEVOLUCION';
+
+  /// Compra del cliente hecha sin conexión y pagada por QR (con el comprobante). El stock real solo baja cuando el personal la aprueba.
+  static const String tipoVentaClienteQr = 'VENTA_CLIENTE_QR';
 
   static const String puntosGanado = 'ganado';
   static const String puntosPerdido = 'perdido';
@@ -60,7 +67,7 @@ class Schema {
   static const String itemNuevo = 'NUEVO';
 
   /// Tipos de operación del usuario (las que tienen fila en `operaciones_locales`).
-  static const List<String> tiposOperacion = [tipoVentaContado, tipoReservaCliente];
+  static const List<String> tiposOperacion = [tipoVentaContado, tipoReservaCliente, tipoVentaClienteQr];
 
   static const String turnoAbierto = 'abierto';
   static const String turnoCerrado = 'cerrado';
@@ -92,7 +99,7 @@ CREATE UNIQUE INDEX ux_catalogo_variante ON catalogo_local
   static const String _operacionesLocales = '''
 CREATE TABLE operaciones_locales (
   uuid TEXT PRIMARY KEY,
-  tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('VENTA_CONTADO', 'RESERVA_CLIENTE')),
+  tipo_operacion TEXT NOT NULL CHECK (tipo_operacion IN ('VENTA_CONTADO', 'RESERVA_CLIENTE', 'VENTA_CLIENTE_QR')),
   sucursal_id INTEGER NOT NULL,
   cajero_id INTEGER,
   cliente_id INTEGER,
@@ -104,6 +111,7 @@ CREATE TABLE operaciones_locales (
   turno_uuid TEXT REFERENCES turnos_caja(id),
   CHECK (tipo_operacion <> 'VENTA_CONTADO' OR cajero_id IS NOT NULL),
   CHECK (tipo_operacion <> 'RESERVA_CLIENTE' OR cliente_id IS NOT NULL),
+  CHECK (tipo_operacion <> 'VENTA_CLIENTE_QR' OR (cliente_id IS NOT NULL AND cajero_id IS NULL)),
   CHECK (estado <> 'sincronizada' OR id_servidor IS NOT NULL)
 )''';
 
@@ -228,7 +236,7 @@ CREATE TABLE sync_queue (
   id TEXT PRIMARY KEY,
   tipo_operacion TEXT NOT NULL
     CHECK (tipo_operacion IN ('VENTA_CONTADO', 'RESERVA_CLIENTE', 'CIERRE_CAJA', 'DEVOLUCION',
-                              'PUNTOS_OTORGADOS', 'PUNTOS_RESTADOS', 'SUBIR_QR_DEVOLUCION')),
+                              'PUNTOS_OTORGADOS', 'PUNTOS_RESTADOS', 'SUBIR_QR_DEVOLUCION', 'VENTA_CLIENTE_QR')),
   operacion_uuid TEXT REFERENCES operaciones_locales(uuid) ON DELETE RESTRICT,
   turno_uuid TEXT REFERENCES turnos_caja(id) ON DELETE RESTRICT,
   devolucion_id TEXT REFERENCES devoluciones_locales(id) ON DELETE RESTRICT,
@@ -320,6 +328,15 @@ CREATE TABLE suscripciones_stock (
   static const String _indiceSuscripcionesCliente = '''
 CREATE INDEX ix_suscripciones_cliente ON suscripciones_stock (cliente_id, estado)''';
 
+  /// Copia local del QR bancario de cada sucursal (para mostrarlo sin conexión al pagar una compra offline).
+  static const String _qrSucursalCache = '''
+CREATE TABLE qr_sucursal_cache (
+  sucursal_id INTEGER PRIMARY KEY,
+  imagen BLOB NOT NULL,
+  imagen_url TEXT,
+  actualizado_en TEXT NOT NULL
+)''';
+
   static const String _indiceSyncCola = '''
 CREATE INDEX ix_sync_cola ON sync_queue (estado, fecha_creacion)''';
 
@@ -350,6 +367,7 @@ CREATE INDEX ix_items_operacion ON operaciones_locales_items (operacion_uuid)'''
     _indiceSuscripcionesCliente,
     _syncQueue,
     _indiceSyncCola,
+    _qrSucursalCache,
   ];
 
   /// v1 → v2: turnos de caja. Conserva todos los datos existentes.
@@ -454,5 +472,13 @@ CREATE INDEX ix_items_operacion ON operaciones_locales_items (operacion_uuid)'''
         'DROP TABLE sync_queue',
         'ALTER TABLE sync_queue_nueva RENAME TO sync_queue',
         _indiceSyncCola,
+      ];
+
+  /// v7 → v8 (compra offline con pago QR): `operaciones_locales` y `sync_queue` admiten el tipo VENTA_CLIENTE_QR y nace
+  /// `qr_sucursal_cache`. Como en la v5, SQLite no puede cambiar un CHECK con ALTER: las dos tablas se reconstruyen copiando todas sus
+  /// filas, con las claves foráneas desactivadas (ver `AppDatabase.abrir`) porque `operaciones_locales` es tabla padre.
+  static List<String> get migracionV8 => [
+        ...migracionV5,
+        _qrSucursalCache.replaceFirst('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
       ];
 }

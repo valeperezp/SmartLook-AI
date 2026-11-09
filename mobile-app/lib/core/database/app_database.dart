@@ -100,6 +100,16 @@ class AppDatabase {
             await db.execute(sentencia);
           }
         }
+        if (anterior < 8) {
+          for (final sentencia in Schema.migracionV8) {
+            await db.execute(sentencia);
+          }
+          // Se reconstruyó una tabla padre con las claves foráneas desactivadas: se comprueba antes de confirmar (si falla, se revierte todo).
+          final violaciones = await db.rawQuery('PRAGMA foreign_key_check');
+          if (violaciones.isNotEmpty) {
+            throw StateError('La migración a v8 dejó ${violaciones.length} claves foráneas rotas: $violaciones');
+          }
+        }
         debugPrint('[AppDatabase] Esquema migrado de v$anterior a v$nueva.');
       },
     );

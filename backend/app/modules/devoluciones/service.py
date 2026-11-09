@@ -504,3 +504,12 @@ def procesar_reembolso(db: Session, usuario: Usuario, reserva_id: int | None = N
     db.commit()
     db.refresh(reembolso)
     return reembolso
+
+
+def reembolso_pendiente_de(db: Session, empresa_id: int, origen) -> Reembolso:
+    """El reembolso del pedido cancelado [origen] (reserva o venta): el que ya existe o uno nuevo, pendiente.
+
+    Lo usa el rechazo de un pago QR (se cancela la venta y el cliente tiene que recibir su dinero). NO confirma la transacción.
+    """
+    es_reserva = isinstance(origen, Reserva)
+    return _reembolso_de(db, origen.id if es_reserva else None, None if es_reserva else origen.id) or _crear_reembolso(db, empresa_id, origen)

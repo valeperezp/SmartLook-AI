@@ -221,6 +221,7 @@ class SyncQueueDao {
       estadoOperacion: 'sincronizada',
       motivo: null,
       idServidor: idServidor,
+      antesDeCerrar: (txn) => _descartarComprobante(txn, uuid),
     );
   }
 
@@ -238,6 +239,7 @@ class SyncQueueDao {
       antesDeCerrar: (txn) async {
         devueltas = await _devolverStockLocal(txn, uuid);
         await PuntosDao.cancelarPorOperacionEn(txn, uuid); // los puntos de una venta rechazada se anulan
+        await _descartarComprobante(txn, uuid);
       },
     );
     return devueltas;
@@ -289,6 +291,17 @@ class SyncQueueDao {
       motivo: motivo,
       idServidor: idServidor,
     );
+  }
+
+  /// El comprobante de una compra QR ya no hace falta guardarlo en el celular (el servidor lo tiene, o la compra se rechazó).
+  Future<void> _descartarComprobante(Transaction txn, String uuid) async {
+    final filas = await txn.query(Schema.tablaSyncQueue, columns: ['id', 'payload_json'], where: 'operacion_uuid = ?', whereArgs: [uuid]);
+    for (final fila in filas) {
+      final payload = jsonDecode(fila['payload_json'] as String) as Map<String, dynamic>;
+      if (payload.remove('comprobante_base64') != null) {
+        await txn.update(Schema.tablaSyncQueue, {'payload_json': jsonEncode(payload)}, where: 'id = ?', whereArgs: [fila['id']]);
+      }
+    }
   }
 
   Future<void> _cerrarOperacion(
@@ -357,6 +370,12 @@ class SyncQueueDao {
     }
     if (tipoOperacion == Schema.tipoReservaCliente && clienteId == null) {
       throw ArgumentError('clienteId es obligatorio en RESERVA_CLIENTE');
+    }
+    if (tipoOperacion == Schema.tipoVentaClienteQr) {
+      if (clienteId == null) throw ArgumentError('clienteId es obligatorio en VENTA_CLIENTE_QR');
+      if (cajeroId != null) throw ArgumentError('Una VENTA_CLIENTE_QR no lleva cajero');
+      final comprobante = json['comprobante_base64'];
+      if (comprobante is! String || comprobante.isEmpty) throw ArgumentError('comprobante_base64 es obligatorio en VENTA_CLIENTE_QR');
     }
 
     final items = json['items'];

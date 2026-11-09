@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { DevolucionCreate, DevolucionOut, VentaDevolvible } from '../models/devolucion.model';
-import { Reembolso } from '../models/reserva.model';
+import { Reembolso, ReembolsoDetalle } from '../models/reserva.model';
 
 /** Cambios y devoluciones (CU11). Las reglas (plazo de días, cantidades, stock) las valida SIEMPRE el backend. */
 @Injectable({ providedIn: 'root' })
@@ -23,6 +23,13 @@ export class DevolucionesService {
   /** Días que una venta admite cambios y devoluciones en esta empresa. */
   plazoDias() {
     return this.http.get<{ plazo_dias: number }>(`${this.base}/configuracion`);
+  }
+
+  /** Reembolsos de la empresa (un cajero o encargado ve solo los de su sucursal), con la URL del QR que subió el cliente. */
+  reembolsos(estado?: 'pendiente' | 'reembolsado') {
+    let params = new HttpParams();
+    if (estado) params = params.set('estado', estado);
+    return this.http.get<ReembolsoDetalle[]>(`${this.base}/reembolsos`, { params });
   }
 
   /**

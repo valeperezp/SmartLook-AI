@@ -1,3 +1,5 @@
+import 'reserva.dart' show ReembolsoReserva;
+
 class VentaItem {
   final int id;
   final int productoId;
@@ -55,6 +57,9 @@ class Venta {
   final int totalItems;
   final int totalUnidades;
 
+  /// Si la compra se canceló o rechazó: su reembolso (con el estado del QR del cliente en el servidor).
+  final ReembolsoReserva? reembolso;
+
   const Venta({
     required this.id,
     this.clienteId,
@@ -70,6 +75,7 @@ class Venta {
     required this.items,
     required this.totalItems,
     required this.totalUnidades,
+    this.reembolso,
   });
 
   factory Venta.fromJson(Map<String, dynamic> json) {
@@ -104,6 +110,16 @@ class Venta {
       totalItems: json['total_items'] as int? ?? itemList.length,
       totalUnidades: json['total_unidades'] as int? ??
           itemList.fold(0, (acc, i) => acc + i.cantidad),
+      reembolso: json['reembolso'] is Map<String, dynamic> ? ReembolsoReserva.fromJson(json['reembolso'] as Map<String, dynamic>) : null,
     );
+  }
+
+  bool get isReembolsada => estado.toLowerCase() == 'reembolsada';
+
+  /// La compra se canceló o rechazó (p. ej. el encargado rechazó su comprobante) y su reembolso sigue pendiente: el cliente puede
+  /// adjuntar su QR bancario. Una compra cancelada SIN reembolso (el cliente la canceló antes de pagar) no muestra nada.
+  bool get admiteReembolso {
+    final e = estado.toLowerCase();
+    return (e == 'cancelada' || e == 'reembolso_pendiente') && reembolso?.estado == 'pendiente';
   }
 }

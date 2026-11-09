@@ -1,7 +1,8 @@
 """Lógica de la sincronización de operaciones offline de la app móvil.
 
 Tipos que recibe (cada uno en su lista del lote):
-- `operaciones`: VENTA_CONTADO (cajero) y RESERVA_CLIENTE (cliente).
+- `operaciones`: VENTA_CONTADO (cajero), RESERVA_CLIENTE (cliente) y VENTA_CLIENTE_QR (compra del cliente pagada por QR con su
+  comprobante en base64: queda `pendiente` con el pago en `pendiente_verificacion`; el stock se descuenta al aprobarla el personal).
 - `devoluciones`: cambios/devoluciones de una venta de contado ya sincronizada.
 - `movimientos_puntos`: puntos de fidelización otorgados o restados.
 - `cierres_caja`: cierre de un turno de caja (exige que sus ventas ya estén sincronizadas).
@@ -19,6 +20,8 @@ Reglas comunes:
 """
 import base64
 import binascii
+import os
+import uuid as uuid_lib
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Callable
@@ -34,6 +37,8 @@ from app.modules.fidelizacion import service as fidelizacion
 from app.modules.inventario.models import MovimientoInventario
 from app.modules.reservas import schemas as reservas_schemas
 from app.modules.reservas import service as reservas_service
+from app.modules.pagos.models import Pago
+from app.modules.pagos.service import ESTADO_PENDIENTE_VERIFICACION, MAX_COMPROBANTE_SIZE
 from app.modules.sucursales.models import Sucursal
 from app.modules.sync import schemas
 from app.modules.sync.models import (
@@ -46,12 +51,15 @@ from app.modules.usuarios.models import Usuario
 from app.modules.ventas import schemas as ventas_schemas
 from app.modules.ventas import service as ventas_service
 from app.modules.ventas.models import Venta, VentaItem
+from app.shared.core.config import settings
+from app.shared.utils.imagenes import validar_imagen
 
 TIPO_VENTA = "VENTA_CONTADO"
 TIPO_RESERVA = "RESERVA_CLIENTE"
 TIPO_DEVOLUCION = "DEVOLUCION"
 TIPO_CIERRE = "CIERRE_CAJA"
 TIPO_QR_DEVOLUCION = "SUBIR_QR_DEVOLUCION"
+TIPO_VENTA_CLIENTE_QR = "VENTA_CLIENTE_QR"
 ROLES_VENTA = ("cajero", "administrador", "encargado_sucursal")
 ROLES_RESERVA = ("cliente",)
 
@@ -282,7 +290,50 @@ def _aplicar_operacion(db: Session, usuario: Usuario, op: schemas.OperacionSync)
             reserva.creada_en = fecha
         return "reserva", reserva.id
 
+    if op.tipo_operacion == TIPO_VENTA_CLIENTE_QR:
+        return _aplicar_compra_cliente_qr(db, usuario, op)
+
     raise ConflictoSync(f"Tipo de operación no soportado: {op.tipo_operacion}")
+
+
+def _aplicar_compra_cliente_qr(db: Session, usuario: Usuario, op: schemas.OperacionSync) -> tuple[str, int]:
+    """Compra del cliente hecha SIN conexión y pagada por QR: crea la venta `pendiente` (sin tocar el stock) y su pago QR en
+    `pendiente_verificacion` con el comprobante que subió desde el celular. El personal lo ve en "Pagos por verificar": al aprobarlo
+    se descuenta el stock y se completa la venta; al rechazarlo se cancela y queda un reembolso pendiente."""
+    empresa_id = usuario.empresa_id
+    if usuario.rol != "cliente":
+        raise ConflictoSync("Solo un cliente puede registrar compras con pago QR")
+    if op.cliente_id is not None and op.cliente_id != usuario.id:
+        raise ConflictoSync("La compra es de otro cliente")
+    _validar_empresa_operacion(db, empresa_id, op)
+    if not op.comprobante_base64:
+        raise ConflictoSync("Falta el comprobante de pago")
+    try:
+        contenido = base64.b64decode(op.comprobante_base64, validate=True)
+    except (binascii.Error, ValueError):
+        raise ConflictoSync("El comprobante de pago no es válido")
+    _, extension = validar_imagen(contenido, MAX_COMPROBANTE_SIZE)  # tamaño y firma real del archivo (HTTPException → conflicto)
+
+    data = ventas_schemas.VentaOnlineCreate(
+        sucursal_id=op.sucursal_id,
+        items=[ventas_schemas.VentaItemCreate(producto_id=i.producto_id, talla_id=i.talla_id, color_id=i.color_id, cantidad=i.cantidad) for i in op.items],
+    )
+    venta = ventas_service.crear_venta_online(db, data, cliente_id=usuario.id, empresa_id=empresa_id, commit=False)
+    fecha = _fecha_local(op.fecha)
+    if fecha is not None:
+        venta.creada_en = fecha
+
+    pago = Pago(venta_id=venta.id, metodo="qr", monto=venta.total, estado=ESTADO_PENDIENTE_VERIFICACION)
+    db.add(pago)
+    db.flush()
+    relativo = f"comprobantes/pago_{pago.id}_{uuid_lib.uuid4().hex}.{extension}"
+    absoluto = os.path.join(settings.uploads_dir, relativo)
+    os.makedirs(os.path.dirname(absoluto), exist_ok=True)
+    with open(absoluto, "wb") as archivo:
+        archivo.write(contenido)
+    pago.comprobante_path = relativo
+    db.flush()
+    return "venta", venta.id
 
 
 # ---------------------------------------------------------------------------------------------------------------

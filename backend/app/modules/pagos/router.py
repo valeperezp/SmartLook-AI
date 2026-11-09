@@ -3,7 +3,7 @@
 Multi-empresa (RNF-02): solo se paga o se consulta una venta de la empresa del usuario, y un cliente solo
 las suyas. Una venta o un pago de otra empresa se trata como inexistente (404).
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.modules.auth.service import require_roles
@@ -116,6 +116,19 @@ def confirmar_pago_qr(
     """Confirma o rechaza un pago QR (solo cajero/encargado/admin de la empresa)."""
     _pago_accesible(db, usuario, pago_id)
     return service.confirmar_pago_qr(db, pago_id, data.aprobar, usuario.id, data.motivo_rechazo)
+
+
+@router.post("/{pago_id}/verificar", response_model=schemas.PagoVerificadoOut)
+def verificar_pago(
+    pago_id: int,
+    data: schemas.PagoVerificar,
+    request: Request,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(require_roles("cajero", "encargado_sucursal", "administrador")),
+):
+    """APROBAR (descuenta el stock y completa la venta) o RECHAZAR (cancela la venta y crea un reembolso pendiente)."""
+    pago, venta_estado, reembolso_id = service.verificar_pago_qr(db, usuario, pago_id, data.accion, data.motivo, request=request)
+    return {**schemas.PagoOut.model_validate(pago).model_dump(), "venta_estado": venta_estado, "reembolso_id": reembolso_id}
 
 
 @router.get("/pendientes-verificacion", response_model=list[schemas.PagoOut])

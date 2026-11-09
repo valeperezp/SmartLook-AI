@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../auth/providers/auth_provider.dart';
+import '../../reservas/widgets/selector_qr.dart';
 import '../models/catalogo_item.dart';
 import '../providers/catalogo_offline_provider.dart';
 import '../providers/conectividad_provider.dart';
@@ -13,10 +14,14 @@ import '../providers/suscripciones_provider.dart';
 import '../services/sync_service.dart';
 import '../widgets/banner_catalogo_desactualizado.dart';
 import '../widgets/banner_offline.dart';
+import '../widgets/compra_qr_sheet.dart';
 
 /// Catálogo leído de SQLite (funciona sin red) con reserva local de productos.
 class CatalogoOfflineScreen extends StatefulWidget {
-  const CatalogoOfflineScreen({super.key});
+  const CatalogoOfflineScreen({super.key, this.selectorComprobante});
+
+  /// Cómo se elige el comprobante de la compra offline (por defecto: cámara o galería). Las pruebas lo reemplazan.
+  final SelectorQr? selectorComprobante;
 
   @override
   State<CatalogoOfflineScreen> createState() => _CatalogoOfflineScreenState();
@@ -78,6 +83,26 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
     _avisar(provider.ultimoMensaje);
   }
 
+  /// Sin conexión el cliente también puede COMPRAR: ve el QR de la sucursal (guardado en el celular), sube el comprobante de su
+  /// transferencia y la compra queda en la cola de sincronización (el stock local baja enseguida).
+  Future<void> _comprar(CatalogoItem producto) async {
+    final provider = context.read<CatalogoOfflineProvider>();
+    final clienteId = context.read<AuthProvider>().usuario?.id;
+    if (clienteId == null) {
+      _avisar('Inicia sesión para comprar.');
+      return;
+    }
+    final compra = await mostrarCompraQr(
+      context,
+      producto: producto,
+      obtenerQr: () async => provider.qrDeSucursal(producto.sucursalId),
+      selector: widget.selectorComprobante,
+    );
+    if (compra == null || !mounted) return;
+    await provider.comprarConQr(producto, clienteId, cantidad: compra.cantidad, comprobante: compra.comprobante, nombreComprobante: compra.nombreComprobante);
+    _avisar(provider.ultimoMensaje);
+  }
+
   Future<void> _cargarMock({bool reponerAgotados = false}) async {
     final provider = context.read<CatalogoOfflineProvider>();
     await provider.cargarDatosMock(reponerAgotados: reponerAgotados);
@@ -133,6 +158,7 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
     final provider = context.watch<CatalogoOfflineProvider>();
     // Se observa aquí (no dentro del itemBuilder): context.select/watch no se permite en un builder diferido.
     final suscripciones = context.watch<SuscripcionesProvider>();
+    final online = context.watch<ConectividadProvider>().online;
 
     return Scaffold(
       appBar: AppBar(
@@ -191,13 +217,13 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
               ),
             ),
           const BannerCatalogoDesactualizado(),
-          Expanded(child: _cuerpo(provider, suscripciones)),
+          Expanded(child: _cuerpo(provider, suscripciones, online)),
         ],
       ),
     );
   }
 
-  Widget _cuerpo(CatalogoOfflineProvider provider, SuscripcionesProvider suscripciones) {
+  Widget _cuerpo(CatalogoOfflineProvider provider, SuscripcionesProvider suscripciones, bool online) {
     if (provider.cargando && provider.productos.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -217,11 +243,11 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
     }
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 88), // espacio para el botón flotante
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.62,
+        childAspectRatio: online ? 0.62 : 0.5, // sin red cada tarjeta lleva además el botón Comprar
       ),
       itemCount: provider.productos.length,
       itemBuilder: (context, i) {
@@ -231,6 +257,8 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
           reservando: provider.estaReservando(producto),
           suscrito: suscripciones.estaSuscrito(producto),
           onReservar: () => _reservar(producto),
+          ofrecerCompra: !online,
+          onComprar: () => _comprar(producto),
           onAvisame: () => _avisame(producto),
         );
       },
@@ -245,6 +273,8 @@ class _TarjetaProducto extends StatelessWidget {
     required this.suscrito,
     required this.onReservar,
     required this.onAvisame,
+    this.ofrecerCompra = false,
+    this.onComprar,
   });
 
   final CatalogoItem producto;
@@ -254,6 +284,10 @@ class _TarjetaProducto extends StatelessWidget {
   final bool suscrito;
   final VoidCallback onReservar;
   final VoidCallback onAvisame;
+
+  /// Sin conexión se ofrece "Comprar" (pago por QR con comprobante); "Reservar" sigue disponible como segunda opción.
+  final bool ofrecerCompra;
+  final VoidCallback? onComprar;
 
   @override
   Widget build(BuildContext context) {
@@ -293,10 +327,29 @@ class _TarjetaProducto extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: producto.hayStock
-                  ? FilledButton(
-                      onPressed: !reservando ? onReservar : null,
-                      child: Text(reservando ? 'Guardando…' : 'Reservar'),
-                    )
+                  ? (ofrecerCompra
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: FilledButton(
+                                key: Key('comprar_${producto.inventarioId}'),
+                                onPressed: !reservando ? onComprar : null,
+                                child: Text(reservando ? 'Guardando…' : 'Comprar'),
+                              ),
+                            ),
+                            TextButton(
+                              key: Key('reservar_${producto.inventarioId}'),
+                              onPressed: !reservando ? onReservar : null,
+                              child: const Text('Reservar'),
+                            ),
+                          ],
+                        )
+                      : FilledButton(
+                          onPressed: !reservando ? onReservar : null,
+                          child: Text(reservando ? 'Guardando…' : 'Reservar'),
+                        ))
                   // Sin stock no se puede reservar: se ofrece el aviso (CU16)
                   : OutlinedButton.icon(
                       onPressed: suscrito ? null : onAvisame,

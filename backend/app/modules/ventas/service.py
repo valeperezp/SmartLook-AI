@@ -252,9 +252,9 @@ def listar_todas_ventas(db: Session, empresa_id: int | None = None) -> list[mode
 
 
 def crear_venta_online(
-    db: Session, data: schemas.VentaOnlineCreate, cliente_id: int, empresa_id: int | None = None
+    db: Session, data: schemas.VentaOnlineCreate, cliente_id: int, empresa_id: int | None = None, commit: bool = True
 ) -> models.Venta:
-    """Crea una venta online en estado pendiente sin descontar inventario."""
+    """Crea una venta online en estado pendiente sin descontar inventario. Con `commit=False` solo hace flush (quien llama confirma)."""
     # 1. Validar que la sucursal exista (y que sea de la empresa del cliente)
     _validar_empresa(db, empresa_id, data.sucursal_id, [i.producto_id for i in data.items])
     sucursal = db.query(Sucursal).filter(Sucursal.id == data.sucursal_id).first()
@@ -301,6 +301,9 @@ def crear_venta_online(
         )
 
     venta.total = round(total, 2)
+    if not commit:
+        db.flush()
+        return venta
     db.commit()
     db.refresh(venta)
 

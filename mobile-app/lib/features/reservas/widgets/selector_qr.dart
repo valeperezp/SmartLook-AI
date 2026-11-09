@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Imagen elegida por el cliente como su QR bancario.
+/// Imagen elegida por el cliente (su QR bancario o el comprobante de un pago).
 class QrElegido {
   const QrElegido(this.bytes, this.nombre);
 
@@ -11,12 +11,12 @@ class QrElegido {
   final String nombre;
 }
 
-/// Cómo se elige el QR (se puede cambiar en las pruebas, que no abren la cámara ni la galería).
+/// Cómo se elige la imagen (se puede cambiar en las pruebas, que no abren la cámara ni la galería).
 typedef SelectorQr = Future<QrElegido?> Function(BuildContext context);
 
 /// Pregunta si usar la cámara o la galería y devuelve la imagen elegida, o null si el cliente cancela. La imagen se reduce
 /// (máx. 1600 px, calidad 85) para que pese poco al guardarla en el celular y enviarla.
-Future<QrElegido?> elegirQrConImagePicker(BuildContext context) async {
+Future<QrElegido?> _elegirImagen(BuildContext context, {required String textoCamara, required String textoGaleria}) async {
   final fuente = await showModalBottomSheet<ImageSource>(
     context: context,
     builder: (hoja) => SafeArea(
@@ -25,12 +25,12 @@ Future<QrElegido?> elegirQrConImagePicker(BuildContext context) async {
         children: [
           ListTile(
             leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Tomar una foto del QR'),
+            title: Text(textoCamara),
             onTap: () => Navigator.pop(hoja, ImageSource.camera),
           ),
           ListTile(
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Elegir de la galería'),
+            title: Text(textoGaleria),
             onTap: () => Navigator.pop(hoja, ImageSource.gallery),
           ),
         ],
@@ -43,3 +43,11 @@ Future<QrElegido?> elegirQrConImagePicker(BuildContext context) async {
   if (foto == null) return null;
   return QrElegido(await foto.readAsBytes(), foto.name);
 }
+
+/// Elige el QR bancario del cliente para recibir un reembolso.
+Future<QrElegido?> elegirQrConImagePicker(BuildContext context) =>
+    _elegirImagen(context, textoCamara: 'Tomar una foto del QR', textoGaleria: 'Elegir de la galería');
+
+/// Elige el comprobante de la transferencia con la que el cliente pagó una compra offline.
+Future<QrElegido?> elegirComprobanteConImagePicker(BuildContext context) =>
+    _elegirImagen(context, textoCamara: 'Tomar una foto del comprobante', textoGaleria: 'Elegir el comprobante de la galería');

@@ -20,7 +20,7 @@ class ItemSync(BaseModel):
 
 class OperacionSync(BaseModel):
     uuid: str = Field(..., min_length=1, max_length=64)  # id local de la app = clave de idempotencia
-    tipo_operacion: str  # VENTA_CONTADO | RESERVA_CLIENTE
+    tipo_operacion: str  # VENTA_CONTADO | RESERVA_CLIENTE | VENTA_CLIENTE_QR
     sucursal_id: int
     cajero_id: int | None = None
     cliente_id: int | None = None
@@ -30,6 +30,9 @@ class OperacionSync(BaseModel):
     # CU17: puntos que el cliente canjeó en esta venta offline. El servidor aplica el descuento al total (valor del punto de
     # su empresa); los puntos en sí se restan con el movimiento PUNTOS_RESTADOS (motivo "canje") que sube la app.
     puntos_canjeados: int = Field(0, ge=0)
+    # VENTA_CLIENTE_QR (compra del cliente sin conexión, pagada por QR): el comprobante de la transferencia, en base64
+    comprobante_base64: str | None = Field(default=None, max_length=14_500_000)
+    comprobante_nombre: str | None = None  # informativo: el tipo real sale del contenido
 
 
 # ---------- Devolución / cambio ----------

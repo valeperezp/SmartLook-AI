@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
-import { Pago, PaymentIntentCreate, PaymentIntentResponse } from '../models/pago.model';
+import { Pago, PagoVerificado, PaymentIntentCreate, PaymentIntentResponse } from '../models/pago.model';
 
 @Injectable({ providedIn: 'root' })
 export class PagosService {
@@ -47,6 +47,14 @@ export class PagosService {
       aprobar,
       motivo_rechazo: motivoRechazo,
     });
+  }
+
+  /**
+   * Decisión del personal sobre una compra pagada por QR desde el celular (sin conexión). APROBAR descuenta el stock y completa
+   * la venta; RECHAZAR la cancela y deja un reembolso pendiente para el cliente.
+   */
+  verificar(pagoId: number, accion: 'APROBAR' | 'RECHAZAR', motivo?: string) {
+    return this.http.post<PagoVerificado>(`${this.base}/${pagoId}/verificar`, motivo ? { accion, motivo } : { accion });
   }
 
   listarPendientesVerificacion(sucursalId?: number) {

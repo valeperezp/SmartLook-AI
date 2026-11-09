@@ -95,7 +95,11 @@
             <div class="pago-card-header">
               <div class="pago-id-group">
                 <span class="pago-id">Pago #{{ pago.id }}</span>
-                <span class="badge badge-pendiente">PENDIENTE</span>
+                @if (esCompraOffline(pago)) {
+                  <span class="badge badge-offline">COMPRA OFFLINE · POR VERIFICAR</span>
+                } @else {
+                  <span class="badge badge-pendiente">PENDIENTE</span>
+                }
               </div>
               <div class="pago-monto">
                 {{ pago.monto_formateado || (pago.monto | currency: 'USD' : 'symbol' : '1.2-2') }}
@@ -148,25 +152,47 @@
               </button>
 
               <div class="action-buttons">
-                <button
-                  type="button"
-                  class="btn-danger-action"
-                  (click)="rechazarPago(pago, $event)"
-                  [disabled]="procesando()"
-                >
-                  <app-icon name="alert-circle" [size]="16" />
-                  <span>Rechazar</span>
-                </button>
+                @if (esCompraOffline(pago)) {
+                  <button
+                    type="button"
+                    class="btn-danger-action"
+                    (click)="rechazarYReembolsar(pago, $event)"
+                    [disabled]="procesando()"
+                  >
+                    <app-icon name="alert-circle" [size]="16" />
+                    <span>Rechazar y reembolsar</span>
+                  </button>
 
-                <button
-                  type="button"
-                  class="btn-success-action"
-                  (click)="confirmarPago(pago, $event)"
-                  [disabled]="procesando()"
-                >
-                  <app-icon name="check-circle" [size]="16" />
-                  <span>Confirmar pago</span>
-                </button>
+                  <button
+                    type="button"
+                    class="btn-success-action"
+                    (click)="aprobarVenta(pago, $event)"
+                    [disabled]="procesando()"
+                  >
+                    <app-icon name="check-circle" [size]="16" />
+                    <span>Aprobar venta</span>
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn-danger-action"
+                    (click)="rechazarPago(pago, $event)"
+                    [disabled]="procesando()"
+                  >
+                    <app-icon name="alert-circle" [size]="16" />
+                    <span>Rechazar</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-success-action"
+                    (click)="confirmarPago(pago, $event)"
+                    [disabled]="procesando()"
+                  >
+                    <app-icon name="check-circle" [size]="16" />
+                    <span>Confirmar pago</span>
+                  </button>
+                }
               </div>
             </div>
           </article>
@@ -174,6 +200,48 @@
       </div>
     }
   </main>
+
+  <!-- Reembolsos pendientes: compras rechazadas y reservas canceladas que esperan la transferencia al cliente -->
+  <section class="reembolsos-seccion" data-testid="reembolsos">
+    <header class="reembolsos-header">
+      <h2>Reembolsos pendientes</h2>
+      <p class="subtitle">Compras rechazadas y reservas canceladas: transfiérele al cliente (al QR que subió desde la app) y márcalo como hecho</p>
+    </header>
+
+    @if (errorReembolsos() && reembolsos().length === 0) {
+      <div class="card reembolsos-vacio">No se pudieron cargar los reembolsos pendientes.</div>
+    } @else if (reembolsos().length === 0) {
+      <div class="card reembolsos-vacio">No hay reembolsos pendientes.</div>
+    } @else {
+      <div class="reembolsos-lista">
+        @for (r of reembolsos(); track r.id) {
+          <article class="card reembolso-card" [attr.data-reembolso]="r.id">
+            <div class="reembolso-datos">
+              <strong class="reembolso-pedido">{{ etiquetaReembolso(r) }}</strong>
+              <span class="reembolso-cliente">{{ r.nombre_cliente || (r.cliente_id ? 'Cliente #' + r.cliente_id : 'Cliente de mostrador') }}</span>
+              <span class="reembolso-monto">Monto a devolver: <strong>{{ r.monto | currency: 'USD' : 'symbol' : '1.2-2' }}</strong></span>
+              @if (r.qr_devolucion_url) {
+                <span class="reembolso-estado ok">El cliente subió su QR: transfiérele el monto y luego márcalo.</span>
+              } @else {
+                <span class="reembolso-estado pendiente">El cliente aún no subió su QR de devolución.</span>
+              }
+            </div>
+
+            @if (r.qr_devolucion_url; as qr) {
+              <a [href]="qr" target="_blank" rel="noopener" class="reembolso-qr" title="Abrir el QR en grande">
+                <img [src]="qr" alt="QR de devolución del cliente" class="reembolso-qr-img" />
+              </a>
+            }
+
+            <button type="button" class="btn-success btn-grande" (click)="procesarReembolso(r)" [disabled]="procesando()">
+              <app-icon name="check-circle" [size]="18" />
+              <span>Procesar Reembolso</span>
+            </button>
+          </article>
+        }
+      </div>
+    }
+  </section>
 
   <!-- Modal de Detalle -->
   @if (modalDetalleAbierto() && pagoSeleccionado()) {
@@ -203,9 +271,20 @@
             </div>
             <div class="meta-item">
               <span class="meta-label">Estado</span>
-              <span class="badge badge-pendiente">PENDIENTE</span>
+              @if (esCompraOffline(pagoSeleccionado()!)) {
+                <span class="badge badge-offline">COMPRA OFFLINE · POR VERIFICAR</span>
+              } @else {
+                <span class="badge badge-pendiente">PENDIENTE</span>
+              }
             </div>
           </div>
+
+          @if (esCompraOffline(pagoSeleccionado()!)) {
+            <p class="aviso-offline" data-testid="aviso-offline">
+              El cliente hizo esta compra sin conexión desde la app. El stock todavía no se descontó: al aprobarla se descuenta y la venta
+              queda completada; al rechazarla se cancela y se crea un reembolso pendiente.
+            </p>
+          }
 
           <div class="modal-image-wrapper">
             @if (pagoSeleccionado()!.comprobante_url) {
@@ -230,25 +309,47 @@
             Cerrar
           </button>
 
-          <button
-            type="button"
-            class="btn-danger"
-            (click)="rechazarPago(pagoSeleccionado()!)"
-            [disabled]="procesando()"
-          >
-            <app-icon name="alert-circle" [size]="16" />
-            <span>Rechazar</span>
-          </button>
+          @if (esCompraOffline(pagoSeleccionado()!)) {
+            <button
+              type="button"
+              class="btn-danger btn-grande"
+              (click)="rechazarYReembolsar(pagoSeleccionado()!)"
+              [disabled]="procesando()"
+            >
+              <app-icon name="alert-circle" [size]="18" />
+              <span>Rechazar y Reembolsar</span>
+            </button>
 
-          <button
-            type="button"
-            class="btn-success"
-            (click)="confirmarPago(pagoSeleccionado()!)"
-            [disabled]="procesando()"
-          >
-            <app-icon name="check-circle" [size]="16" />
-            <span>Confirmar pago</span>
-          </button>
+            <button
+              type="button"
+              class="btn-success btn-grande"
+              (click)="aprobarVenta(pagoSeleccionado()!)"
+              [disabled]="procesando()"
+            >
+              <app-icon name="check-circle" [size]="18" />
+              <span>Aprobar Venta</span>
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="btn-danger"
+              (click)="rechazarPago(pagoSeleccionado()!)"
+              [disabled]="procesando()"
+            >
+              <app-icon name="alert-circle" [size]="16" />
+              <span>Rechazar</span>
+            </button>
+
+            <button
+              type="button"
+              class="btn-success"
+              (click)="confirmarPago(pagoSeleccionado()!)"
+              [disabled]="procesando()"
+            >
+              <app-icon name="check-circle" [size]="16" />
+              <span>Confirmar pago</span>
+            </button>
+          }
         </div>
       </div>
     </div>

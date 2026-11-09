@@ -161,6 +161,11 @@ from fastapi import UploadFile
 ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp"}
 MAX_COMPROBANTE_SIZE = 10 * 1024 * 1024  # 10 MB
 
+# `pendiente_verificacion`: pago QR de una compra hecha sin conexión (ya viene con su comprobante). Los pagos QR de la web quedan
+# `pendiente` con su comprobante. Ambos esperan que el personal los verifique.
+ESTADO_PENDIENTE_VERIFICACION = "pendiente_verificacion"
+ESTADOS_POR_VERIFICAR = ("pendiente", ESTADO_PENDIENTE_VERIFICACION)
+
 
 def crear_pago_qr(db: Session, venta_id: int) -> models.Pago:
     """Crea un pago pendiente por QR para una venta."""
@@ -251,7 +256,7 @@ def confirmar_pago_qr(db: Session, pago_id: int, aprobar: bool, usuario_id: int,
     if pago.metodo != "qr":
         raise HTTPException(status_code=400, detail="Este pago no es por QR")
     
-    if pago.estado != "pendiente":
+    if pago.estado not in ESTADOS_POR_VERIFICAR:
         raise HTTPException(status_code=409, detail="Este pago ya fue procesado")
     
     if not pago.comprobante_path:
@@ -314,7 +319,7 @@ def listar_pagos_pendientes_qr(
         .options(joinedload(models.Pago.venta))
         .filter(
             models.Pago.metodo == "qr",
-            models.Pago.estado == "pendiente",
+            models.Pago.estado.in_(ESTADOS_POR_VERIFICAR),
             models.Pago.comprobante_path.isnot(None),
         )
     )
@@ -404,3 +409,69 @@ async def subir_comprobante_publico(db: Session, pago_id: int, archivo: UploadFi
         "mensaje": "Comprobante recibido. Esperá la verificación del cajero.",
     }
 
+
+def verificar_pago_qr(db: Session, usuario, pago_id: int, accion: str, motivo: str | None = None, request=None):
+    """El personal revisa el comprobante de un pago QR y decide. Devuelve (pago, estado de la venta, id del reembolso o None).
+
+    - APROBAR: el pago queda `completado` y, si es una venta online pendiente, se descuenta el stock y se completa. Si ya no
+      alcanza el stock no se vende nada: la venta se cancela y queda un reembolso pendiente (el cliente ya pagó) y se responde 409.
+    - RECHAZAR: el pago queda `fallido`, la venta online se cancela (los puntos canjeados vuelven) y se crea un reembolso pendiente
+      para que el cliente reciba su dinero (adjuntando su QR desde la app).
+    Multi-empresa: un pago de otra empresa no existe (404); un cajero o encargado solo verifica pagos de su sucursal.
+    """
+    from datetime import datetime, timezone
+
+    from app.modules.bitacora import service as bitacora
+    from app.modules.devoluciones.service import reembolso_pendiente_de
+    from app.modules.ventas.service import completar_venta_y_descontar_stock
+
+    pago = db.query(models.Pago).filter(models.Pago.id == pago_id).with_for_update().populate_existing().first()
+    venta = db.query(Venta).filter(Venta.id == pago.venta_id).first() if pago else None
+    if pago is None or venta is None or venta.sucursal is None or venta.sucursal.empresa_id != usuario.empresa_id:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    if usuario.rol in ("cajero", "encargado_sucursal") and venta.sucursal_id != usuario.sucursal_id:
+        raise HTTPException(status_code=403, detail="No tiene permisos para gestionar pagos de otra sucursal")
+    if pago.metodo != "qr":
+        raise HTTPException(status_code=400, detail="Este pago no es por QR")
+    if pago.estado not in ESTADOS_POR_VERIFICAR:
+        raise HTTPException(status_code=409, detail="Este pago ya fue procesado")
+    if not pago.comprobante_path:
+        raise HTTPException(status_code=400, detail="El pago no tiene comprobante subido")
+
+    empresa_id = venta.sucursal.empresa_id
+    pago.confirmado_por_id = usuario.id
+    pago.confirmado_en = datetime.now(timezone.utc)
+    bitacora.registrar(db, "pago.verificar", f"Pago #{pago.id} ({accion}) de la venta #{venta.id}", usuario=usuario, request=request)
+    reembolso = None
+
+    if accion == "APROBAR":
+        pago.estado = "completado"
+        if venta.canal == "online" and venta.estado == "pendiente":
+            try:
+                completar_venta_y_descontar_stock(db, venta.id)  # descuenta el stock y confirma todo (pago incluido)
+            except HTTPException as e:
+                pago.estado = "fallido"
+                pago.referencia_externa = f"FALLO STOCK: {e.detail}"[:150]
+                venta.estado = "cancelada"
+                devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
+                reembolso = reembolso_pendiente_de(db, empresa_id, venta)
+                db.commit()
+                raise HTTPException(
+                    status_code=409,
+                    detail="No hay stock suficiente para esta compra: la venta se canceló y quedó un reembolso pendiente para el cliente",
+                )
+        else:
+            db.commit()  # venta presencial: ya estaba cobrada y con el stock descontado, solo se confirma el pago
+    else:  # RECHAZAR
+        pago.estado = "fallido"
+        if motivo:
+            pago.referencia_externa = f"RECHAZADO: {motivo[:100]}"
+        if venta.canal == "online" and venta.estado == "pendiente":
+            venta.estado = "cancelada"
+            devolver_canje_de_venta(db, venta)  # CU17: los puntos canjeados vuelven
+            reembolso = reembolso_pendiente_de(db, empresa_id, venta)
+        db.commit()
+
+    db.refresh(pago)
+    db.refresh(venta)
+    return pago, venta.estado, (reembolso.id if reembolso is not None else None)

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -5,9 +7,11 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/schema.dart';
 import '../data/catalogo_local_dao.dart';
 import '../data/mock_data.dart';
+import '../data/qr_devolucion_dao.dart';
 import '../data/sync_queue_dao.dart';
 import '../models/catalogo_item.dart';
 import '../services/catalogo_sync_service.dart';
+import '../services/qr_sucursal_cache.dart';
 
 /// Pasadas estas horas sin descargar el catálogo, se avisa que la información puede estar desactualizada (CU8).
 const Duration limiteCatalogoDesactualizado = Duration(hours: 24);
@@ -18,15 +22,21 @@ class CatalogoOfflineProvider extends ChangeNotifier {
     CatalogoLocalDao? catalogoDao,
     SyncQueueDao? colaDao,
     CatalogoSyncService? catalogoSync,
+    QrSucursalCache? qrCache,
     DateTime Function()? ahora,
   })  : _catalogoDao = catalogoDao ?? CatalogoLocalDao(),
         _colaDao = colaDao ?? SyncQueueDao(),
         _catalogoSyncInyectado = catalogoSync,
+        // ignore: prefer_initializing_formals
+        _qrCache = qrCache,
         _ahora = ahora ?? DateTime.now;
 
   final CatalogoLocalDao _catalogoDao;
   final SyncQueueDao _colaDao;
   final CatalogoSyncService? _catalogoSyncInyectado;
+
+  /// Copia local del QR bancario de cada sucursal (null = no se guarda; así las pruebas no salen a la red).
+  final QrSucursalCache? _qrCache;
   final DateTime Function() _ahora;
   late final CatalogoSyncService _catalogoSync = _catalogoSyncInyectado ?? CatalogoSyncService(dao: _catalogoDao);
   static const _uuid = Uuid();
@@ -117,6 +127,7 @@ class CatalogoOfflineProvider extends ChangeNotifier {
       final r = await _catalogoSync.descargarCatalogoDesdeServidor();
       avisos = r.avisos;
       await _leer();
+      await _guardarQrDeSucursales();
       _ultimoMensaje = CatalogoSyncService.mensajeDescarga(resultado: r, pendientes: _pendientes);
     } catch (e, st) {
       if (e is! SinConexionException) debugPrint('[CatalogoOfflineProvider] Error al descargar el catálogo: $e\n$st');
@@ -177,6 +188,90 @@ class CatalogoOfflineProvider extends ChangeNotifier {
       await _leer(); // refleja el stock descontado (o el real, si la reserva falló)
     } catch (e) {
       debugPrint('[CatalogoOfflineProvider] Error al refrescar tras reservar: $e');
+    }
+    notifyListeners();
+    return guardada;
+  }
+
+  /// Con red: guarda en el celular el QR bancario de cada sucursal del catálogo para poder cobrar compras offline. Nunca falla.
+  Future<void> _guardarQrDeSucursales() async {
+    final cache = _qrCache;
+    if (cache == null) return;
+    try {
+      await cache.actualizar({for (final p in _productos) p.sucursalId});
+    } catch (e) {
+      debugPrint('[CatalogoOfflineProvider] No se pudo guardar el QR de las sucursales: $e');
+    }
+  }
+
+  /// La imagen guardada del QR bancario de [sucursalId] (null si nunca se descargó): se muestra sin conexión al pagar.
+  Future<Uint8List?> qrDeSucursal(int sucursalId) async => _qrCache?.obtener(sucursalId);
+
+  /// Compra [cantidad] unidades de [producto] SIN conexión, pagadas por QR: guarda en la cola una VENTA_CLIENTE_QR con el
+  /// comprobante de la transferencia ([comprobante], en base64) y baja el stock local enseguida (descuento optimista). El stock
+  /// real solo baja cuando el encargado aprueba el pago. Devuelve si se guardó; el motivo queda en [ultimoMensaje].
+  Future<bool> comprarConQr(
+    CatalogoItem producto,
+    int clienteId, {
+    required int cantidad,
+    required List<int> comprobante,
+    String nombreComprobante = 'comprobante.jpg',
+  }) async {
+    if (_reservando.contains(producto.inventarioId)) return false; // doble toque
+    if (cantidad < 1 || cantidad > producto.cantidadDisponible) {
+      _ultimoMensaje = producto.hayStock ? 'Solo quedan ${producto.cantidadDisponible} unidad(es) disponibles.' : 'Sin stock disponible.';
+      notifyListeners();
+      return false;
+    }
+    try {
+      QrDevolucionDao.validarImagen(comprobante); // mismas reglas que el servidor: PNG/JPG/WEBP de hasta 5 MB
+    } on QrInvalido catch (e) {
+      _ultimoMensaje = 'El comprobante no sirve: ${e.mensaje}';
+      notifyListeners();
+      return false;
+    }
+
+    _reservando.add(producto.inventarioId);
+    notifyListeners();
+    var guardada = false;
+    try {
+      await _colaDao.guardarOperacionOffline(
+        {
+          'sucursal_id': producto.sucursalId,
+          'items': [
+            {
+              'inventario_id': producto.inventarioId,
+              'producto_id': producto.productoId,
+              'talla_id': producto.tallaId,
+              'color_id': producto.colorId,
+              'nombre_producto': producto.nombre,
+              'cantidad': cantidad,
+              'precio_unitario_centavos': producto.precioCentavos,
+            },
+          ],
+          'comprobante_base64': base64Encode(comprobante),
+          'comprobante_nombre': nombreComprobante,
+        },
+        _uuid.v4(),
+        Schema.tipoVentaClienteQr,
+        clienteId,
+        descontarStockLocal: true,
+      );
+      guardada = true;
+      _ultimoMensaje = 'Compra guardada en el dispositivo. Se enviará al recuperar la conexión y el encargado verificará tu comprobante.';
+    } on StockLocalInsuficiente {
+      _ultimoMensaje = 'Ya no queda stock disponible de este producto.';
+    } catch (e, st) {
+      debugPrint('[CatalogoOfflineProvider] Error al guardar la compra offline: $e\n$st');
+      _ultimoMensaje = 'No se pudo guardar la compra.';
+    } finally {
+      _reservando.remove(producto.inventarioId);
+    }
+
+    try {
+      await _leer(); // refleja el stock descontado (o el real, si la compra falló)
+    } catch (e) {
+      debugPrint('[CatalogoOfflineProvider] Error al refrescar tras comprar: $e');
     }
     notifyListeners();
     return guardada;

@@ -25,6 +25,15 @@ export interface Reembolso {
   procesado_en?: string | null;
 }
 
+/** Lo que ve el personal de un reembolso pendiente: además, de quién y de qué pedido es (una compra o una reserva). */
+export interface ReembolsoDetalle extends Reembolso {
+  origen: 'reserva' | 'venta';
+  sucursal_id: number;
+  nombre_sucursal?: string | null;
+  nombre_cliente?: string | null;
+  email_cliente?: string | null;
+}
+
 export interface Reserva {
   id: number;
   cliente_id: number;
