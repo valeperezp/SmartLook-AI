@@ -8,6 +8,7 @@ popular entre todos los clientes. Pensado para poder swappearse más adelante po
 una llamada a un LLM externo sin tocar el router (ver `ai_api_key` en config).
 """
 import json
+import time
 import unicodedata
 from collections import Counter
 from datetime import datetime
@@ -594,6 +595,10 @@ def _completar_chat_openai(
     return data["choices"][0]["message"]["content"].strip()
 
 
+_INTENTOS_IA = 3
+_ESTADOS_REINTENTABLES = {429, 500, 502, 503, 504}
+
+
 def interpretar_json(
     db: Session, system_prompt: str, mensaje: str, timeout_s: float = 90.0, max_tokens: int = 4000
 ) -> dict | None:
@@ -607,27 +612,39 @@ def interpretar_json(
     config = obtener_configuracion_ia(db)
     config = SimpleNamespace(base_url=config.base_url, api_key=config.api_key, modelo=config.modelo)
     db.commit()  # libera la conexion del pool antes de la llamada lenta al LLM
-    try:
-        respuesta = httpx.post(
-            f"{config.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {config.api_key or 'sin-api-key'}"},
-            json={
-                "model": config.modelo,
-                "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": mensaje}],
-                "temperature": 0,
-                "max_tokens": max_tokens,
-                "response_format": {"type": "json_object"},
-            },
-            timeout=httpx.Timeout(timeout_s, connect=5.0),
-        )
-        respuesta.raise_for_status()
-        texto = respuesta.json()["choices"][0]["message"]["content"]
-        # Algunos modelos envuelven el JSON en ```json ... ```.
-        texto = texto.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        datos = json.loads(texto)
-        return datos if isinstance(datos, dict) else None
-    except Exception:
-        return None
+    # Los proveedores en la nube devuelven a veces 429/5xx por saturación momentánea: se reintenta
+    # un par de veces antes de declarar el servicio no disponible (CU14 4.a).
+    for intento in range(_INTENTOS_IA):
+        try:
+            respuesta = httpx.post(
+                f"{config.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {config.api_key or 'sin-api-key'}"},
+                json={
+                    "model": config.modelo,
+                    "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": mensaje}],
+                    "temperature": 0,
+                    "max_tokens": max_tokens,
+                    "response_format": {"type": "json_object"},
+                },
+                timeout=httpx.Timeout(timeout_s, connect=5.0),
+            )
+            if respuesta.status_code in _ESTADOS_REINTENTABLES and intento < _INTENTOS_IA - 1:
+                time.sleep(1.5 * (intento + 1))
+                continue
+            respuesta.raise_for_status()
+            texto = respuesta.json()["choices"][0]["message"]["content"]
+            # Algunos modelos envuelven el JSON en ```json ... ```.
+            texto = texto.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+            datos = json.loads(texto)
+            return datos if isinstance(datos, dict) else None
+        except httpx.TransportError:
+            if intento < _INTENTOS_IA - 1:
+                time.sleep(1.5 * (intento + 1))
+                continue
+            return None
+        except Exception:
+            return None
+    return None
 
 
 def probar_configuracion_ia(db: Session) -> dict:
