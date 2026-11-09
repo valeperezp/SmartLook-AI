@@ -97,6 +97,7 @@ class _CatalogoOfflineScreenState extends State<CatalogoOfflineScreen> {
       producto: producto,
       obtenerQr: () async => provider.qrDeSucursal(producto.sucursalId),
       selector: widget.selectorComprobante,
+      motivoSinQr: provider.motivoSinQr(producto.sucursalId),
     );
     if (compra == null || !mounted) return;
     await provider.comprarConQr(producto, clienteId, cantidad: compra.cantidad, comprobante: compra.comprobante, nombreComprobante: compra.nombreComprobante);

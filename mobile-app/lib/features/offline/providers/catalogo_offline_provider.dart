@@ -127,8 +127,8 @@ class CatalogoOfflineProvider extends ChangeNotifier {
       final r = await _catalogoSync.descargarCatalogoDesdeServidor();
       avisos = r.avisos;
       await _leer();
-      await _guardarQrDeSucursales();
-      _ultimoMensaje = CatalogoSyncService.mensajeDescarga(resultado: r, pendientes: _pendientes);
+      final avisoQr = await _guardarQrDeSucursales();
+      _ultimoMensaje = CatalogoSyncService.mensajeDescarga(resultado: r, pendientes: _pendientes) + (avisoQr == null ? '' : ' $avisoQr');
     } catch (e, st) {
       if (e is! SinConexionException) debugPrint('[CatalogoOfflineProvider] Error al descargar el catálogo: $e\n$st');
       _ultimoMensaje = CatalogoSyncService.mensajeDescarga(error: e);
@@ -193,14 +193,31 @@ class CatalogoOfflineProvider extends ChangeNotifier {
     return guardada;
   }
 
+  /// Por qué NO hay QR guardado de cada sucursal (la sucursal no tiene QR configurado, la imagen no está en el servidor...). Una
+  /// sucursal cuyo QR se guardó bien no aparece. Se muestra en la hoja de compra para que el cliente sepa qué pasó.
+  final Map<int, String> _motivosSinQr = {};
+
+  String? motivoSinQr(int sucursalId) => _motivosSinQr[sucursalId];
+
   /// Con red: guarda en el celular el QR bancario de cada sucursal del catálogo para poder cobrar compras offline. Nunca falla.
-  Future<void> _guardarQrDeSucursales() async {
+  /// Devuelve un aviso para el usuario si algún QR NO se pudo descargar (así el fallo no queda oculto), o null si todo salió bien.
+  Future<String?> _guardarQrDeSucursales() async {
     final cache = _qrCache;
-    if (cache == null) return;
+    if (cache == null) return null;
     try {
-      await cache.actualizar({for (final p in _productos) p.sucursalId});
+      final r = await cache.actualizarConDetalle({for (final p in _productos) p.sucursalId});
+      for (final id in r.guardadas) {
+        _motivosSinQr.remove(id);
+      }
+      for (final id in [...r.sinQr, ...r.fallidas.keys]) {
+        final motivo = r.motivoDe(id);
+        if (motivo != null) _motivosSinQr[id] = motivo;
+      }
+      if (r.fallidas.isEmpty) return null;
+      return r.fallidas.entries.map((e) => 'No se pudo descargar el QR de la sucursal ${e.key}: ${e.value}.').join(' ');
     } catch (e) {
       debugPrint('[CatalogoOfflineProvider] No se pudo guardar el QR de las sucursales: $e');
+      return null;
     }
   }
 

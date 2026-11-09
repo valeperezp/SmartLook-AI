@@ -20,25 +20,29 @@ Future<CompraQr?> mostrarCompraQr(
   required CatalogoItem producto,
   required Future<Uint8List?> Function() obtenerQr,
   SelectorQr? selector,
+  String? motivoSinQr,
 }) {
   return showModalBottomSheet<CompraQr>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => CompraQrSheet(producto: producto, obtenerQr: obtenerQr, selector: selector ?? elegirComprobanteConImagePicker),
+    builder: (_) => CompraQrSheet(producto: producto, obtenerQr: obtenerQr, selector: selector ?? elegirComprobanteConImagePicker, motivoSinQr: motivoSinQr),
   );
 }
 
 /// Compra offline con pago por QR: el cliente ve el QR bancario de la sucursal (guardado en el celular), paga con la app de su
 /// banco, sube el comprobante y confirma. La compra queda en la cola de sincronización y el stock local baja enseguida.
 class CompraQrSheet extends StatefulWidget {
-  const CompraQrSheet({super.key, required this.producto, required this.obtenerQr, required this.selector});
+  const CompraQrSheet({super.key, required this.producto, required this.obtenerQr, required this.selector, this.motivoSinQr});
 
   final CatalogoItem producto;
 
   /// El QR guardado de la sucursal del producto (null si nunca se descargó).
   final Future<Uint8List?> Function() obtenerQr;
   final SelectorQr selector;
+
+  /// Por qué no hay QR guardado (la última actualización del catálogo lo averiguó): se muestra junto al aviso.
+  final String? motivoSinQr;
 
   @override
   State<CompraQrSheet> createState() => _CompraQrSheetState();
@@ -177,9 +181,19 @@ class _CompraQrSheetState extends State<CompraQrSheet> {
         key: const Key('sin_qr'),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
-        child: Text(
-          'Esta sucursal no tiene su QR guardado en el celular. Conéctate a internet una vez y actualiza el catálogo para descargarlo.',
-          style: TextStyle(color: Colors.orange.shade900),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Esta sucursal no tiene su QR guardado en el celular. Conéctate a internet una vez y actualiza el catálogo para descargarlo.',
+              style: TextStyle(color: Colors.orange.shade900),
+            ),
+            if (widget.motivoSinQr != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('Motivo: ${widget.motivoSinQr}', key: const Key('motivo_sin_qr'), style: TextStyle(color: Colors.orange.shade900, fontWeight: FontWeight.w600)),
+              ),
+          ],
         ),
       );
     }

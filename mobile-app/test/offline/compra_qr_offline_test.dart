@@ -289,6 +289,9 @@ void main() {
 
       await cacheDao.guardar(1, _png, url: '/uploads/qr/a.png');
       expect(await cacheDao.obtener(1), _png);
+      final fila = (await filas(Schema.tablaQrSucursalCache)).single;
+      expect(fila['imagen_url'], '/uploads/qr/a.png', reason: 'la tabla local guarda la ruta del QR además de la imagen');
+      expect(fila['actualizado_en'], isNotNull);
       await cacheDao.guardar(1, _jpg);
       expect(await cacheDao.obtener(1), _jpg);
       expect(await filas(Schema.tablaQrSucursalCache), hasLength(1));
@@ -323,6 +326,78 @@ void main() {
       expect(descargadas.first, endsWith('/uploads/qr/s.png'));
     });
 
+    DioException respuesta(int codigo) => DioException(
+          requestOptions: RequestOptions(path: '/uploads/qr/s.png'),
+          type: DioExceptionType.badResponse,
+          response: Response(requestOptions: RequestOptions(path: '/uploads/qr/s.png'), statusCode: codigo),
+        );
+
+    test('si la IMAGEN del QR da 404 en el servidor (la fila existe pero el archivo no) no se guarda nada y el motivo queda a la vista', () async {
+      final cache = QrSucursalCache(
+        dao: cacheDao,
+        consultar: (id) async => id == 2 ? null : qr(id),
+        descargar: (url) async => throw respuesta(404),
+      );
+
+      final r = await cache.actualizarConDetalle([1, 2]);
+
+      expect(r.guardadas, isEmpty);
+      expect(r.sinQr, [2]);
+      expect(r.fallidas.keys, [1]);
+      expect(r.fallidas[1], allOf(contains('error 404'), contains('volver a subirla')));
+      expect(r.motivoDe(1), r.fallidas[1]);
+      expect(r.motivoDe(2), contains('no tiene un QR configurado'));
+      expect(r.motivoDe(9), isNull);
+      expect(await filas(Schema.tablaQrSucursalCache), isEmpty);
+    });
+
+    test('los otros fallos también se explican: sin conexión, error del servidor e imagen vacía', () async {
+      Future<String?> motivo(Future<List<int>> Function(String) descargar) async {
+        final cache = QrSucursalCache(dao: cacheDao, consultar: (id) async => qr(id), descargar: descargar);
+        return (await cache.actualizarConDetalle([1])).fallidas[1];
+      }
+
+      expect(await motivo((_) async => throw DioException(requestOptions: RequestOptions(path: '/x'), type: DioExceptionType.connectionError)), contains('sin conexión'));
+      expect(await motivo((_) async => throw respuesta(500)), contains('error 500'));
+      expect(await motivo((_) async => const <int>[]), contains('llegó vacía'));
+      expect(await filas(Schema.tablaQrSucursalCache), isEmpty);
+    });
+
+    test('al actualizar el catálogo el proveedor AVISA que no pudo descargar el QR (ya no es silencioso) y lo recuerda por sucursal', () async {
+      var imagenDisponible = false;
+      final provider = CatalogoOfflineProvider(
+        catalogoDao: catalogo,
+        colaDao: cola,
+        catalogoSync: _CatalogoSyncFalso(catalogo, [_fila(id: 1, sucursal: 1), _fila(id: 2, sucursal: 2), _fila(id: 3, sucursal: 3)]),
+        qrCache: QrSucursalCache(
+          dao: cacheDao,
+          consultar: (id) async => id == 2 ? null : qr(id), // la 2 no tiene QR; la 1 y la 3 sí
+          descargar: (url) async => imagenDisponible ? _png : throw respuesta(404),
+        ),
+      );
+
+      await provider.actualizarDesdeServidor();
+
+      expect(provider.ultimoMensaje, startsWith('Catálogo actualizado'));
+      expect(provider.ultimoMensaje, contains('No se pudo descargar el QR de la sucursal 1'));
+      expect(provider.ultimoMensaje, contains('error 404'));
+      expect(provider.ultimoMensaje, contains('sucursal 3'));
+      expect(provider.ultimoMensaje, isNot(contains('sucursal 2')), reason: 'una sucursal sin QR configurado no es un fallo de la descarga');
+      expect(provider.motivoSinQr(1), contains('error 404'));
+      expect(provider.motivoSinQr(2), contains('no tiene un QR configurado'));
+      expect(await provider.qrDeSucursal(1), isNull);
+
+      // el encargado vuelve a subir el QR: la siguiente actualización lo guarda y el motivo desaparece
+      imagenDisponible = true;
+      await provider.actualizarDesdeServidor();
+
+      expect(provider.ultimoMensaje, isNot(contains('No se pudo descargar')));
+      expect(provider.motivoSinQr(1), isNull);
+      expect(provider.motivoSinQr(3), isNull);
+      expect(provider.motivoSinQr(2), contains('no tiene un QR configurado'));
+      expect(await provider.qrDeSucursal(1), _png);
+    });
+
     test('un QR inactivo o sin imagen no se guarda', () async {
       final cache = QrSucursalCache(dao: cacheDao, consultar: (id) async => id == 1 ? qr(1, activo: false) : qr(2, url: ''), descargar: (_) async => _png);
 
@@ -349,6 +424,8 @@ void main() {
       await provider.actualizarDesdeServidor();
 
       expect(pedidos.toSet(), {1, 7});
+      final guardadas = {for (final f in await filas(Schema.tablaQrSucursalCache)) f['sucursal_id']: f['imagen_url']};
+      expect(guardadas, {1: '/uploads/qr/s.png', 7: '/uploads/qr/s.png'}, reason: 'cada sucursal del catálogo queda con la ruta de su QR');
       expect(await provider.qrDeSucursal(7), _png);
       expect(await provider.qrDeSucursal(1), _png);
       expect(await provider.qrDeSucursal(9), isNull);
@@ -455,7 +532,7 @@ void main() {
 
   // =====================================================================================================================
   group('hoja "Comprar" (widget)', () {
-    Future<Future<CompraQr?> Function()> abrir(WidgetTester tester, {Uint8List? qr, SelectorQr? selector, CatalogoItem? producto}) async {
+    Future<Future<CompraQr?> Function()> abrir(WidgetTester tester, {Uint8List? qr, SelectorQr? selector, CatalogoItem? producto, String? motivoSinQr}) async {
       CompraQr? resultado;
       var cerrada = false;
       tester.view.devicePixelRatio = 1;
@@ -471,6 +548,7 @@ void main() {
                   producto: producto ?? _item(),
                   obtenerQr: () async => qr,
                   selector: selector ?? (_) async => QrElegido(_png, 'comprobante.png'),
+                  motivoSinQr: motivoSinQr,
                 );
                 cerrada = true;
               },
@@ -509,6 +587,22 @@ void main() {
       expect(find.byKey(const Key('sin_qr')), findsOneWidget);
       expect(find.textContaining('Conéctate a internet una vez'), findsOneWidget);
       expect(find.byKey(const Key('qr_sucursal')), findsNothing);
+    });
+
+    testWidgets('si no hay QR guardado, la hoja explica POR QUÉ (el motivo que averiguó la última actualización del catálogo)', (tester) async {
+      await abrir(tester, qr: null, motivoSinQr: 'la imagen del QR no está en el servidor (error 404): el encargado debe volver a subirla');
+      await mostrar(tester);
+
+      expect(find.byKey(const Key('sin_qr')), findsOneWidget);
+      expect(find.byKey(const Key('motivo_sin_qr')), findsOneWidget);
+      expect(find.textContaining('error 404'), findsOneWidget);
+    });
+
+    testWidgets('con el QR guardado no aparece ningún motivo', (tester) async {
+      await abrir(tester, qr: _png, motivoSinQr: 'dato viejo');
+      await mostrar(tester);
+
+      expect(find.byKey(const Key('motivo_sin_qr')), findsNothing);
     });
 
     testWidgets('Subir comprobante habilita "Confirmar compra" y devuelve la cantidad y el comprobante elegido', (tester) async {
